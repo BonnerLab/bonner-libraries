@@ -17,6 +17,11 @@ __all__ = [
     "load_rois",
     "load_receptive_fields",
     "load_functional_contrasts",
+    "create_stimulus_set",
+    "save_images",
+    "transform_volume_to_mni",
+    "transform_volume_to_native_surface",
+    "convert_ndarray_to_nifti1image",
 ]
 
 from bonner.datasets.allen2021_natural_scenes._utilities import (
@@ -40,4 +45,13 @@ from bonner.datasets.allen2021_natural_scenes._data import (
     load_rois,
     load_receptive_fields,
     load_functional_contrasts,
+)
+from bonner.datasets.allen2021_natural_scenes._stimuli import (
+    create_stimulus_set,
+    save_images,
+)
+from bonner.datasets.allen2021_natural_scenes._transform import (
+    transform_volume_to_mni,
+    transform_volume_to_native_surface,
+    convert_ndarray_to_nifti1image,
 )

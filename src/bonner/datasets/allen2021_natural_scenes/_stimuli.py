@@ -1,9 +1,11 @@
+from pathlib import Path
+
 from tqdm import tqdm
 from PIL import Image
 import pandas as pd
 import xarray as xr
-from bonner.files import download_from_s3
 
+from bonner.files import download_from_s3
 from bonner.datasets.allen2021_natural_scenes._utilities import BUCKET_NAME, CACHE_PATH
 
 N_STIMULI = 73000
@@ -15,10 +17,8 @@ def load_stimulus_metadata() -> pd.DataFrame:
     Returns:
         stimulus metadata
     """
-    filepath = (
-        CACHE_PATH / "nsddata" / "experiments" / "nsd" / "nsd_stim_info_merged.csv"
-    )
-    download_from_s3(filepath, bucket=BUCKET_NAME)
+    filepath = Path("nsddata") / "experiments" / "nsd" / "nsd_stim_info_merged.csv"
+    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     metadata = pd.read_csv(filepath, sep=",").rename(
         columns={"Unnamed: 0": "stimulus_id"}
     )
@@ -37,9 +37,9 @@ def create_stimulus_set() -> pd.DataFrame:
     return stimulus_set
 
 
-def save_images() -> None:
-    filepath = CACHE_PATH / "nsddata_stimuli" / "stimuli" / "nsd" / "nsd_stimuli.hdf5"
-    download_from_s3(filepath, bucket=BUCKET_NAME)
+def save_images() -> Path:
+    filepath = Path("nsddata_stimuli") / "stimuli" / "nsd" / "nsd_stimuli.hdf5"
+    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
 
     stimuli = xr.open_dataset(filepath)["imgBrick"]
 
@@ -52,4 +52,7 @@ def save_images() -> None:
     )
     for image, image_path in tqdm(zip(images, image_paths), desc="image", leave=False):
         if not image_path.exists():
+            print(1)
             image.save(image_path)
+
+    return CACHE_PATH

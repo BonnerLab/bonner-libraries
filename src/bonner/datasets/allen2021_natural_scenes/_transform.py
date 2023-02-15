@@ -20,15 +20,14 @@ def load_transformation(
     subject: int, *, source_space: str, target_space: str, suffix: str
 ) -> np.ndarray:
     filepath = (
-        CACHE_PATH
-        / "nsddata"
+        Path("nsddata")
         / "ppdata"
         / f"subj{subject + 1:02}"
         / "transforms"
         / f"{source_space}-to-{target_space}{suffix}"
     )
 
-    download_from_s3(filepath, bucket=BUCKET_NAME)
+    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     transformation = nib.load(filepath).get_fdata()
     return transformation
 
@@ -37,14 +36,13 @@ def load_native_surface(
     subject: int, *, hemisphere: str, surface_type: str = "w-g.pct.mgh"
 ) -> Path:
     filepath = (
-        CACHE_PATH
-        / "nsddata"
+        Path("nsddata")
         / "freesurfer"
         / f"subj{subject + 1:02}"
         / f"surf"
         / f"{hemisphere}.{surface_type}"
     )
-    download_from_s3(filepath, bucket=BUCKET_NAME)
+    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     return filepath
 
 

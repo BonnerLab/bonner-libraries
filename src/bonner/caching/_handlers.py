@@ -9,6 +9,7 @@ from tqdm.dask import TqdmCallback
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
+import nibabel as nib
 
 
 class Handler(ABC):
@@ -86,6 +87,20 @@ class PickleHandler(Handler):
             return pickle.load(f, **kwargs)
 
 
+class Nifti1ImageHandler(Handler):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def save(
+        self, result: nib.nifti1.Nifti1Image, *, path: Path, **kwargs: Any
+    ) -> None:
+        if isinstance(result, nib.nifti1.Nifti1Image):
+            nib.save(result, path)
+
+    def load(self, path: Path, **kwargs: Any) -> nib.nifti1.Nifti1Image:
+        return nib.load(path)
+
+
 def get_handler(filetype: str) -> Handler:
     match filetype:
         case "numpy":
@@ -94,5 +109,7 @@ def get_handler(filetype: str) -> Handler:
             return XarrayHandler()
         case "pickle":
             return PickleHandler()
+        case "NIfTI":
+            return Nifti1ImageHandler()
         case _:
             raise ValueError(f"Handler for filetype {filetype} not supported")

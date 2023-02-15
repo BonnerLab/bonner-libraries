@@ -7,6 +7,7 @@ import os
 
 import numpy as np
 import xarray as xr
+import nibabel as nib
 
 from bonner.caching._handlers import get_handler
 
@@ -164,6 +165,12 @@ class Cacher:
                 if path.suffix != ".nc":
                     raise ValueError(
                         "identifier must have suffix '.nc' if filetype is 'auto'"
+                    )
+            elif isinstance(result, nib.nifti1.Nifti1Image):
+                filetype = "NIfTI"
+                if path.suffix != ".nii.gz":
+                    raise ValueError(
+                        "identifier must have suffix '.nii.gz' if filetype is 'auto'"
                     )
             else:
                 filetype = "pickle"
