@@ -15,7 +15,7 @@ keywords = [
     "Bonner Lab",
     "BrainIO",
     "neural datasets",
-    "utilities",
+    "caching",
     "files",
     "figshare",
 ]
