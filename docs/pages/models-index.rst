@@ -21,7 +21,7 @@ Since the package is under active development, we have not yet released a stable
 Environment variables
 ^^^^^^^^^^^^^^^^^^^^^
 
-All extracted activations are stored within the directory specified by ``$BONNER_MODELS_CACHE``.
+All extracted activations are stored within the directory specified by ``$BONNER_MODELS_HOME``.
 
 Things to do
 ------------

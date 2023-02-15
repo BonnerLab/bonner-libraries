@@ -9,7 +9,7 @@ from torchvision.models.feature_extraction import create_feature_extractor
 from torchdata.datapipes.iter import IterDataPipe
 
 from bonner.models.hooks import Hook
-from bonner.models.utilities import BONNER_MODELS_CACHE
+from bonner.models.utilities import BONNER_MODELS_HOME
 
 
 def extract_features(
@@ -20,7 +20,7 @@ def extract_features(
     hooks: dict[str, Hook],
     datapipe: IterDataPipe,
     datapipe_identifier: str,
-    cache_path: Path = BONNER_MODELS_CACHE,
+    cache_path: Path = BONNER_MODELS_HOME,
     use_cached: bool = True,
     device: torch.device | None = None,
 ) -> dict[str, xr.DataArray]:

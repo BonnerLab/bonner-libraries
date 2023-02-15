@@ -17,7 +17,7 @@ Since the package is under active development, we have not yet released a stable
 Environment variables
 ---------------------
 
-All ``bonner-datasets`` data will be stored at the path specified by ``BONNER_DATASETS_CACHE``.
+All ``bonner-datasets`` data will be stored at the path specified by ``BONNER_DATASETS_HOME``.
 
 Note
 ----

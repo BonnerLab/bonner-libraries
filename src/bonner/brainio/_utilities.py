@@ -1,7 +1,4 @@
-"""Utility functions for validating Catalogs, Data Assemblies, and Stimulus Sets."""
-
-__all__: list[str] = []
-
+import os
 import hashlib
 import re
 import zipfile
@@ -9,6 +6,10 @@ from pathlib import Path
 
 import pandas as pd
 import xarray as xr
+
+BONNER_BRAINIO_HOME = Path(
+    os.getenv("BONNER_BRAINIO_HOME", str(Path.home() / ".cache" / "bonner-brainio"))
+)
 
 
 def validate_catalog(path: Path) -> None:

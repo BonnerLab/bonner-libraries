@@ -18,7 +18,7 @@ def preprocess(image: Image) -> torch.Tensor:
 
 
 dataset = DTD(
-    os.getenv("BONNER_DATASETS_CACHE", str(Path.home() / ".cache" / "bonner-datasets")),
+    os.getenv("BONNER_DATASETS_HOME", str(Path.home() / ".cache" / "bonner-datasets")),
     download=True,
 )
 stimuli = list((Path(dataset.root) / "dtd" / "dtd" / "images").rglob("*.jpg"))

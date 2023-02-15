@@ -22,11 +22,11 @@ Since the package is under active development, we have not yet released a stable
 Environment variables
 ---------------------
 
-All ``bonner-brainio`` data will be stored at the path specified by ``BONNER_BRAINIO_CACHE``.
+All ``bonner-brainio`` data will be stored at the path specified by ``BONNER_BRAINIO_HOME``.
 
 Default directory structure
 ---------------------------
 
-- Catalog CSV files are stored at ``$BONNER_BRAINIO_CACHE/<catalog-identifier>/catalog.csv``
-- When loading assemblies and stimulus sets, the files are downloaded to ``$BONNER_BRAINIO_CACHE/<catalog-identifier>/``
-- When packaging assemblies and stimulus sets using the convenience functions, the files are first placed in ``$BONNER_BRAINIO_CACHE/<catalog-identifier>/`` before being pushed to the specified remote location
+- Catalog CSV files are stored at ``$BONNER_BRAINIO_HOME/<catalog-identifier>/catalog.csv``
+- When loading assemblies and stimulus sets, the files are downloaded to ``$BONNER_BRAINIO_HOME/<catalog-identifier>/``
+- When packaging assemblies and stimulus sets using the convenience functions, the files are first placed in ``$BONNER_BRAINIO_HOME/<catalog-identifier>/`` before being pushed to the specified remote location

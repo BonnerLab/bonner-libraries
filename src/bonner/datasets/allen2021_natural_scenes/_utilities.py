@@ -4,11 +4,11 @@ import numpy as np
 import xarray as xr
 from bonner.computation.xarray import groupby_reset
 
-from bonner.datasets._utilities import BONNER_DATASETS_CACHE
+from bonner.datasets._utilities import BONNER_DATASETS_HOME
 
 IDENTIFIER = "allen2021.natural_scenes"
 BUCKET_NAME = "natural-scenes-dataset"
-CACHE_PATH = BONNER_DATASETS_CACHE / IDENTIFIER
+CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 
 
 def compute_shared_stimulus_ids(

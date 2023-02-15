@@ -7,10 +7,10 @@ import torchvision
 from PIL import Image
 
 from bonner.files import download_from_url
-from bonner.models.utilities import BONNER_MODELS_CACHE
+from bonner.models.utilities import BONNER_MODELS_HOME
 from bonner.models.zoo._pytorch import _preprocess
 
-VISSL_CACHE = BONNER_MODELS_CACHE / "models" / "vissl"
+VISSL_CACHE = BONNER_MODELS_HOME / "models" / "vissl"
 URLS = {
     "ClusterFit-16K-RotNet-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/converted_vissl_rn50_rotnet_16kclusters_in1k_ep105.torch",
     "NPID++-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/npid_pp/4node_800ep_32kneg_cosine_resnet_23_07_20.75432662/model_final_checkpoint_phase799.torch",

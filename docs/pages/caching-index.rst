@@ -19,7 +19,7 @@ Since the package is under active development, we have not yet released a stable
 Environment variables
 ---------------------
 
-All cached outputs are stored within the directory specified by ``$BONNER_CACHING_CACHE``.
+All cached outputs are stored within the directory specified by ``$BONNER_CACHING_HOME``.
 
 
 API Reference

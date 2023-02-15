@@ -1,4 +1,4 @@
-# Bonner Lab | Files
+# Bonner Lab | Libraries
 
 ## `bonner.brainio` - Bonner Lab implementation of the BrainIO specification for neural datasets
 ## `bonner.files` - Bonner Lab utilities for handling files

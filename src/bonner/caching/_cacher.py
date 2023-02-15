@@ -1,5 +1,3 @@
-__all__ = ["Cacher"]
-
 from typing import Any, ParamSpec, TypeVar
 from collections.abc import Callable, Mapping
 from functools import wraps
@@ -23,7 +21,7 @@ class Cacher:
         *,
         path: Path = Path(
             os.getenv(
-                "BONNER_CACHING_CACHE", str(Path.home() / ".cache" / "bonner-caching")
+                "BONNER_CACHING_HOME", str(Path.home() / ".cache" / "bonner-caching")
             )
         ),
         helper: Callable[[Mapping[str, Any]], dict[str, str]] = None,
@@ -52,7 +50,7 @@ class Cacher:
 
         Advanced usage:
 
-        The following example will cache the output of ``add({"three": 3, "five": 5})`` ``to $BONNER_CACHING_CACHE/analysis/keys=three.five/values=3_5/True.pkl``.
+        The following example will cache the output of ``add({"three": 3, "five": 5})`` ``to $BONNER_CACHING_HOME/analysis/keys=three.five/values=3_5/True.pkl``.
 
         ```
         analysis = "fancy_sum"
@@ -74,7 +72,7 @@ class Cacher:
             * Track progress of :PEP: `501` (https://peps.python.org/pep-0501/) which introduces lazy f-strings. This would allow for a simpler implementation without the ``helper`` argument.
 
         Args:
-            path: Cache directory to save to/load from. Defaults to the value of the environment variable BONNER_CACHING_CACHE. If the environment variable is not set, defaults to ``~/.cache/bonner-caching``.
+            path: Cache directory to save to/load from. Defaults to the value of the environment variable BONNER_CACHING_HOME. If the environment variable is not set, defaults to ``~/.cache/bonner-caching``.
             mode: Controls the behavior of the cacher:
                 * "normal": If the function output has been previously cached, the stored value is retrieved and returned. If the output has not been previously cached, the function body is run and the output is cached.
                 * "readonly": If the function output has been previously cached, the stored value is retrieved and returned. If the output has not been previously cached, the function body is run but the output is NOT cached.

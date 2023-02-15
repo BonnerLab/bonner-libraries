@@ -1,7 +1,3 @@
-"""TODO add docstring."""
-
-__all__: list[str] = []
-
 import os
 import shutil
 import subprocess

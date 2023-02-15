@@ -1,8 +1,3 @@
-"""Bonner-BrainIO provides an interface to the BrainIO"""
-
-__all__: list[str] = []
-
-import os
 import zipfile
 from pathlib import Path
 
@@ -11,15 +6,12 @@ import xarray as xr
 from loguru import logger
 
 from bonner.brainio._network import fetch, send
-from bonner.brainio._utils import (
+from bonner.brainio._utilities import (
+    BONNER_BRAINIO_HOME,
     compute_sha1,
     validate_catalog,
     validate_data_assembly,
     validate_stimulus_set,
-)
-
-BONNER_BRAINIO_CACHE = Path(
-    os.getenv("BONNER_BRAINIO_CACHE", str(Path.home() / ".cache" / "bonner-brainio"))
 )
 
 
@@ -43,15 +35,15 @@ class Catalog:
         """Identifier of the Catalog."""
 
         self.csv_file: Path
-        """Path to the Catalog CSV file, defaults to ``$BONNER_BRAINIO_CACHE/<identifier>/catalog.csv``."""
+        """Path to the Catalog CSV file, defaults to ``$BONNER_BRAINIO_HOME/<identifier>/catalog.csv``."""
 
         self.cache_directory: Path
-        """Local cache directory for files fetched from the Catalog, defaults to ``$BONNER_BRAINIO_CACHE/<identifier>``."""
+        """Local cache directory for files fetched from the Catalog, defaults to ``$BONNER_BRAINIO_HOME/<identifier>``."""
 
         if csv_file:
             self.csv_file = csv_file
         else:
-            self.csv_file = BONNER_BRAINIO_CACHE / self.identifier / "catalog.csv"
+            self.csv_file = BONNER_BRAINIO_HOME / self.identifier / "catalog.csv"
 
         if not self.csv_file.exists():
             self._create(path=self.csv_file)
@@ -59,7 +51,7 @@ class Catalog:
         if cache_directory:
             self.cache_directory = cache_directory
         else:
-            self.cache_directory = BONNER_BRAINIO_CACHE / self.identifier
+            self.cache_directory = BONNER_BRAINIO_HOME / self.identifier
 
         if not self.cache_directory.exists():
             self.cache_directory.mkdir(parents=True, exist_ok=True)

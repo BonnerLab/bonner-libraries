@@ -6,12 +6,12 @@ import torch
 from PIL import Image
 from robustbench.utils import load_model
 
-from bonner.models.utilities import BONNER_MODELS_CACHE
+from bonner.models.utilities import BONNER_MODELS_HOME
 from bonner.models.zoo._pytorch import _preprocess
 
 
 def load_robustbench_model(**kwargs: Any) -> torch.nn.Module:
-    robustbench_dir = BONNER_MODELS_CACHE / "models" / "robustbench"
+    robustbench_dir = BONNER_MODELS_HOME / "models" / "robustbench"
     robustbench_dir.mkdir(exist_ok=True, parents=True)
     return load_model(model_dir=robustbench_dir, **kwargs).model
 
