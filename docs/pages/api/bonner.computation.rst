@@ -1,21 +1,3 @@
-Bonner Lab | Computation
-========================
-
-User Guide
-==========
-
-Motivation
-----------
-
-Installation
-------------
-
-To use the development version of the package, run:
-
-``pip install git+https://github.com/BonnerLab/bonner-computation``
-
-Since the package is under active development, we have not yet released a stable version.
-
 API Reference
 =============
 
