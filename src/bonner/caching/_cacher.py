@@ -13,17 +13,17 @@ from bonner.caching._handlers import get_handler
 P = ParamSpec("P")
 R = TypeVar("R")
 
+BONNER_CACHING_HOME = Path(
+    os.getenv("BONNER_CACHING_HOME", str(Path.home() / ".cache" / "bonner-caching"))
+)
+
 
 class Cacher:
     def __init__(  # type: ignore  # kwargs can be Any
         self,
         identifier: str = None,
         *,
-        path: Path = Path(
-            os.getenv(
-                "BONNER_CACHING_HOME", str(Path.home() / ".cache" / "bonner-caching")
-            )
-        ),
+        path: Path = BONNER_CACHING_HOME,
         helper: Callable[[Mapping[str, Any]], dict[str, str]] = None,
         filetype: str = "auto",
         mode: str = os.getenv("BONNER_CACHING_MODE", "normal"),
