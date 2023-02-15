@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath("."))
 
-project = "Bonner Lab | Datasets"
+project = "Bonner Lab | Libraries"
 copyright = "2022, Raj Magesh Gauthaman"
 author = "Raj Magesh Gauthaman"
 release = "0.1"
@@ -26,5 +26,5 @@ intersphinx_mapping = {
 exclude_patterns = ["_build"]
 
 html_theme = "furo"
-html_title = "Bonner Lab | Datasets"
-html_short_title = "Datasets"
+html_title = "Bonner Lab | Libraries"
+html_short_title = "Libraries"
