@@ -28,7 +28,7 @@ def load_transformation(
     )
 
     download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
-    transformation = nib.load(filepath).get_fdata()
+    transformation = nib.load(CACHE_PATH / filepath).get_fdata()
     return transformation
 
 
@@ -43,7 +43,7 @@ def load_native_surface(
         / f"{hemisphere}.{surface_type}"
     )
     download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
-    return filepath
+    return CACHE_PATH / filepath
 
 
 def _interpolate(

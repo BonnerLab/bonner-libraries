@@ -85,7 +85,7 @@ def load_brain_mask(*, subject: int, resolution: str) -> xr.DataArray:
         / "brainmask.nii.gz"
     )
     download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
-    return nii.to_dataarray(filepath, flatten=None).astype(bool, order="C")
+    return nii.to_dataarray(CACHE_PATH / filepath, flatten=None).astype(bool, order="C")
 
 
 def load_validity(*, subject: int, resolution: str) -> xr.DataArray:
@@ -115,7 +115,7 @@ def load_validity(*, subject: int, resolution: str) -> xr.DataArray:
         )
         download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
         validity.append(
-            nii.to_dataarray(filepath, flatten=None)
+            nii.to_dataarray(CACHE_PATH / filepath, flatten=None)
             .expand_dims("session", axis=0)
             .astype(dtype=bool, order="C")
         )
@@ -157,7 +157,7 @@ def load_betas(
         )
         download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
         betas_session = (
-            xr.open_dataset(filepath)["betas"]
+            xr.open_dataset(CACHE_PATH / filepath)["betas"]
             .rename(
                 {
                     "phony_dim_0": "presentation",
@@ -228,7 +228,7 @@ def load_ncsnr(
         / f"ncsnr.nii.gz"
     )
     download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
-    return nii.to_dataarray(filepath).astype(dtype=np.float64, order="C")
+    return nii.to_dataarray(CACHE_PATH / filepath).astype(dtype=np.float64, order="C")
 
 
 def load_structural_scans(*, subject: int, resolution: str) -> xr.DataArray:
@@ -253,7 +253,7 @@ def load_structural_scans(*, subject: int, resolution: str) -> xr.DataArray:
         )
         download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
         scans.append(
-            nii.to_dataarray(filepath, flatten=None)
+            nii.to_dataarray(CACHE_PATH / filepath, flatten=None)
             .expand_dims("sequence", axis=0)
             .astype(dtype=np.uint16, order="C")
         )
@@ -297,7 +297,7 @@ def load_rois(
 
             mapping = (
                 pd.read_csv(
-                    filepath,
+                    CACHE_PATH / filepath,
                     delim_whitespace=True,
                     names=("label", "roi"),
                 )
@@ -318,7 +318,7 @@ def load_rois(
                 download_from_s3(
                     filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath
                 )
-                volumes[hemisphere] = nii.to_dataarray(filepath)
+                volumes[hemisphere] = nii.to_dataarray(CACHE_PATH / filepath)
 
                 for roi, label in mapping.items():
                     if label != 0:
@@ -370,7 +370,7 @@ def load_receptive_fields(*, subject: int, resolution: str) -> xr.DataArray:
         )
         download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
         prf_data.append(
-            nii.to_dataarray(filepath)
+            nii.to_dataarray(CACHE_PATH / filepath)
             .expand_dims("quantity", axis=0)
             .astype(dtype=np.float64, order="C")
         )
@@ -394,7 +394,9 @@ def load_functional_contrasts(*, subject: int, resolution: str) -> xr.DataArray:
         filepath = Path("nsddata") / "experiments" / "floc" / f"{filename}.tsv"
         download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
 
-        categories[filename] = list(pd.read_csv(filepath, sep="\t").iloc[:, 0].values)
+        categories[filename] = list(
+            pd.read_csv(CACHE_PATH / filepath, sep="\t").iloc[:, 0].values
+        )
 
     categories_combined = categories["domains"] + categories["categories"]
     superordinate = np.array(
@@ -420,7 +422,7 @@ def load_functional_contrasts(*, subject: int, resolution: str) -> xr.DataArray:
             )
 
             floc_data[category].append(
-                nii.to_dataarray(filepath)
+                nii.to_dataarray(CACHE_PATH / filepath)
                 .expand_dims(
                     {
                         "category": [category],

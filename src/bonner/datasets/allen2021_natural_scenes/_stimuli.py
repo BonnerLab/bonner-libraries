@@ -19,7 +19,7 @@ def load_stimulus_metadata() -> pd.DataFrame:
     """
     filepath = Path("nsddata") / "experiments" / "nsd" / "nsd_stim_info_merged.csv"
     download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
-    metadata = pd.read_csv(filepath, sep=",").rename(
+    metadata = pd.read_csv(CACHE_PATH / filepath, sep=",").rename(
         columns={"Unnamed: 0": "stimulus_id"}
     )
     metadata["stimulus_id"] = metadata["stimulus_id"].apply(
@@ -41,7 +41,7 @@ def save_images() -> Path:
     filepath = Path("nsddata_stimuli") / "stimuli" / "nsd" / "nsd_stimuli.hdf5"
     download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
 
-    stimuli = xr.open_dataset(filepath)["imgBrick"]
+    stimuli = xr.open_dataset(CACHE_PATH / filepath)["imgBrick"]
 
     images_dir = CACHE_PATH / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
