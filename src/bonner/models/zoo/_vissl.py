@@ -37,7 +37,7 @@ def load(
     checkpoint = load_vissl_checkpoint(architecture=architecture, weights=weights)
 
     match architecture:
-        case "resnet50":
+        case "ResNet50":
             match weights:
                 case (
                     "ClusterFit-16K-RotNet-ImageNet1K"

@@ -19,13 +19,13 @@ def load(
     *, architecture: str, weights: str
 ) -> tuple[torch.nn.Module, Callable[[Image.Image], torch.Tensor]]:
     match (architecture, weights):
-        case ("resnet18", "Salman2020"):
+        case ("ResNet18", "Salman2020"):
             model = load_robustbench_model(
                 model_name="Salman2020Do_R18",
                 dataset="imagenet",
                 threat_model="Linf",
             )
-        case ("resnet50", "Wong2020"):
+        case ("ResNet50", "Wong2020"):
             model = load_robustbench_model(
                 model_name="Wong2020Fast",
                 dataset="imagenet",

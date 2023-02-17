@@ -4,7 +4,7 @@ import importlib
 from collections.abc import Callable
 
 import torch
-from torchvision.models import Weights
+from torchvision.models._api import Weights
 from PIL import Image
 
 
@@ -45,7 +45,7 @@ def _load_weights(architecture: str) -> Weights:
 
 def _load_architecture(architecture: str) -> Callable[..., torch.nn.Module]:
     module = importlib.import_module("torchvision.models")
-    architecture = getattr(module, architecture)
+    architecture = getattr(module, architecture.lower())
     return typing.cast(Callable[..., torch.nn.Module], architecture)
 
 
