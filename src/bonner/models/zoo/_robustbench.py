@@ -1,13 +1,12 @@
 from typing import Any
 from collections.abc import Callable
-import functools
 
 import torch
 from PIL import Image
 from robustbench.utils import load_model
 
 from bonner.models.utilities import BONNER_MODELS_HOME
-from bonner.models.zoo._pytorch import _preprocess
+from bonner.models.zoo._pytorch import _load_default_preprocess
 
 
 def load_robustbench_model(**kwargs: Any) -> torch.nn.Module:
@@ -19,29 +18,23 @@ def load_robustbench_model(**kwargs: Any) -> torch.nn.Module:
 def load(
     *, architecture: str, weights: str
 ) -> tuple[torch.nn.Module, Callable[[Image.Image], torch.Tensor]]:
-    match architecture:
-        case "ResNet18":
-            match weights:
-                case "Salman2020":
-                    model = load_robustbench_model(
-                        model_name="Salman2020Do_R18",
-                        dataset="imagenet",
-                        threat_model="Linf",
-                    )
-                case _:
-                    raise ValueError()
-        case "ResNet50":
-            match weights:
-                case "Wong2020":
-                    model = load_robustbench_model(
-                        model_name="Wong2020Fast",
-                        dataset="imagenet",
-                        threat_model="Linf",
-                    )
-                case _:
-                    raise ValueError()
+    match (architecture, weights):
+        case ("resnet18", "Salman2020"):
+            model = load_robustbench_model(
+                model_name="Salman2020Do_R18",
+                dataset="imagenet",
+                threat_model="Linf",
+            )
+        case ("resnet50", "Wong2020"):
+            model = load_robustbench_model(
+                model_name="Wong2020Fast",
+                dataset="imagenet",
+                threat_model="Linf",
+            )
         case _:
-            raise ValueError()
+            raise ValueError(
+                f"architecture {architecture} with weights {weights} not found"
+            )
 
-    preprocess = functools.partial(_preprocess, architecture=architecture)
+    preprocess = _load_default_preprocess(architecture=architecture)
     return model, preprocess

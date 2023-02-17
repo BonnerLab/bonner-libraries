@@ -1,5 +1,4 @@
 from typing import Any
-import functools
 from collections.abc import Callable
 
 import torch
@@ -8,7 +7,7 @@ from PIL import Image
 
 from bonner.files import download_from_url
 from bonner.models.utilities import BONNER_MODELS_HOME
-from bonner.models.zoo._pytorch import _preprocess
+from bonner.models.zoo._pytorch import _load_default_preprocess
 
 VISSL_CACHE = BONNER_MODELS_HOME / "models" / "vissl"
 URLS = {
@@ -38,7 +37,7 @@ def load(
     checkpoint = load_vissl_checkpoint(architecture=architecture, weights=weights)
 
     match architecture:
-        case "ResNet50":
+        case "resnet50":
             match weights:
                 case (
                     "ClusterFit-16K-RotNet-ImageNet1K"
@@ -56,12 +55,6 @@ def load(
                     raise ValueError(
                         f"architecture {architecture} has no weights '{weights}'"
                     )
-        case "ResNet18":
-            match weights:
-                case _:
-                    raise ValueError(
-                        f"architecture {architecture} has no weights '{weights}'"
-                    )
         case _:
             raise ValueError(f"architecture {architecture} not defined")
 
@@ -71,5 +64,5 @@ def load(
     model = torchvision.models.resnet50()
     model.load_state_dict(new_state_dict, strict=False)
 
-    preprocess = functools.partial(_preprocess, architecture=architecture)
+    preprocess = _load_default_preprocess(architecture=architecture)
     return model, preprocess
