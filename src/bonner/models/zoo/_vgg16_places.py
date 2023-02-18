@@ -51,7 +51,12 @@ def download_model(weights: str) -> Path:
 
 def load(weights: str) -> tuple[torch.nn.Module, Callable[[Image.Image], torch.Tensor]]:
     state_dict = create_state_dict(weights)
-    model = torchvision.models.vgg16(num_classes=365)
+    match weights:
+        case "Places365":
+            n_classes = 365
+        case "Hybrid1365":
+            n_classes = 1365
+    model = torchvision.models.vgg16(num_classes=n_classes)
     model.load_state_dict(state_dict)
     return model, preprocess
 
