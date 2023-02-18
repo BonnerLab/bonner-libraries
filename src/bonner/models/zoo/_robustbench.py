@@ -2,11 +2,11 @@ from typing import Any
 from collections.abc import Callable
 
 import torch
+from torchvision.models import get_model_weights
 from PIL import Image
 from robustbench.utils import load_model
 
 from bonner.models.utilities import BONNER_MODELS_HOME
-from bonner.models.zoo._pytorch import _load_default_preprocess
 
 
 def load_robustbench_model(**kwargs: Any) -> torch.nn.Module:
@@ -36,5 +36,5 @@ def load(
                 f"architecture {architecture} with weights {weights} not found"
             )
 
-    preprocess = _load_default_preprocess(architecture=architecture)
+    preprocess = get_model_weights(architecture)["DEFAULT"].transforms()
     return model, preprocess

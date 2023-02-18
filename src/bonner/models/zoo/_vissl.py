@@ -7,7 +7,6 @@ from PIL import Image
 
 from bonner.files import download_from_url
 from bonner.models.utilities import BONNER_MODELS_HOME
-from bonner.models.zoo._pytorch import _load_default_preprocess
 
 VISSL_CACHE = BONNER_MODELS_HOME / "models" / "vissl"
 URLS = {
@@ -64,5 +63,7 @@ def load(
     model = torchvision.models.resnet50()
     model.load_state_dict(new_state_dict, strict=False)
 
-    preprocess = _load_default_preprocess(architecture=architecture)
+    preprocess = torchvision.models.get_model_weights(architecture)[
+        "DEFAULT"
+    ].transforms()
     return model, preprocess

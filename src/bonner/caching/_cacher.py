@@ -99,7 +99,7 @@ class Cacher:
 
         self.mode = mode
         modes = {"normal", "readonly", "overwrite", "delete", "ignore"}
-        assert mode in modes, f"mode {mode} not supported (allowed modes: {modes}"
+        assert mode in modes, f"mode {mode} not supported (allowed modes: {modes})"
 
         self.identifier = identifier
         self.helper = helper
