@@ -41,7 +41,7 @@ MAPPING = {
 }
 
 
-def download_model(weights: str) -> Path:
+def download_weights(weights: str) -> Path:
     return download_from_url(
         url=URLS[weights],
         filepath=CUSTOM_CACHE / "downloads" / f"VGG16.{weights}.h5",
@@ -61,12 +61,12 @@ def load(weights: str) -> tuple[torch.nn.Module, Callable[[Image.Image], torch.T
     return model, preprocess
 
 
-@cache(
-    "state_dicts/architecture=VGG16.weights={weights}.pkl",
-    path=CUSTOM_CACHE,
-)
+# @cache(
+#     "state_dicts/architecture=VGG16.weights={weights}.pkl",
+#     path=CUSTOM_CACHE,
+# )
 def create_state_dict(weights: str) -> dict[str, torch.Tensor]:
-    filepath = download_model(weights)
+    filepath = download_weights(weights)
     state_dict = {}
     for torch_layer, keras_layer in MAPPING.items():
         group = f"/{keras_layer}/{keras_layer}"
@@ -85,8 +85,40 @@ def create_state_dict(weights: str) -> dict[str, torch.Tensor]:
 
 def preprocess(image: Image.Image) -> torch.Tensor:
     resizer = torchvision.transforms.Resize(size=(224, 224), antialias=True)
-    image_ = torch.from_numpy(np.array(resizer(image)))
-    image_ = (image_ - image_.min()) * 255 / (image_.max() - image_.min())
-    image_ -= torch.Tensor([123.68, 116.779, 103.939])
-    image_ = image_.flip(dims=[-1]).permute((2, 0, 1))
+    image_ = torch.from_numpy(np.asarray(resizer(image)).astype(np.float32))
+    image_ = (image_ - image_.min()) / (image_.max() - image_.min())
+    image_ -= torch.Tensor([0.485, 0.456, 0.406])
+    # image_ -= torch.Tensor([122.679, 116.669, 104.006])
+
+    # (H, W, C) -> (C, H, W)
+    image_ = image_.permute((2, 0, 1))
+    # RGB -> BGR
+    image_ = image_.flip(0)
+
+    # image_ = torch.from_numpy(np.random.random(size=(3, 224, 224)).astype(np.float32))
     return image_
+
+
+if __name__ == "__main__":
+    TEST_IMAGE_URL = "http://places2.csail.mit.edu/imgs/demo/6.jpg"
+    CLASSES_URL = "https://raw.githubusercontent.com/csailvision/places365/master/categories_places365.txt"
+
+    image_filepath = download_from_url(TEST_IMAGE_URL)
+    classes_filepath = download_from_url(CLASSES_URL)
+
+    classes = []
+    with open(classes_filepath) as class_file:
+        for line in class_file:
+            classes.append(line.strip().split(" ")[0][3:])
+    classes = tuple(classes)
+
+    model, preprocess_ = load("Places365")
+    model.eval()
+    x = preprocess_(Image.open(image_filepath)).unsqueeze(0)
+    predictions = model(x)[0]
+
+    n = 10
+    top_predictions = torch.argsort(predictions, descending=True, stable=True)[:n]
+    for i in range(n):
+        print(classes[top_predictions[i]])
+    print(1)
