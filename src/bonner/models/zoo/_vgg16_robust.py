@@ -19,7 +19,7 @@ CUSTOM_CACHE = BONNER_MODELS_HOME / "models" / "custom"
 def download_checkpoint(weights: str) -> Path:
     return download_from_url(
         url=URLS[weights],
-        filepath=CUSTOM_CACHE / "downloads" / f"VGG16_bn.robust.{weights}.ckpt",
+        filepath=CUSTOM_CACHE / "downloads" / f"VGG16_bn.{weights}.ckpt",
         force=False,
     )
 
@@ -27,7 +27,13 @@ def download_checkpoint(weights: str) -> Path:
 def load(weights: str) -> tuple[torch.nn.Module, Callable[[Image.Image], torch.Tensor]]:
     checkpoint = torch.load(download_checkpoint(weights))
     model = torchvision.models.vgg16_bn()
-    model.load_state_dict(checkpoint["model_state_dict"])
+    model.load_state_dict(
+        {
+            key.split("module.model.model.")[-1]: value
+            for key, value in checkpoint["model"].items()
+            if "module.model.model." in key
+        }
+    )
     return (
         model,
         torchvision.models.get_model_weights("vgg16_bn")["DEFAULT"].transforms(),
