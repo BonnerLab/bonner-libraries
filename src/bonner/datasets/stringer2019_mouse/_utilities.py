@@ -1,6 +1,8 @@
 import xarray as xr
 from scipy.sparse.linalg import eigsh
 
+from bonner.datasets._utilities import BONNER_DATASETS_HOME
+
 IDENTIFIER = "stringer2019.mouse"
 SESSIONS = (
     {
@@ -32,6 +34,7 @@ SESSIONS = (
         "date": "2017-09-11",
     },
 )
+CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 
 
 def preprocess_assembly(assembly: xr.Dataset) -> xr.DataArray:
