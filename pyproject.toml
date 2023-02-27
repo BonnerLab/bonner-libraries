@@ -35,6 +35,7 @@ dependencies = [
     "tqdm",
     "more_itertools",
     "boto3",
+    "osfclient",
     "numpy",
     "pandas",
     "scipy",
