@@ -1,6 +1,6 @@
 from typing import Any, ParamSpec, TypeVar
 from collections.abc import Callable, Mapping
-from functools import wraps
+import functools
 import inspect
 from pathlib import Path
 import os
@@ -111,7 +111,7 @@ class Cacher:
         self,
         func: Callable[P, R],
     ) -> Callable[P, R]:
-        @wraps(func)
+        @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             args_to_format = self._get_args(func, *args, **kwargs)
 

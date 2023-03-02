@@ -27,7 +27,13 @@ def untar(filepath: Path, *, extract_dir: Path = None, remove_tar: bool = True) 
     return extract_dir
 
 
-def unzip(filepath: Path, *, extract_dir: Path = None, remove_zip: bool = True) -> Path:
+def unzip(
+    filepath: Path,
+    *,
+    extract_dir: Path = None,
+    remove_zip: bool = True,
+    password: bytes = None,
+) -> Path:
     if extract_dir is None:
         extract_dir = Path("/tmp")
     extract_dir.mkdir(parents=True, exist_ok=True)
@@ -40,7 +46,7 @@ def unzip(filepath: Path, *, extract_dir: Path = None, remove_zip: bool = True) 
             )
         else:
             logger.debug(f"Extracting from {filepath} to {extract_dir}")
-            f.extractall(extract_dir)
+            f.extractall(extract_dir, pwd=password)
 
     if remove_zip:
         logger.debug(f"Deleting {filepath} after extraction")
