@@ -1,10 +1,16 @@
 from pathlib import Path
 
+from PIL import Image
 import pandas as pd
 import xarray as xr
+from torchdata.datapipes.map import MapDataPipe
 
 from bonner.files import download_from_s3
-from bonner.datasets.allen2021_natural_scenes._utilities import BUCKET_NAME, CACHE_PATH
+from bonner.datasets.allen2021_natural_scenes._utilities import (
+    BUCKET_NAME,
+    CACHE_PATH,
+    IDENTIFIER,
+)
 
 N_STIMULI = 73000
 
@@ -46,3 +52,16 @@ def load_stimuli() -> xr.DataArray:
             }
         )
     )
+
+
+class StimulusSet(MapDataPipe):
+    def __init__(self) -> None:
+        identifier = IDENTIFIER
+        metadata = load_stimulus_metadata()
+        super().__init__(identifier=identifier, metadata=metadata)
+
+    def __getitem__(self, index: str) -> Image.Image:
+        return Image.fromarray(load_stimuli().sel(stimulus_id=index).values)
+
+    def __len__(self) -> int:
+        return len(self.metadata.index)

@@ -23,8 +23,8 @@ def download(
     """
     if local_path is None:
         local_path = s3_path
-    s3 = boto3.client("s3")
     if (not use_cached) or (not local_path.exists()):
+        s3 = boto3.client("s3")
         logger.debug(f"Downloading {s3_path} from S3 bucket {bucket} to {local_path}")
         local_path.parent.mkdir(exist_ok=True, parents=True)
         with open(local_path, "wb") as f:

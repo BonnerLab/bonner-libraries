@@ -19,6 +19,7 @@ __all__ = [
     "load_functional_contrasts",
     "load_stimulus_metadata",
     "load_stimuli",
+    "StimulusSet",
     "transform_volume_to_mni",
     "transform_volume_to_native_surface",
     "convert_ndarray_to_nifti1image",
@@ -51,6 +52,7 @@ from bonner.datasets.allen2021_natural_scenes._data import (
 from bonner.datasets.allen2021_natural_scenes._stimuli import (
     load_stimulus_metadata,
     load_stimuli,
+    StimulusSet,
 )
 from bonner.datasets.allen2021_natural_scenes._visualization import (
     transform_volume_to_mni,
