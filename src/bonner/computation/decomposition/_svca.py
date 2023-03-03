@@ -73,7 +73,7 @@ class SVCA:
         self.right_singular_vectors = v_h[..., : self.n_components, :].transpose(-2, -1)
         self.singular_values = s[..., : self.n_components] / (self.n_samples - 1)
 
-    def transform(self, *, z: torch.Tensor, direction: str) -> torch.Tensor:
+    def transform(self, z: torch.Tensor, *, direction: str) -> torch.Tensor:
         match direction:
             case "left":
                 mean = self.left_mean
