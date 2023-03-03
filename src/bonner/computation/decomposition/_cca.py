@@ -78,7 +78,7 @@ class CCAPytorch:
         )
         if self.kwargs_kernel:
             self._weights = [
-                torch.matmul(d.t(), c)
+                d.t() @ c
                 for d, c in zip(data_preprocessed, self._canonical_coefficients)
             ]
         else:
@@ -90,7 +90,7 @@ class CCAPytorch:
             (d.to(self.device).to(self.dtype) - mean) / std
             for d, mean, std in zip(data, self._means, self._stds)
         ]
-        return [torch.matmul(d, w) for d, w in zip(data, self._weights)]
+        return [d @ w for d, w in zip(data, self._weights)]
 
     def compute_canonical_correlations(self, data: list[torch.Tensor]) -> torch.Tensor:
         canonical_correlations = torch.zeros(
@@ -154,7 +154,7 @@ class CCAPytorch:
 #     with torch.no_grad():
 #         inverse_ws = [torch.linalg.pinv(w, rtol=rtol) for w in ws]
 #         c_components = torch.stack(
-#             [torch.matmul(d, w) for d, w in zip(data, ws)], dim=0
+#             [d @ w for d, w in zip(data, ws)], dim=0
 #         )
 #         predictions = []
 
@@ -162,7 +162,7 @@ class CCAPytorch:
 #             idx = torch.ones(len(data))
 #             idx[d] = 0
 #             projection = c_components[idx > 0].mean(dim=0)
-#             prediction = torch.matmul(projection, inverse_ws[d])
+#             prediction = projection @ inverse_ws[d]
 #             prediction = (prediction - prediction.mean(dim=0)) / prediction.std(dim=0)
 #             predictions.append(prediction)
 #         return predictions
@@ -213,7 +213,7 @@ def _compute_canonical_coefficients(
             n_components = min(n_features)
         dtype = data[0].dtype
 
-        covariances = [[torch.matmul(d1, d2.t()) for d2 in data] for d1 in data]
+        covariances = [[d1 @ d2.t() for d2 in data] for d1 in data]
 
         n = sum(n_features)
         lh = torch.zeros((n, n), device=device, dtype=dtype)
@@ -272,7 +272,7 @@ def _kernelize_data(
         data = data.to(device)
         match kernel:
             case "linear":
-                data_kernelized = torch.matmul(data, data.t())
+                data_kernelized = data @ data.t()
             case "gaussian":
                 pairwise_distances = torch.nn.functional.pdist(data)
                 data_kernelized = torch.exp(
@@ -280,7 +280,7 @@ def _kernelize_data(
                 )
                 raise NotImplementedError("squareform has to be applied")
             case "polynomial":
-                data_kernelized = torch.matmul(data, data.t()) ** degree
+                data_kernelized = (data @ data.t()) ** degree
 
         data_kernelized = (data_kernelized + data_kernelized.t()) / 2
         if normalize:

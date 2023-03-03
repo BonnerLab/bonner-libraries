@@ -4,16 +4,16 @@ import torch
 
 
 def linear_kernel(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    return torch.linalg.matmul(x, y.transpose())
+    return x @ y.transpose(-2, -1)
 
 
 def hsic(k: torch.Tensor, l: torch.Tensor) -> torch.Tensor:
     n = k.shape[0]
-    h = torch.eye(n) - (1 / n) * torch.ones((n, n))
+    h = torch.eye(n) - torch.ones((n, n)) / n
 
     kh = torch.linalg.matmul(k, h)
     lh = torch.linalg.matmul(l, h)
-    return 1 / ((n - 1) ** 2) * torch.trace(torch.matmul(kh, lh))
+    return torch.trace(kh @ lh) / ((n - 1) ** 2)
 
 
 def cka(

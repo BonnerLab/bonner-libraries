@@ -58,16 +58,15 @@ def _helper(
             raise ValueError()
 
     try:
-        x = torch.matmul(x.transpose(-2, -1), y) / (n_samples_x - 1)
+        x = (x.transpose(-2, -1) @ y) / (n_samples_x - 1)
         if return_diagonal:
             x = torch.diagonal(x, dim1=-2, dim2=-1)
     except:
         if return_diagonal:
             xs = []
             for batch in more_itertools.chunked(range(n_features_x), n=batch_size):
-                x_ = torch.matmul(x[..., batch].transpose(-2, -1), y[..., batch]) / (
-                    n_samples_x - 1
-                )
+                x_ = x[..., batch].transpose(-2, -1) @ y[..., batch]
+                x_ /= n_samples_x - 1
                 xs.append(torch.diagonal(x_, dim1=-2, dim2=-1))
             x = torch.concat(xs, dim=-1)
         else:

@@ -82,17 +82,12 @@ class LinearRegression(Regression):
                 size=(len(s), l2_penalty.numel()), dtype=x.dtype, device=x.device
             )
             d[idx] = s_nnz / (s_nnz**2 + l2_penalty)
-            self.coefficients = torch.matmul(
-                vt.transpose(-2, -1), d * torch.matmul(u.transpose(-2, -1), y)
-            )
+            self.coefficients = vt.transpose(-2, -1) @ (d * (u.transpose(-2, -1) @ y))
 
         if self.fit_intercept:
-            self.intercept = y_mean - torch.matmul(x_mean, self.coefficients)
+            self.intercept = y_mean - x_mean @ self.coefficients
         else:
             self.intercept = torch.zeros(1)
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
-        return (
-            torch.matmul(x.to(self.coefficients.device), self.coefficients)
-            + self.intercept
-        )
+        return x.to(self.coefficients.device) @ self.coefficients + self.intercept

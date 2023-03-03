@@ -1,9 +1,11 @@
+from typing import Any
+
 import torch
 from bonner.computation.decomposition import PCA
 
 
-def cv_pca(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    pca = PCA()
+def cv_pca(*, x: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:
+    pca = PCA(**kwargs)
     pca.fit(x.T)
 
     u = pca.components_.T
