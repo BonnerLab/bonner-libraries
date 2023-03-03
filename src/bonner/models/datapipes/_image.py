@@ -10,6 +10,14 @@ from torchdata.datapipes.map import MapDataPipe, SequenceWrapper
 from PIL import Image
 
 
+def collate_fn(
+    batch: Sequence[tuple[torch.Tensor, str]]
+) -> tuple[torch.Tensor, npt.NDArray[np.str_]]:
+    images = torch.stack([pair[0] for pair in batch])
+    ids = np.array([pair[1] for pair in batch])
+    return images, ids
+
+
 def create_image_datapipe(
     datapipe: MapDataPipe,
     *,
@@ -17,7 +25,7 @@ def create_image_datapipe(
     batch_size: int,
     indices: list[Hashable] = None,
 ) -> IterDataPipe:
-    """Creates a PyTorch datapipe for loading images from disk and preprocessing them.
+    """Creates a PyTorch datapipe for loading images and preprocessing them.
 
     Args:
         datapipe: source datapipe that maps a key to a PIL.Image.Image
@@ -27,14 +35,6 @@ def create_image_datapipe(
     Returns:
         torch datapipe that produces batches of data in the form (image_tensor, image_id)
     """
-
-    def collate_fn(
-        batch: Sequence[tuple[torch.Tensor, str]]
-    ) -> tuple[torch.Tensor, npt.NDArray[np.str_]]:
-        images = torch.stack([pair[0] for pair in batch])
-        ids = np.array([pair[1] for pair in batch])
-        return images, ids
-
     return (
         datapipe.zip(SequenceWrapper(indices))
         .map(fn=preprocess_fn)

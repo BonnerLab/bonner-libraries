@@ -333,7 +333,7 @@ def load_rois(
                         )
     rois = xr.concat(rois, dim="roi")
     rois["label"] = rois["roi"].astype(str)
-    return rois.drop_vars("roi")
+    return rois.drop_vars("roi").set_index({"roi": ("source", "label", "hemisphere")})
 
 
 def load_receptive_fields(*, subject: int, resolution: str) -> xr.DataArray:
