@@ -71,7 +71,7 @@ class SVCA:
 
         self.left_singular_vectors = u[..., : self.n_components]
         self.right_singular_vectors = v_h[..., : self.n_components, :].transpose(-2, -1)
-        self.singular_values = s[..., : self.n_components]
+        self.singular_values = s[..., : self.n_components] / (self.n_samples - 1)
 
     def transform(self, *, z: torch.Tensor, direction: str) -> torch.Tensor:
         match direction:
