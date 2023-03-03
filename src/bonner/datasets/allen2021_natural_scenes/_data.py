@@ -1,5 +1,5 @@
 from pathlib import Path
-from collections.abc import Mapping, Collection
+from collections.abc import Collection
 
 from tqdm.auto import tqdm
 import numpy as np
@@ -88,24 +88,19 @@ def load_brain_mask(*, subject: int, resolution: str) -> xr.DataArray:
     return nii.to_dataarray(CACHE_PATH / filepath, flatten=None).astype(bool, order="C")
 
 
-def load_validity(*, subject: int, resolution: str) -> xr.DataArray:
+def load_validity(
+    *, subject: int, resolution: str, exclude_held_out: bool = True
+) -> xr.DataArray:
     validity = []
-    # TODO remove N_SESSIONS_HELD_OUT
-    sessions = np.array(
-        [
-            f"nsd-{session}"
-            for session in range(N_SESSIONS[subject] - N_SESSIONS_HELD_OUT)
-        ]
-        + ["prffloc"]
-    )
-    suffixes = np.array(
-        [
-            f"session{session + 1:02}"
-            for session in range(N_SESSIONS[subject] - N_SESSIONS_HELD_OUT)
-        ]
-        + ["prffloc"]
-    )
-    for suffix in suffixes:
+    n_sessions = N_SESSIONS[subject]
+    if exclude_held_out:
+        n_sessions -= N_SESSIONS_HELD_OUT
+
+    sessions = {
+        f"nsd-{session}": f"session{session + 1:02}" for session in range(n_sessions)
+    } | {"prffloc": "prffloc"}
+
+    for suffix, session in sessions.items():
         filepath = (
             Path("nsddata")
             / "ppdata"
@@ -116,12 +111,10 @@ def load_validity(*, subject: int, resolution: str) -> xr.DataArray:
         download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
         validity.append(
             nii.to_dataarray(CACHE_PATH / filepath, flatten=None)
-            .expand_dims("session", axis=0)
+            .expand_dims({"session": [session]})
             .astype(dtype=bool, order="C")
         )
-    return xr.concat(validity, dim="session").assign_coords(
-        {"session": ("session", sessions)}
-    )
+    return xr.concat(validity, dim="session")
 
 
 def load_betas(
@@ -130,6 +123,7 @@ def load_betas(
     resolution: str,
     preprocessing: str,
     neuroid_filter: Collection[bool],
+    exclude_held_out: bool = True,
 ) -> xr.DataArray:
     """Load betas.
 
@@ -144,8 +138,11 @@ def load_betas(
     betas = []
     stimulus_ids = _extract_stimulus_ids(subject)
 
-    # TODO remove N_SESSIONS_HELD_OUT
-    sessions = np.arange(N_SESSIONS[subject] - N_SESSIONS_HELD_OUT)
+    n_sessions = N_SESSIONS[subject]
+    if exclude_held_out:
+        n_sessions -= N_SESSIONS_HELD_OUT
+    sessions = np.arange(n_sessions)
+
     for session in tqdm(sessions, desc="session"):
         filepath = (
             Path("nsddata_betas")

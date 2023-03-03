@@ -6,11 +6,13 @@ from collections.abc import Collection
 from pathlib import Path
 
 import numpy as np
+import xarray as xr
 from scipy.ndimage import map_coordinates
 import nibabel as nib
 
 from bonner.files import download_from_s3
 from bonner.datasets.allen2021_natural_scenes._utilities import BUCKET_NAME, CACHE_PATH
+from bonner.datasets.allen2021_natural_scenes._data import load_brain_mask
 
 MNI_ORIGIN = np.asarray([183 - 91, 127, 73]) - 1
 MNI_RESOLUTION = 1
@@ -173,7 +175,7 @@ def transform_volume_to_native_surface(
     data: np.ndarray,
     *,
     subject: int,
-    source_space: str = "func1pt8",
+    source_space: str,
     interpolation_type: str = "cubic",
     layers: Collection[str] = (
         "layerB1",
@@ -207,3 +209,38 @@ def transform_volume_to_native_surface(
                 )
             }
     return native_surface
+
+
+def reshape_dataarray_to_brain(
+    data: xr.DataArray, *, subject: int, resolution: str
+) -> np.ndarray:
+    brain_shape = load_brain_mask(subject=subject, resolution=resolution).shape
+    if data.ndim == 2:
+        output_shape = (data.shape[0], *brain_shape)
+    else:
+        output_shape = brain_shape
+
+    output = np.full(output_shape, fill_value=np.nan)
+    output[..., data["x"].values, data["y"].values, data["z"].values] = data.values
+    return output
+
+
+def convert_dataarray_to_nifti1image(
+    data: xr.DataArray,
+    *,
+    subject: int,
+    resolution: str,
+    interpolation_type: str = "cubic",
+) -> nib.nifti1.Nifti1Image:
+    return convert_ndarray_to_nifti1image(
+        transform_volume_to_mni(
+            data=reshape_dataarray_to_brain(
+                data=data,
+                subject=subject,
+                resolution=resolution,
+            ),
+            subject=subject,
+            source_space=f"func{resolution[:-2]}",
+            interpolation_type=interpolation_type,
+        ),
+    )
