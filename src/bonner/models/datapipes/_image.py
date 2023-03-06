@@ -5,7 +5,7 @@ from collections.abc import Callable, Sequence, Hashable
 import numpy as np
 import numpy.typing as npt
 import torch
-from torchdata.datapipes.iter import IterDataPipe
+from torchdata.datapipes.iter import IterDataPipe, IterableWrapper
 from torchdata.datapipes.map import MapDataPipe, SequenceWrapper
 from PIL import Image
 
@@ -36,9 +36,9 @@ def create_image_datapipe(
         torch datapipe that produces batches of data in the form (image_tensor, image_id)
     """
     return (
-        datapipe.zip(SequenceWrapper(indices))
+        datapipe.to_iter_datapipe(indices=indices)
         .map(fn=preprocess_fn)
-        .to_iter_datapipe(indices=indices)
+        .zip(IterableWrapper(indices))
         .batch(batch_size=batch_size)
         .collate(collate_fn=collate_fn)
     )

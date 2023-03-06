@@ -56,12 +56,12 @@ def load_stimuli() -> xr.DataArray:
 
 class StimulusSet(MapDataPipe):
     def __init__(self) -> None:
-        identifier = IDENTIFIER
-        metadata = load_stimulus_metadata()
-        super().__init__(identifier=identifier, metadata=metadata)
+        self.identifier = IDENTIFIER
+        self.metadata = load_stimulus_metadata()
+        self.stimuli = load_stimuli()
 
-    def __getitem__(self, index: str) -> Image.Image:
-        return Image.fromarray(load_stimuli().sel(stimulus_id=index).values)
+    def __getitem__(self, stimulus_id: str) -> Image.Image:
+        return Image.fromarray(self.stimuli.sel(stimulus_id=stimulus_id).values)
 
     def __len__(self) -> int:
         return len(self.metadata.index)
