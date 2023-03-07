@@ -100,7 +100,7 @@ def load_validity(
         f"nsd-{session}": f"session{session + 1:02}" for session in range(n_sessions)
     } | {"prffloc": "prffloc"}
 
-    for suffix, session in sessions.items():
+    for session, suffix in sessions.items():
         filepath = (
             Path("nsddata")
             / "ppdata"
