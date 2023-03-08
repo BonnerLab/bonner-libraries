@@ -5,10 +5,17 @@ from bonner.computation.decomposition._utilities import svd_flip
 
 
 class SVCA:
-    def __init__(self, *, n_components: int = None, seed: int = 0) -> None:
+    def __init__(
+        self,
+        *,
+        n_components: int = None,
+        seed: int = 0,
+        center: bool = True,
+    ) -> None:
         self.n_components = n_components
         self.n_samples: int
         self.seed = seed
+        self.center = center
 
         self.left_mean: torch.Tensor
         self.right_mean: torch.Tensor
@@ -60,12 +67,17 @@ class SVCA:
         x, y = self._preprocess(x=x, y=y)
 
         x = torch.clone(x)
-        self.left_mean = x.mean(dim=-2, keepdim=True)
-        x -= self.left_mean
-
         y = torch.clone(y)
-        self.right_mean = y.mean(dim=-2, keepdim=True)
-        y -= self.right_mean
+
+        if self.center:
+            self.left_mean = x.mean(dim=-2, keepdim=True)
+            x -= self.left_mean
+
+            self.right_mean = y.mean(dim=-2, keepdim=True)
+            y -= self.right_mean
+        else:
+            self.left_mean = torch.zeros(1, device=self.device)
+            self.right_mean = torch.zeros(1, device=self.device)
 
         torch.manual_seed(self.seed)
         u, s, v = torch.pca_lowrank(

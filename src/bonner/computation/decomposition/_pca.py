@@ -34,6 +34,7 @@ class PCA:
         else:
             if self.n_components > max_n_components:
                 raise ValueError(f"n_components must be <= {max_n_components}")
+        self.device = x.device
 
         return x
 
