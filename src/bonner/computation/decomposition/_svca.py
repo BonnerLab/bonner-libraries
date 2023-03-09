@@ -11,11 +11,13 @@ class SVCA:
         n_components: int = None,
         seed: int = 0,
         center: bool = True,
+        truncated: bool = True,
     ) -> None:
         self.n_components = n_components
         self.n_samples: int
         self.seed = seed
         self.center = center
+        self.truncated = truncated
 
         self.left_mean: torch.Tensor
         self.right_mean: torch.Tensor
@@ -79,11 +81,14 @@ class SVCA:
             self.left_mean = torch.zeros(1, device=self.device)
             self.right_mean = torch.zeros(1, device=self.device)
 
-        torch.manual_seed(self.seed)
-        u, s, v = torch.pca_lowrank(
-            x.transpose(-2, -1) @ y, center=False, q=self.n_components
-        )
-        v_h = v.transpose(-2, -1)
+        if self.truncated:
+            torch.manual_seed(self.seed)
+            u, s, v = torch.pca_lowrank(
+                x.transpose(-2, -1) @ y, center=False, q=self.n_components
+            )
+            v_h = v.transpose(-2, -1)
+        else:
+            u, s, v_h = torch.linalg.svd(x.transpose(-2, -1) @ y, full_matrices=False)
         u, v_h = svd_flip(u=u, v=v_h)
 
         self.left_singular_vectors = u[..., : self.n_components]

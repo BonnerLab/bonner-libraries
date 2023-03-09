@@ -36,7 +36,7 @@ def extract_features(
         model: a PyTorch model
         model_identifier: identifier for the model
         nodes: list of layer names to extract features from, in standard PyTorch format (e.g. 'classifier.0')
-        hooks: dictionary mapping layer names to hooks to be applied to the features extracted from the layer (e.g. {"conv2": GlobalMaxpool})
+        hooks: dictionary mapping layer names to hooks to be applied to the features extracted from the layer (e.g. {"conv2": GlobalMaxpool()})
         datapipe: torch datapipe that provides batches of data of the form ``(data, stimulus_ids)``. ``data`` is a torch Tensor with shape (batch_size, *) and ``stimulus_ids`` is a Numpy array of string identifiers corresponding to each stimulus in ``data``.
         datapipe_identifier: identifier for the dataset
         use_cached: whether to use previously computed features, defaults to True
