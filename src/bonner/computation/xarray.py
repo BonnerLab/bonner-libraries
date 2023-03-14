@@ -38,7 +38,7 @@ def filter_dataarray(
         filter_ = ~filter_
 
     dim = array[coord].dims[0]
-    return array.isel({dim: filter_})
+    return array.load().isel({dim: filter_})
 
 
 def groupby_reset(
