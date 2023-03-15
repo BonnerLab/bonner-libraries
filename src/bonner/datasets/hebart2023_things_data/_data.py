@@ -69,18 +69,21 @@ def load_rois(subject: int) -> xr.DataArray:
                     / f"{localizer_type}_parcels"
                     / f"sub-{subject+1:02}_{hemisphere}{roi}.nii.gz"
                 )
-                masks.append(
-                    load_nii(path)
-                    .astype(bool)
-                    .expand_dims("roi")
-                    .assign_coords(
-                        {
-                            "hemisphere": ("roi", [hemisphere]),
-                            "localizer": ("roi", [localizer_type]),
-                            "label": ("roi", [roi]),
-                        }
+                try:
+                    masks.append(
+                        load_nii(path)
+                        .astype(bool)
+                        .expand_dims("roi")
+                        .assign_coords(
+                            {
+                                "hemisphere": ("roi", [hemisphere]),
+                                "localizer": ("roi", [localizer_type]),
+                                "label": ("roi", [roi]),
+                            }
+                        )
                     )
-                )
+                except:
+                    pass
         return xr.concat(masks, dim="roi").set_index(
             {"roi": ["hemisphere", "localizer", "label"]}
         )
