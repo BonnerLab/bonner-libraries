@@ -134,7 +134,6 @@ def create_roi_selector(
     rois: xr.DataArray,
     selectors: Collection[Mapping[str, str]],
 ) -> np.ndarray:
-    rois = rois.load().set_index({"roi": ("source", "label", "hemisphere")})
     selections = []
     for selector in selectors:
         selection = rois.sel(selector).values
