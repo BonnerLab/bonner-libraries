@@ -13,8 +13,8 @@ __all__ = (
     "compute_shared_stimulus_ids",
 )
 
-from bonner.datasets.hebart2023_things_data._utilities import IDENTIFIER
 from bonner.datasets.hebart2023_things_data._data import (
+    IDENTIFIER,
     ROIS,
     N_SESSIONS,
     N_SUBJECTS,

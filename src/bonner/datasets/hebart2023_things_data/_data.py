@@ -8,8 +8,10 @@ import pandas as pd
 import xarray as xr
 import nibabel as nib
 from bonner.files import download_from_url, untar, unzip
-from bonner.datasets.hebart2023_things_data._utilities import CACHE_PATH
+from bonner.datasets._utilities import BONNER_DATASETS_HOME
 
+IDENTIFIER = "hebart2023.things-data"
+CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 URLS = {
     "meg.tar.gz": "https://plus.figshare.com/ndownloader/files/37650461",
     "fmri_betas.tar.gz": "https://plus.figshare.com/ndownloader/files/36806148",
@@ -20,11 +22,27 @@ URLS = {
     "behavior.zip": "https://plus.figshare.com/ndownloader/files/38787423",
 }
 
-ROIS = {
+FUNCTIONAL_ROIS = {
     "body": ("EBA",),
     "face": ("FFA", "OFA", "STS"),
     "object": ("LOC",),
     "scene": ("PPA", "RSC", "TOS"),
+}
+ROIS = FUNCTIONAL_ROIS | {
+    "pRF": (
+        "V1",
+        "V2",
+        "V3",
+        "hV4",
+        "VO1",
+        "VO2",
+        "LO1",
+        "LO2",
+        "TO1",
+        "TO2",
+        "V3a",
+        "V3b",
+    )
 }
 
 N_SUBJECTS = 3
@@ -47,7 +65,7 @@ def load_nii(filepath: Path) -> xr.DataArray:
     ).stack({"neuroid": ("x", "y", "z")}, create_index=False)
 
 
-def load_rois(subject: int) -> xr.DataArray:
+def load_functional_rois(subject: int) -> xr.DataArray:
     def _download() -> Path:
         filename = "rois.zip"
         filepath = download_from_url(
@@ -58,7 +76,7 @@ def load_rois(subject: int) -> xr.DataArray:
 
     def _package() -> xr.DataArray:
         masks = []
-        for localizer_type, rois in ROIS.items():
+        for localizer_type, rois in FUNCTIONAL_ROIS.items():
             for roi, hemisphere in itertools.product(rois, ("l", "r")):
                 path = (
                     CACHE_PATH
@@ -84,9 +102,7 @@ def load_rois(subject: int) -> xr.DataArray:
                     )
                 except:
                     pass
-        return xr.concat(masks, dim="roi").set_index(
-            {"roi": ["hemisphere", "localizer", "label"]}
-        )
+        return xr.concat(masks, dim="roi")
 
     try:
         return _package()
@@ -131,6 +147,42 @@ def load_receptive_fields(subject: int) -> xr.DataArray:
         return _package()
 
 
+def load_rois(subject: int) -> xr.DataArray:
+    varea_mapping = {
+        1: "V1",
+        2: "V2",
+        3: "V3",
+        4: "hV4",
+        5: "VO1",
+        6: "VO2",
+        7: "LO1",
+        8: "LO2",
+        9: "TO1",
+        10: "TO2",
+        11: "V3a",
+        12: "V3b",
+    }
+    functional_rois = load_functional_rois(subject=subject)
+    visual_rois = load_receptive_fields(subject=subject)
+    rois = []
+    for index, roi in varea_mapping.items():
+        rois.append(
+            (visual_rois.sel(quantity="roi") == index)
+            .drop_vars("quantity")
+            .expand_dims("roi")
+            .assign_coords(
+                {
+                    "hemisphere": ("roi", [""]),
+                    "localizer": ("roi", ["pRF"]),
+                    "label": ("roi", [roi]),
+                }
+            )
+        )
+    return xr.concat(rois + [functional_rois], dim="roi").set_index(
+        {"roi": ["hemisphere", "localizer", "label"]}
+    )
+
+
 def load_brain_mask(subject: int) -> xr.DataArray:
     def _download() -> Path:
         filename = "brain_masks.zip"
@@ -171,15 +223,15 @@ def load_noise_ceilings(subject: int) -> xr.DataArray:
 
     def _package() -> xr.DataArray:
         noise_ceilings = []
-        for session in range(N_SESSIONS):
+        for n_images in range(12):
             path = (
                 CACHE_PATH
                 / "noise_ceilings"
                 / "noise_ceilings"
-                / f"sub-{subject+1:02}_nc_n-{session+1}.nii.gz"
+                / f"sub-{subject+1:02}_nc_n-{n_images+1}.nii.gz"
             )
-            noise_ceilings.append(load_nii(path).expand_dims({"session": [session]}))
-        return xr.concat(noise_ceilings, dim="session")
+            noise_ceilings.append(load_nii(path).expand_dims({"n_images": [n_images]}))
+        return xr.concat(noise_ceilings, dim="n_images")
 
     try:
         return _package()

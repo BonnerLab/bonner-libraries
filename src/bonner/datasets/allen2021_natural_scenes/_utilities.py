@@ -68,7 +68,9 @@ def compute_noise_ceiling(
     return (ncsnr_squared / (ncsnr_squared + fraction)).rename("noise ceiling")
 
 
-def z_score_betas_within_sessions(betas: xr.DataArray) -> xr.DataArray:
+def z_score_betas_within_sessions(
+    betas: xr.DataArray, *, session_coord: str = "session_id"
+) -> xr.DataArray:
     def z_score(betas: xr.DataArray) -> xr.DataArray:
         mean = betas.mean("presentation")
         std = betas.std("presentation")
@@ -76,7 +78,7 @@ def z_score_betas_within_sessions(betas: xr.DataArray) -> xr.DataArray:
 
     return (
         betas.load()
-        .groupby("session_id")
+        .groupby(session_coord)
         .map(func=z_score, shortcut=True)
         .assign_attrs(betas.attrs)
         .rename(betas.name)
@@ -95,18 +97,7 @@ def z_score_betas_within_runs(betas: xr.DataArray) -> xr.DataArray:
             run_id.extend([i_run + i_session * n_runs_per_session] * n_trials)
     betas["run_id"] = ("presentation", run_id)
 
-    def z_score(betas: xr.DataArray) -> xr.DataArray:
-        mean = betas.mean("presentation")
-        std = betas.std("presentation")
-        return (betas - mean) / std
-
-    return (
-        betas.load()
-        .groupby("run_id")
-        .map(func=z_score, shortcut=True)
-        .assign_attrs(betas.attrs)
-        .rename(betas.name)
-    )
+    return z_score_betas_within_sessions(betas, session_coord="run_id")
 
 
 def average_betas_across_reps(betas: xr.DataArray) -> xr.DataArray:
