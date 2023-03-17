@@ -52,29 +52,15 @@ class SVCA:
         if y.ndim == 1:
             y = y.unsqueeze(dim=-1)
 
-        n_samples_x, n_features_x = x.shape[-2], x.shape[-1]
-        n_samples_y, n_features_y = y.shape[-2], y.shape[-1]
-        if n_samples_x != n_samples_y:
+        if x.shape[-2] != y.shape[-2]:
             raise ValueError("x and y must have the same number of samples")
-        self.n_samples = n_samples_x
-
-        max_n_components = min(self.n_samples, n_features_x, n_features_y)
-        if self.n_components is None:
-            self.n_components = max_n_components
-        else:
-            if self.n_components > max_n_components:
-                raise ValueError(f"n_components must be <= {max_n_components}")
+        self.n_samples = x.shape[-2]
 
         if x.dtype != y.dtype:
             raise ValueError("x and y must have the same dtype")
         if x.device != y.device:
             raise ValueError("x and y must be on the same device")
         self.device = x.device
-
-        return x, y
-
-    def fit(self, *, x: torch.Tensor, y: torch.Tensor) -> None:
-        x, y = self._preprocess(x=x, y=y)
 
         x = torch.clone(x)
         y = torch.clone(y)
@@ -97,6 +83,13 @@ class SVCA:
             self.left_dimensions_included = [True] * x.shape[-1]
             self.right_dimensions_included = [True] * y.shape[-1]
 
+        max_n_components = min(self.n_samples, x.shape[-1], y.shape[-1])
+        if self.n_components is None:
+            self.n_components = max_n_components
+        else:
+            if self.n_components > max_n_components:
+                raise ValueError(f"n_components must be <= {max_n_components}")
+
         if self.center:
             self.left_mean = x.mean(dim=-2, keepdim=True)
             x -= self.left_mean
@@ -106,6 +99,11 @@ class SVCA:
         else:
             self.left_mean = torch.zeros(1, device=self.device)
             self.right_mean = torch.zeros(1, device=self.device)
+
+        return x, y
+
+    def fit(self, *, x: torch.Tensor, y: torch.Tensor) -> None:
+        x, y = self._preprocess(x=x, y=y)
 
         if self.truncated:
             torch.manual_seed(self.seed)
