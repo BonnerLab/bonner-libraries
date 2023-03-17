@@ -11,16 +11,20 @@ class SVCA:
         n_components: int = None,
         seed: int = 0,
         center: bool = True,
+        normalize: bool = False,
         truncated: bool = True,
     ) -> None:
         self.n_components = n_components
         self.n_samples: int
         self.seed = seed
         self.center = center
+        self.normalize = normalize
         self.truncated = truncated
 
         self.left_mean: torch.Tensor
         self.right_mean: torch.Tensor
+        self.left_std: torch.Tensor
+        self.right_std: torch.Tensor
         self.singular_values: torch.Tensor
         self.left_singular_vectors: torch.Tensor
         self.right_singular_vectors: torch.Tensor
@@ -30,6 +34,8 @@ class SVCA:
     def to(self, device: torch.device | str) -> None:
         self.left_mean = self.left_mean.to(device)
         self.right_mean = self.right_mean.to(device)
+        self.left_std = self.left_std.to(device)
+        self.right_std = self.right_std.to(device)
         self.left_singular_vectors = self.left_singular_vectors.to(device)
         self.right_singular_vectors = self.right_singular_vectors.to(device)
         self.singular_values = self.singular_values.to(device)
@@ -81,6 +87,16 @@ class SVCA:
             self.left_mean = torch.zeros(1, device=self.device)
             self.right_mean = torch.zeros(1, device=self.device)
 
+        if self.normalize:
+            self.left_std = x.std(dim=-2, keepdim=True)
+            x /= self.left_std
+
+            self.right_std = y.std(dim=-2, keepdim=True)
+            y /= self.right_std
+        else:
+            self.left_std = torch.ones(1, device=self.device)
+            self.right_std = torch.ones(1, device=self.device)
+
         if self.truncated:
             torch.manual_seed(self.seed)
             u, s, v = torch.pca_lowrank(
@@ -99,16 +115,18 @@ class SVCA:
         match direction:
             case "left":
                 mean = self.left_mean
+                std = self.left_std
                 projection = self.left_singular_vectors
             case "right":
                 mean = self.right_mean
+                std = self.right_std
                 projection = self.right_singular_vectors
             case _:
                 raise ValueError("direction must be 'left' or 'right'")
 
         z = torch.clone(z)
         z = z.to(self.device)
-        z -= mean
+        z = (z - mean) / std
         return z @ projection
 
     def inverse_transform(
@@ -130,9 +148,11 @@ class SVCA:
             case "left":
                 projection = self.left_singular_vectors
                 mean = self.left_mean
+                std = self.left_std
             case "right":
                 projection = self.right_singular_vectors
                 mean = self.right_mean
+                std = self.right_std
             case _:
                 raise ValueError("direction must be 'left' or 'right'")
-        return (z @ projection[..., :, components].transpose(-2, -1)) + mean
+        return (z @ projection[..., :, components].transpose(-2, -1)) * std + mean
