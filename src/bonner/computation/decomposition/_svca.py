@@ -25,6 +25,8 @@ class SVCA:
         self.right_mean: torch.Tensor
         self.left_std: torch.Tensor
         self.right_std: torch.Tensor
+        self.left_dimensions_included: Sequence[bool]
+        self.right_dimensions_included: Sequence[bool]
         self.singular_values: torch.Tensor
         self.left_singular_vectors: torch.Tensor
         self.right_singular_vectors: torch.Tensor
@@ -77,6 +79,24 @@ class SVCA:
         x = torch.clone(x)
         y = torch.clone(y)
 
+        if self.normalize:
+            self.left_std = x.std(dim=-2, keepdim=True)
+            self.left_dimensions_included = (self.left_std != 0).squeeze()
+            self.left_std = self.left_std[..., self.left_dimensions_included]
+            x = x[..., self.left_dimensions_included]
+            x /= self.left_std
+
+            self.right_std = y.std(dim=-2, keepdim=True)
+            self.right_dimensions_included = (self.right_std != 0).squeeze()
+            self.right_std = self.right_std[..., self.right_dimensions_included]
+            y = y[..., self.right_dimensions_included]
+            y /= self.right_std
+        else:
+            self.left_std = torch.ones(1, device=self.device)
+            self.right_std = torch.ones(1, device=self.device)
+            self.left_dimensions_included = [True] * x.shape[-1]
+            self.right_dimensions_included = [True] * y.shape[-1]
+
         if self.center:
             self.left_mean = x.mean(dim=-2, keepdim=True)
             x -= self.left_mean
@@ -86,16 +106,6 @@ class SVCA:
         else:
             self.left_mean = torch.zeros(1, device=self.device)
             self.right_mean = torch.zeros(1, device=self.device)
-
-        if self.normalize:
-            self.left_std = x.std(dim=-2, keepdim=True)
-            x /= self.left_std
-
-            self.right_std = y.std(dim=-2, keepdim=True)
-            y /= self.right_std
-        else:
-            self.left_std = torch.ones(1, device=self.device)
-            self.right_std = torch.ones(1, device=self.device)
 
         if self.truncated:
             torch.manual_seed(self.seed)
@@ -117,15 +127,18 @@ class SVCA:
                 mean = self.left_mean
                 std = self.left_std
                 projection = self.left_singular_vectors
+                dimensions_included = self.left_dimensions_included
             case "right":
                 mean = self.right_mean
                 std = self.right_std
                 projection = self.right_singular_vectors
+                dimensions_included = self.right_dimensions_included
             case _:
                 raise ValueError("direction must be 'left' or 'right'")
 
         z = torch.clone(z)
         z = z.to(self.device)
+        z = z[..., dimensions_included]
         z = (z - mean) / std
         return z @ projection
 
@@ -155,4 +168,5 @@ class SVCA:
                 std = self.right_std
             case _:
                 raise ValueError("direction must be 'left' or 'right'")
+        # TODO add back excluded dimensions as NaNs
         return (z @ projection[..., :, components].transpose(-2, -1)) * std + mean
