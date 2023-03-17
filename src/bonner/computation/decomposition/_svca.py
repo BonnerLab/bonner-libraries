@@ -65,6 +65,8 @@ class SVCA:
         x = torch.clone(x)
         y = torch.clone(y)
 
+        # normalize data (divide each dimension by its standard deviation)
+        # if std == 0, then remove those dimensions from analysis
         if self.normalize:
             self.left_std = x.std(dim=-2, keepdim=True)
             self.left_dimensions_included = (self.left_std != 0).squeeze()
@@ -83,6 +85,7 @@ class SVCA:
             self.left_dimensions_included = [True] * x.shape[-1]
             self.right_dimensions_included = [True] * y.shape[-1]
 
+        # check for max_n_components here because we might be removing dimensions during normalization
         max_n_components = min(self.n_samples, x.shape[-1], y.shape[-1])
         if self.n_components is None:
             self.n_components = max_n_components
