@@ -2,6 +2,27 @@ import numpy as np
 import numpy.typing as npt
 
 
+def derange(
+    n: int, *, n_derangements: int, batch_size: int = 1000, seed: int = 0
+) -> np.ndarray[int]:
+    rng = np.random.default_rng(seed=seed)
+
+    if batch_size > n_derangements:
+        batch_size = n_derangements
+
+    derangements = np.zeros((0, n), dtype=np.uint64)
+    while len(derangements) < n_derangements:
+        derangements_ = np.stack(
+            [rng.permutation(n).astype(np.uint64) for _ in range(batch_size)]
+        )
+        derangements_ = derangements_[
+            ~np.any(derangements_ == np.arange(n, dtype=np.uint64), axis=1), ...
+        ]
+        derangements = np.concatenate([derangements, derangements_], axis=0)
+
+    return derangements[:n_derangements, ...]
+
+
 def permutation_test(
     samples: np.ndarray, null_distribution: np.ndarray, tail: str = "both"
 ) -> npt.NDArray[np.float_]:
@@ -18,3 +39,8 @@ def permutation_test(
         case _:
             raise ValueError("tail must be `left`, `right` or `both`")
     return p_value
+
+
+if __name__ == "__main__":
+    x = derange(8000, n_derangements=1000, batch_size=100)
+    print(1)
