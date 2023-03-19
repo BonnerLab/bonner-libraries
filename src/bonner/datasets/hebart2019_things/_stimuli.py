@@ -1,3 +1,5 @@
+import shutil
+
 from PIL import Image
 import pandas as pd
 from torchdata.datapipes.map import MapDataPipe
@@ -31,6 +33,11 @@ def download_stimuli(force: bool = False) -> None:
             remove_zip=False,
             password=password,
         )
+    weird_directory = CACHE_PATH / "images" / "object_images_L-Q"
+    for old_path in weird_directory.rglob("*.jpg"):
+        new_path = CACHE_PATH / "images" / old_path.relative_to(weird_directory)
+        if not new_path.exists():
+            shutil.copy(old_path, new_path)
 
 
 def load_metadata() -> pd.DataFrame:
