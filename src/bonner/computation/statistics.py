@@ -19,6 +19,7 @@ def derange(
             ~np.any(derangements_ == np.arange(n, dtype=np.uint64), axis=1), ...
         ]
         derangements = np.concatenate([derangements, derangements_], axis=0)
+        derangements = np.unique(derangements, axis=0)
 
     return derangements[:n_derangements, ...]
 
@@ -42,5 +43,4 @@ def permutation_test(
 
 
 if __name__ == "__main__":
-    x = derange(8000, n_derangements=1000, batch_size=100)
-    print(1)
+    derange(1000, n_derangements=103)
