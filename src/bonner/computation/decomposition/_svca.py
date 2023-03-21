@@ -25,8 +25,6 @@ class SVCA:
         self.right_mean: torch.Tensor
         self.left_std: torch.Tensor
         self.right_std: torch.Tensor
-        self.left_dimensions_included: Sequence[bool]
-        self.right_dimensions_included: Sequence[bool]
         self.singular_values: torch.Tensor
         self.left_singular_vectors: torch.Tensor
         self.right_singular_vectors: torch.Tensor
@@ -56,6 +54,13 @@ class SVCA:
             raise ValueError("x and y must have the same number of samples")
         self.n_samples = x.shape[-2]
 
+        max_n_components = min(self.n_samples, x.shape[-1], y.shape[-1])
+        if self.n_components is None:
+            self.n_components = max_n_components
+        else:
+            if self.n_components > max_n_components:
+                raise ValueError(f"n_components must be <= {max_n_components}")
+
         if x.dtype != y.dtype:
             raise ValueError("x and y must have the same dtype")
         if x.device != y.device:
@@ -66,32 +71,17 @@ class SVCA:
         y = torch.clone(y)
 
         # normalize data (divide each dimension by its standard deviation)
-        # if std == 0, then remove those dimensions from analysis
         if self.normalize:
             self.left_std = x.std(dim=-2, keepdim=True)
-            self.left_dimensions_included = (self.left_std != 0).squeeze()
-            self.left_std = self.left_std[..., self.left_dimensions_included]
-            x = x[..., self.left_dimensions_included]
+            self.left_std[self.left_std == 0] = 1
             x /= self.left_std
 
             self.right_std = y.std(dim=-2, keepdim=True)
-            self.right_dimensions_included = (self.right_std != 0).squeeze()
-            self.right_std = self.right_std[..., self.right_dimensions_included]
-            y = y[..., self.right_dimensions_included]
+            self.right_std[self.right_std == 0] = 1
             y /= self.right_std
         else:
             self.left_std = torch.ones(1, device=self.device)
             self.right_std = torch.ones(1, device=self.device)
-            self.left_dimensions_included = [True] * x.shape[-1]
-            self.right_dimensions_included = [True] * y.shape[-1]
-
-        # check for max_n_components here because we might be removing dimensions during normalization
-        max_n_components = min(self.n_samples, x.shape[-1], y.shape[-1])
-        if self.n_components is None:
-            self.n_components = max_n_components
-        else:
-            if self.n_components > max_n_components:
-                raise ValueError(f"n_components must be <= {max_n_components}")
 
         if self.center:
             self.left_mean = x.mean(dim=-2, keepdim=True)
@@ -128,18 +118,15 @@ class SVCA:
                 mean = self.left_mean
                 std = self.left_std
                 projection = self.left_singular_vectors
-                dimensions_included = self.left_dimensions_included
             case "right":
                 mean = self.right_mean
                 std = self.right_std
                 projection = self.right_singular_vectors
-                dimensions_included = self.right_dimensions_included
             case _:
                 raise ValueError("direction must be 'left' or 'right'")
 
         z = torch.clone(z)
         z = z.to(self.device)
-        z = z[..., dimensions_included]
         z = (z - mean) / std
         return z @ projection
 
@@ -169,5 +156,4 @@ class SVCA:
                 std = self.right_std
             case _:
                 raise ValueError("direction must be 'left' or 'right'")
-        # TODO add back excluded dimensions as NaNs
         return (z @ projection[..., :, components].transpose(-2, -1)) * std + mean
