@@ -11,14 +11,14 @@ class SVCA:
         n_components: int = None,
         seed: int = 0,
         center: bool = True,
-        normalize: bool = False,
+        scale: bool = True,
         truncated: bool = True,
     ) -> None:
         self.n_components = n_components
         self.n_samples: int
         self.seed = seed
         self.center = center
-        self.normalize = normalize
+        self.scale = scale
         self.truncated = truncated
 
         self.left_mean: torch.Tensor
@@ -70,8 +70,8 @@ class SVCA:
         x = torch.clone(x)
         y = torch.clone(y)
 
-        # normalize data (divide each dimension by its standard deviation)
-        if self.normalize:
+        # scale data (divide each dimension by its standard deviation)
+        if self.scale:
             self.left_std = x.std(dim=-2, keepdim=True)
             self.left_std[self.left_std == 0] = 1
             x /= self.left_std
