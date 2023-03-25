@@ -70,6 +70,16 @@ class SVCA:
         x = torch.clone(x)
         y = torch.clone(y)
 
+        if self.center:
+            self.left_mean = x.mean(dim=-2, keepdim=True)
+            x -= self.left_mean
+
+            self.right_mean = y.mean(dim=-2, keepdim=True)
+            y -= self.right_mean
+        else:
+            self.left_mean = torch.zeros(1, device=self.device)
+            self.right_mean = torch.zeros(1, device=self.device)
+
         # scale data (divide each dimension by its standard deviation)
         if self.scale:
             self.left_std = x.std(dim=-2, keepdim=True)
@@ -82,16 +92,6 @@ class SVCA:
         else:
             self.left_std = torch.ones(1, device=self.device)
             self.right_std = torch.ones(1, device=self.device)
-
-        if self.center:
-            self.left_mean = x.mean(dim=-2, keepdim=True)
-            x -= self.left_mean
-
-            self.right_mean = y.mean(dim=-2, keepdim=True)
-            y -= self.right_mean
-        else:
-            self.left_mean = torch.zeros(1, device=self.device)
-            self.right_mean = torch.zeros(1, device=self.device)
 
         return x, y
 
