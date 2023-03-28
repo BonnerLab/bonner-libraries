@@ -4,7 +4,7 @@ import torch
 from bonner.computation.decomposition._utilities import svd_flip
 
 
-class SVCA:
+class PLSSVD:
     def __init__(
         self,
         *,

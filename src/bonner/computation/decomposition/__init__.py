@@ -1,7 +1,7 @@
 __all__ = [
     "PCA",
-    "SVCA",
+    "PLSSVD",
 ]
 
 from bonner.computation.decomposition._pca import PCA
-from bonner.computation.decomposition._svca import SVCA
+from bonner.computation.decomposition._plssvd import PLSSVD
