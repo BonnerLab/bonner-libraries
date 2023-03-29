@@ -51,12 +51,22 @@ class PCA:
         self.eigenvectors = v_h[..., : self.n_components, :].transpose(-2, -1)
         self.eigenvalues = (s[..., : self.n_components] ** 2) / (self.n_samples - 1)
 
-    def transform(self, z: torch.Tensor) -> torch.Tensor:
+    def transform(
+        self,
+        z: torch.Tensor,
+        *,
+        components: Sequence[int] | int = None,
+    ) -> torch.Tensor:
+        if components is None:
+            components = self.n_components
+        if isinstance(components, int):
+            components = list(range(components))
+
         z = torch.clone(z)
         z = z.to(self.device)
         z -= self.mean
 
-        return z @ self.eigenvectors
+        return z @ self.eigenvectors[..., components]
 
     def inverse_transform(
         self,
