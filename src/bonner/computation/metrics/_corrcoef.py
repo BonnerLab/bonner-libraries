@@ -1,19 +1,14 @@
-import gc
-import more_itertools
-
 import torch
-
-from bonner.computation.normalization import z_score, center
 
 
 def _helper(
     x: torch.Tensor,
-    y: torch.Tensor | None = None,
+    y: torch.Tensor | None,
     *,
-    return_value: str,
-    return_diagonal: bool = True,
+    center: bool,
+    scale: bool,
     unbiased: bool = True,
-    batch_size: int = 1000,
+    return_diagonal: bool = True,
 ) -> torch.Tensor:
     if x.ndim not in {1, 2, 3}:
         raise ValueError(f"x must have 1, 2 or 3 dimensions (n_dim = {x.ndim})")
@@ -47,35 +42,21 @@ def _helper(
         y = x
         dim_sample_y = dim_sample_x
 
-    match return_value:
-        case "pearson_r":
-            x = z_score(x, dim=dim_sample_x, unbiased=unbiased, nan_policy="propagate")
-            y = z_score(y, dim=dim_sample_y, unbiased=unbiased, nan_policy="propagate")
-        case "covariance":
-            x = center(x, dim=dim_sample_x, nan_policy="propagate")
-            y = center(y, dim=dim_sample_y, nan_policy="propagate")
-        case _:
-            raise ValueError()
+    if center:
+        x -= x.mean(dim=dim_sample_x, keepdim=True)
+        y -= y.mean(dim=dim_sample_y, keepdim=True)
+    if scale:
+        x /= x.std(dim=dim_sample_x, keepdim=True, unbiased=unbiased)
+        y /= y.std(dim=dim_sample_y, keepdim=True, unbiased=unbiased)
 
     try:
-        x = (x.transpose(-2, -1) @ y) / (n_samples_x - 1)
         if return_diagonal:
-            x = torch.diagonal(x, dim1=-2, dim2=-1)
-    except:
-        if return_diagonal:
-            xs = []
-            for batch in more_itertools.chunked(range(n_features_x), n=batch_size):
-                x_ = x[..., batch].transpose(-2, -1) @ y[..., batch]
-                x_ /= n_samples_x - 1
-                xs.append(torch.diagonal(x_, dim1=-2, dim2=-1))
-            x = torch.concat(xs, dim=-1)
+            x = (x * y).sum(dim=-2) / (n_samples_x - 1)
         else:
-            raise ValueError("Tensor is too big to fit in memory")
+            x = (x.transpose(-2, -1) @ y) / (n_samples_x - 1)
+    except:
+        raise ValueError("Tensor is too big to fit in memory")
     x = x.squeeze()
-
-    del y
-    gc.collect()
-    torch.cuda.empty_cache()
 
     return x
 
@@ -102,9 +83,10 @@ def pearson_r(
     return _helper(
         x=x,
         y=y,
-        return_value="pearson_r",
-        return_diagonal=return_diagonal,
+        center=True,
+        scale=True,
         unbiased=unbiased,
+        return_diagonal=return_diagonal,
     )
 
 
@@ -130,7 +112,8 @@ def covariance(
     return _helper(
         x=x,
         y=y,
-        return_value="covariance",
-        return_diagonal=return_diagonal,
+        center=True,
+        scale=False,
         unbiased=unbiased,
+        return_diagonal=return_diagonal,
     )
