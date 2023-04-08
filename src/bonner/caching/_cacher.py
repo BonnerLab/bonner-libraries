@@ -18,7 +18,7 @@ BONNER_CACHING_HOME = Path(
     os.getenv("BONNER_CACHING_HOME", str(Path.home() / ".cache" / "bonner-caching"))
 )
 
-
+# TODO: param to disable caching
 class Cacher:
     def __init__(  # type: ignore  # kwargs can be Any
         self,

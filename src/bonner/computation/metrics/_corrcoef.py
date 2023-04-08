@@ -7,7 +7,6 @@ def _helper(
     *,
     center: bool,
     scale: bool,
-    unbiased: bool = True,
     return_diagonal: bool = True,
 ) -> torch.Tensor:
     if x.ndim not in {1, 2, 3}:
@@ -46,14 +45,15 @@ def _helper(
         x -= x.mean(dim=dim_sample_x, keepdim=True)
         y -= y.mean(dim=dim_sample_y, keepdim=True)
     if scale:
-        x /= x.std(dim=dim_sample_x, keepdim=True, unbiased=unbiased)
-        y /= y.std(dim=dim_sample_y, keepdim=True, unbiased=unbiased)
+        x /= torch.sqrt((x ** 2).sum(dim=dim_sample_x, keepdim=True))
+        y /= torch.sqrt((y ** 2).sum(dim=dim_sample_y, keepdim=True))
 
     try:
+        # TODO: batch operation
         if return_diagonal:
-            x = (x * y).sum(dim=-2) / (n_samples_x - 1)
+            x = (x * y).sum(dim=-2)
         else:
-            x = (x.transpose(-2, -1) @ y) / (n_samples_x - 1)
+            x = (x.transpose(-2, -1) @ y)
     except:
         raise ValueError("Tensor is too big to fit in memory")
     x = x.squeeze()
