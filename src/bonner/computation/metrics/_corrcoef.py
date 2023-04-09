@@ -66,7 +66,6 @@ def pearson_r(
     y: torch.Tensor | None = None,
     *,
     return_diagonal: bool = True,
-    unbiased: bool = True,
 ) -> torch.Tensor:
     """Computes Pearson correlation coefficients.
 
@@ -85,7 +84,6 @@ def pearson_r(
         y=y,
         center=True,
         scale=True,
-        unbiased=unbiased,
         return_diagonal=return_diagonal,
     )
 
