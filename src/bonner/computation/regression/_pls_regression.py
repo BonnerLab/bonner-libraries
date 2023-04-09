@@ -17,7 +17,7 @@ def _get_first_singular_vectors_power_method(
         x_weights = (x.T @ y_score) / (y_score @ y_score)
         x_weights /= torch.sqrt(x_weights @ x_weights) + eps
         x_score = x @ x_weights
-        y_weights = (y.T @ x_score) / (x_score.T @ x_score)
+        y_weights = (y.T @ x_score) / (x_score @ x_score)
         y_score = (y @ y_weights) / ((y_weights @ y_weights) + eps)
         x_weights_diff = x_weights - x_weights_old
         if (x_weights_diff @ x_weights_diff) < tol or y.shape[1] == 1:
