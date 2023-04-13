@@ -5,9 +5,13 @@ from bonner.computation.decomposition._utilities import svd_flip
 
 
 class PCA:
-    def __init__(self, n_components: int = None) -> None:
+    def __init__(
+        self, n_components: int = None, truncated: bool = False, seed: int = 0
+    ) -> None:
         self.n_components = n_components
         self.n_samples: int
+        self.truncated = truncated
+        self.seed = seed
 
         self.mean: torch.Tensor
         self.eigenvectors: torch.Tensor
@@ -45,7 +49,12 @@ class PCA:
         self.mean = x.mean(dim=-2, keepdim=True)
         x -= self.mean
 
-        u, s, v_h = torch.linalg.svd(x, full_matrices=False)
+        if self.truncated:
+            torch.manual_seed(self.seed)
+            u, s, v = torch.pca_lowrank(x, center=False, q=self.n_components)
+            v_h = v.transpose(-2, -1)
+        else:
+            u, s, v_h = torch.linalg.svd(x, full_matrices=False)
         u, v_h = svd_flip(u=u, v=v_h)
 
         self.eigenvectors = v_h[..., : self.n_components, :].transpose(-2, -1)
