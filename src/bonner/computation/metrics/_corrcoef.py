@@ -9,7 +9,11 @@ def _helper(
     scale: bool,
     unbiased: bool = True,
     return_diagonal: bool = True,
+    copy: bool = True,
 ) -> torch.Tensor:
+    if copy:
+        x = torch.clone(x)
+
     if x.ndim not in {1, 2, 3}:
         raise ValueError(f"x must have 1, 2 or 3 dimensions (n_dim = {x.ndim})")
     x = x.unsqueeze(1) if x.ndim == 1 else x
@@ -19,6 +23,8 @@ def _helper(
     n_features_x = x.shape[dim_feature_x]
 
     if y is not None:
+        if copy:
+            y = torch.clone(y)
         if y.ndim not in {1, 2, 3}:
             raise ValueError(f"y must have 1, 2 or 3 dimensions (n_dim = {y.ndim})")
         y = y.unsqueeze(1) if y.ndim == 1 else y
@@ -67,6 +73,7 @@ def pearson_r(
     *,
     return_diagonal: bool = True,
     unbiased: bool = True,
+    copy: bool = True,
 ) -> torch.Tensor:
     """Computes Pearson correlation coefficients.
 
@@ -87,6 +94,7 @@ def pearson_r(
         scale=True,
         unbiased=unbiased,
         return_diagonal=return_diagonal,
+        copy=copy,
     )
 
 
@@ -96,6 +104,7 @@ def covariance(
     *,
     return_diagonal: bool = True,
     unbiased: bool = True,
+    copy: bool = True,
 ) -> torch.Tensor:
     """Computes covariance.
 
@@ -116,4 +125,5 @@ def covariance(
         scale=False,
         unbiased=unbiased,
         return_diagonal=return_diagonal,
+        copy=copy,
     )
