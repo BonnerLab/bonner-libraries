@@ -136,7 +136,7 @@ class PLSRegression(Regression):
         )
         self.coefficients = x_rotations_ @ y_loadings_.T
         self.coefficients = self.coefficients / x_std.T * y_std
-        self.intercept = y_mean - x_mean / x_std @ self.coefficients
+        self.intercept = y_mean - x_mean @ self.coefficients
         
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         return x.to(self.coefficients.device) @ self.coefficients + self.intercept
