@@ -7,10 +7,7 @@ def _helper(
     *,
     center: bool,
     scale: bool,
-<<<<<<< HEAD
-=======
     correction: float = 1,
->>>>>>> main
     return_diagonal: bool = True,
     copy: bool = True,
 ) -> torch.Tensor:
@@ -55,20 +52,15 @@ def _helper(
         x -= x.mean(dim=dim_sample_x, keepdim=True)
         y -= y.mean(dim=dim_sample_y, keepdim=True)
     if scale:
-<<<<<<< HEAD
-        x /= torch.sqrt((x ** 2).sum(dim=dim_sample_x, keepdim=True))
-        y /= torch.sqrt((y ** 2).sum(dim=dim_sample_y, keepdim=True))
-=======
         x /= x.std(dim=dim_sample_x, keepdim=True, correction=correction)
         y /= y.std(dim=dim_sample_y, keepdim=True, correction=correction)
->>>>>>> main
 
     try:
         # TODO: batch operation
         if return_diagonal:
-            x = (x * y).sum(dim=-2)
+            x = (x * y).sum(dim=-2) / (n_samples_x - 1)
         else:
-            x = (x.transpose(-2, -1) @ y)
+            x = (x.transpose(-2, -1) @ y) / (n_samples_x - 1)
     except:
         raise ValueError("Tensor is too big to fit in memory")
     x = x.squeeze()
@@ -101,10 +93,7 @@ def pearson_r(
         y=y,
         center=True,
         scale=True,
-<<<<<<< HEAD
-=======
         correction=correction,
->>>>>>> main
         return_diagonal=return_diagonal,
         copy=copy,
     )
