@@ -7,6 +7,10 @@ def _helper(
     *,
     center: bool,
     scale: bool,
+<<<<<<< HEAD
+=======
+    correction: float = 1,
+>>>>>>> main
     return_diagonal: bool = True,
     copy: bool = True,
 ) -> torch.Tensor:
@@ -51,8 +55,13 @@ def _helper(
         x -= x.mean(dim=dim_sample_x, keepdim=True)
         y -= y.mean(dim=dim_sample_y, keepdim=True)
     if scale:
+<<<<<<< HEAD
         x /= torch.sqrt((x ** 2).sum(dim=dim_sample_x, keepdim=True))
         y /= torch.sqrt((y ** 2).sum(dim=dim_sample_y, keepdim=True))
+=======
+        x /= x.std(dim=dim_sample_x, keepdim=True, correction=correction)
+        y /= y.std(dim=dim_sample_y, keepdim=True, correction=correction)
+>>>>>>> main
 
     try:
         # TODO: batch operation
@@ -72,7 +81,7 @@ def pearson_r(
     y: torch.Tensor | None = None,
     *,
     return_diagonal: bool = True,
-    unbiased: bool = True,
+    correction: bool = 1,
     copy: bool = True,
 ) -> torch.Tensor:
     """Computes Pearson correlation coefficients.
@@ -92,6 +101,10 @@ def pearson_r(
         y=y,
         center=True,
         scale=True,
+<<<<<<< HEAD
+=======
+        correction=correction,
+>>>>>>> main
         return_diagonal=return_diagonal,
         copy=copy,
     )
@@ -102,7 +115,7 @@ def covariance(
     y: torch.Tensor | None = None,
     *,
     return_diagonal: bool = True,
-    unbiased: bool = True,
+    correction: bool = 1,
     copy: bool = True,
 ) -> torch.Tensor:
     """Computes covariance.
@@ -122,7 +135,7 @@ def covariance(
         y=y,
         center=True,
         scale=False,
-        unbiased=unbiased,
+        correction=correction,
         return_diagonal=return_diagonal,
         copy=copy,
     )
