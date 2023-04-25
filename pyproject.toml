@@ -49,5 +49,6 @@ dependencies = [
     "Pillow",
     "matplotlib",
     "robustbench @ git+https://github.com/RobustBench/robustbench.git@master",
+    "clip @ git+https://github.com/openai/CLIP.git",
 ]
 dynamic = ["version"]
