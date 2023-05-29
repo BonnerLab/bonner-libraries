@@ -52,7 +52,7 @@ def load(
     model.fc = nn.Linear(512, 200)
     model.load_state_dict(checkpoint)
 
-    preprocess = torchvision.models.get_model_weights("resnet18")[
+    preprocess = torchvision.models.get_model_weights("ResNet18")[
         "DEFAULT"
     ].transforms()
     return model, preprocess
