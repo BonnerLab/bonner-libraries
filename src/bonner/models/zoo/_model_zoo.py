@@ -18,17 +18,18 @@ ZIP_FILENAME = "tiny-imagenet_resnet18_subset.zip"
 UNZIP_DIR = "tiny-imagenet_resnet18_kaiming_uniform_subset"
 
 
-def load_model_zoo_checkpoint(*, seed: int) -> dict[str, Any]:
-    zenodo_get(f"-d {DOI} -o {MODEL_ZOO_CACHE}".split())
-    unzip(
-        filepath=MODEL_ZOO_CACHE / ZIP_FILENAME,
-        extract_dir=MODEL_ZOO_CACHE,
-        remove_zip=False,
-    )
+def load_model_zoo_checkpoint(seed: int) -> dict[str, Any]:
+    if not (MODEL_ZOO_CACHE / UNZIP_DIR).exists():
+        zenodo_get(f"-d {DOI} -o {MODEL_ZOO_CACHE}".split())
+        unzip(
+            filepath=MODEL_ZOO_CACHE / ZIP_FILENAME,
+            extract_dir=MODEL_ZOO_CACHE,
+            remove_zip=False,
+        )
     root = MODEL_ZOO_CACHE / UNZIP_DIR
     filepath = [path.relative_to(root) for path in root.rglob(f"*seed={seed}_*")][0]
     return torch.load(
-        filepath / "checkpoint_000060" / "checkpoints",
+        MODEL_ZOO_CACHE / UNZIP_DIR / filepath / "checkpoint_000060" / "checkpoints",
         map_location=torch.device("cpu")
     )
 
@@ -52,7 +53,15 @@ def load(
     model.fc = nn.Linear(512, 200)
     model.load_state_dict(checkpoint)
 
-    preprocess = torchvision.models.get_model_weights("ResNet18")[
-        "DEFAULT"
-    ].transforms()
+    preprocess = torchvision.transforms.Compose(
+            [
+                torchvision.transforms.CenterCrop(224),
+                torchvision.transforms.Resize(64),
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225],    
+                ),
+            ]
+        )
     return model, preprocess

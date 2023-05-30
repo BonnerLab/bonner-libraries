@@ -48,7 +48,6 @@ def load(
             match weights:
                 case (
                     "Jigsaw-ImageNet1K"
-                    | "Colorization-ImageNet1K"
                     | "RotNet-ImageNet1K"
                     | "ClusterFit-16K-RotNet-ImageNet1K"
                     | "NPID++-ImageNet1K"
@@ -63,7 +62,7 @@ def load(
                     ]
                 case "DeepClusterV2-ImageNet1K":
                     checkpoint = checkpoint
-                case "Instagram-ImageNet" | "YFCC100M-ImageNet" | "Places205-Caffe2":
+                case "Colorization-ImageNet1K" | "Instagram-ImageNet" | "YFCC100M-ImageNet" | "Places205-Caffe2":
                     checkpoint = checkpoint["model_state_dict"]
                 case _:
                     raise ValueError(
@@ -77,13 +76,30 @@ def load(
         case "DeepClusterV2-ImageNet1K":
             for key in checkpoint.keys():
                 new_state_dict[key.replace("module.", "")] = checkpoint[key]
+        case "MoCoV2-ImageNet1K":
+            for key in checkpoint.keys():
+                new_state_dict[key.replace("moco_encoder.trunk._feature_blocks.", "")] = checkpoint[key]
         case _:
             for key in checkpoint.keys():
                 new_state_dict[key.replace("_feature_blocks.", "")] = checkpoint[key]
     model = torchvision.models.resnet50()
+    if weights == "Colorization-ImageNet1K":
+        model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
     model.load_state_dict(new_state_dict, strict=False)
 
     preprocess = torchvision.models.get_model_weights(architecture)[
         "DEFAULT"
     ].transforms()
+    if weights == "Colorization-ImageNet1K":
+        preprocess = torchvision.transforms.Compose(
+            [
+                torchvision.transforms.CenterCrop(224),
+                torchvision.transforms.Resize(232),
+                torchvision.transforms.Grayscale(num_output_channels=1),
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize(
+                    mean=0.5, std=0.5
+                ),
+            ]
+        )
     return model, preprocess
