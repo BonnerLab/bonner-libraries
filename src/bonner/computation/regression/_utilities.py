@@ -56,7 +56,8 @@ def regression_cv(
     y_true, y_predicted = [], []
 
     splits = create_splits(n=y.shape[-2], n_folds=n_folds, shuffle=shuffle, seed=seed)
-    for indices_test in tqdm(splits, desc="split", leave=False):
+    # for indices_test in tqdm(splits, desc="split", leave=False):
+    for indices_test in splits:
         y_true_, y_predicted_ = regression(
             model=model,
             x=x,
