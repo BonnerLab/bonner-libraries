@@ -11,7 +11,7 @@ class LinearRegression(Regression):
         l2_penalty: float | int | torch.Tensor = None,
         rcond: float = None,
         driver: str = None,
-        allow_ols_on_cuda: bool = False,
+        allow_ols_on_cuda: bool = True,
     ) -> None:
         self.coefficients: torch.Tensor = None
         self.intercept: torch.Tensor = None

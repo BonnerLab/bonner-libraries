@@ -14,7 +14,7 @@ class SGDLinearRegression():
         l2_strength: float = 0.0, 
         max_epoch: int = 1000,
         tol: float = 1e-2,
-        num_epoch_tol: int = 20,
+        num_epoch_tol: int = 30,
         batch_size: int = 1000,
         seed: int = 11,
     ):
