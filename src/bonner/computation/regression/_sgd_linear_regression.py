@@ -1,23 +1,33 @@
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 import torch
 from torch import nn, optim
 import numpy as np
 
 from bonner.computation.regression._utilities import Regression
 
+MIN_LR = 1e-6
+LR_STEP = 5
+
 
 class SGDLinearRegression():
     def __init__(
         self, 
-        lr: float = 1e-4, 
+        lr: float = 1e-2, 
+        adaptive: bool = True,
         fit_intercept: bool = True, 
         l1_strength: float = 0.0, 
         l2_strength: float = 0.0, 
         max_epoch: int = 1000,
-        tol: float = 1e-2,
-        num_epoch_tol: int = 30,
+        tol: float = 1e-3,
+        num_epoch_tol: int = 10,
         batch_size: int = 1000,
         seed: int = 11,
     ):
+        self._adaptive = adaptive
+        self._lr0 = lr
         self._lr = lr
         self._fit_intercept = fit_intercept
         self._l1_strength = l1_strength
@@ -32,31 +42,58 @@ class SGDLinearRegression():
         self._loss_func = nn.MSELoss(reduction='sum')
         self._linear = None
         self._optimizer = None
+        self._initialized = False
     
     def fit(
         self,
         x: torch.Tensor,
         y: torch.Tensor,
     ) -> None:
+        self._initialized = False
+        # self._y_mean = y.mean(dim=-2, keepdim=True)
+        # y -= self._y_mean
+        # self._y_std = y.std(dim=-2, keepdim=True)
+        # self._y_std[self._y_std == 0] = 1
+        # y /= self._y_std
+        
+        
         rng = np.random.default_rng(self._seed)
-        assert x.shape[-2] == y.shape[-2]
-        idx = np.arange(x.shape[-2])
-        losses = []
-        for _ in range(self._max_epoch):
+        assert x.size(-2) == y.size(-2)
+        n_sample = x.size(-2)
+        idx = np.arange(n_sample)
+        best_loss, n_tol = None, 0
+        for e in range(self._max_epoch):
             rng.shuffle(idx)
             epoch_loss = []
-            for j in range(0, len(idx), self._batch_size):
-                epoch_loss.append(
-                    self._fit_partial(
-                        x[idx[j : j + self._batch_size]],
-                        y[idx[j : j + self._batch_size]],
-                    )
-                )
+            for j in range(0, n_sample, self._batch_size):
+                j_end = np.min((j + self._batch_size, n_sample))
+                epoch_loss.append(self._fit_partial(
+                    x[idx[j : j_end]],
+                    y[idx[j : j_end]],
+                ))
             epoch_loss = np.mean(epoch_loss)
-            if len(losses) >= self._num_epoch_tol:
-                if epoch_loss / np.mean(losses[-self._num_epoch_tol:]) > 1 - self._tol:
-                    break
-            losses.append(epoch_loss)
+            
+            if not best_loss:
+                best_loss = epoch_loss
+            elif epoch_loss / best_loss > 1 - self._tol:
+                n_tol += 1
+            else:
+                ntol = 0
+                if epoch_loss < best_loss:
+                    best_loss = epoch_loss
+                    
+            if n_tol >= self._num_epoch_tol:
+                if self._adaptive and self._lr > MIN_LR:
+                    self._lr /= LR_STEP
+                    for g in self._optimizer.param_groups:
+                        g["lr"] = self._lr
+                    n_tol = 0
+                else:
+                    # logging.info(f"Early stopped at epoch {e}: loss = {epoch_loss:.2e}")
+                    break     
+                
+            if e == self._max_epoch - 1:
+                logging.info(f"No convergence: loss = {epoch_loss:.2e}")  
         
     def _fit_partial(
         self, 
@@ -93,9 +130,11 @@ class SGDLinearRegression():
         with torch.no_grad():
             preds = self._linear(x)
         return preds
+        # return preds * self._y_std + self._y_mean
 
     def _initialize_from(self, x: torch.Tensor, y: torch.Tensor):
-        if self._linear is None:
+        if not self._initialized:
+            self._lr = self._lr0
             self._linear = nn.Linear(
                 x.shape[1], 
                 y.shape[1],
@@ -104,5 +143,6 @@ class SGDLinearRegression():
             )
             self._optimizer = optim.Adam(
                 self._linear.parameters(),
-                lr=self._lr,
+                lr=self._lr0,
             )
+            self._initialized = True

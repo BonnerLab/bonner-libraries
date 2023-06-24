@@ -6,10 +6,15 @@ from bonner.computation.decomposition._utilities import svd_flip
 
 class PCA:
     def __init__(
-        self, n_components: int = None, truncated: bool = False, seed: int = 0
+        self, 
+        n_components: int = None,
+        scale: bool = False,
+        truncated: bool = False,
+        seed: int = 0
     ) -> None:
         self.n_components = n_components
         self.n_samples: int
+        self.scale = scale
         self.truncated = truncated
         self.seed = seed
 
@@ -48,7 +53,14 @@ class PCA:
         x = torch.clone(x)
         self.mean = x.mean(dim=-2, keepdim=True)
         x -= self.mean
-
+        
+        if self.scale:
+            self.std = x.std(dim=-2, keepdim=True)
+            self.std[self.std == 0] = 1
+            x /= self.std
+        else:
+            self.std = torch.ones(1, device=self.device)
+            
         if self.truncated:
             torch.manual_seed(self.seed)
             u, s, v = torch.pca_lowrank(x, center=False, q=self.n_components)
@@ -74,6 +86,7 @@ class PCA:
         z = torch.clone(z)
         z = z.to(self.device)
         z -= self.mean
+        z /= self.std
 
         return z @ self.eigenvectors[..., components]
 
@@ -91,4 +104,4 @@ class PCA:
         z = z.to(self.device)
         z = z[..., components]
 
-        return (z @ self.eigenvectors[..., components].transpose(-2, -1)) + self.mean
+        return (z @ self.eigenvectors[..., components].transpose(-2, -1)) * self.std + self.mean
