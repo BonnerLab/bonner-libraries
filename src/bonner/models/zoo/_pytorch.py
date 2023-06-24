@@ -6,11 +6,12 @@ from PIL import Image
 
 
 def load(
-    *, architecture: str, weights: str, seed: int = 0
+    *, architecture: str, weights: str, seed: int = None,
 ) -> tuple[torch.nn.Module, Callable[[Image.Image], torch.Tensor]]:
     preprocess = None
     match weights:
         case "untrained":
+            assert seed is not None
             torch.manual_seed(seed)
             model = get_model(name=architecture.lower(), weights=None)
             preprocess = get_model_weights(architecture)["DEFAULT"].transforms()

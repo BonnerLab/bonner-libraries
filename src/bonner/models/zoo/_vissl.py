@@ -11,7 +11,10 @@ from bonner.models.utilities import BONNER_MODELS_HOME
 VISSL_CACHE = BONNER_MODELS_HOME / "models" / "vissl"
 URLS = {
     "Jigsaw-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/jigsaw_rn50_in1k_ep105_perm2k_jigsaw_8gpu_resnet_17_07_20.db174a43/model_final_checkpoint_phase104.torch",
-    "Colorization-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/converted_vissl_rn50_colorization_in1k_goyal19.torch",
+    # Colorization model seems to have multiple issues:
+    # 1. ambiguous architecture and transform
+    # 2. reported issue of not being reproduced 
+    # "Colorization-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/converted_vissl_rn50_colorization_in1k_goyal19.torch",
     "RotNet-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/rotnet_rn50_in1k_ep105_rotnet_8gpu_resnet_17_07_20.46bada9f/model_final_checkpoint_phase125.torch",
     "ClusterFit-16K-RotNet-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/converted_vissl_rn50_rotnet_16kclusters_in1k_ep105.torch",
     "NPID++-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/npid_pp/4node_800ep_32kneg_cosine_resnet_23_07_20.75432662/model_final_checkpoint_phase799.torch",
@@ -62,7 +65,12 @@ def load(
                     ]
                 case "DeepClusterV2-ImageNet1K":
                     checkpoint = checkpoint
-                case "Colorization-ImageNet1K" | "Instagram-ImageNet" | "YFCC100M-ImageNet" | "Places205-Caffe2":
+                case (
+                    "Instagram-ImageNet" 
+                    | "YFCC100M-ImageNet" 
+                    | "Places205-Caffe2"
+                    # | "Colorization-ImageNet1K" 
+                ):
                     checkpoint = checkpoint["model_state_dict"]
                 case _:
                     raise ValueError(
@@ -83,23 +91,33 @@ def load(
             for key in checkpoint.keys():
                 new_state_dict[key.replace("_feature_blocks.", "")] = checkpoint[key]
     model = torchvision.models.resnet50()
-    if weights == "Colorization-ImageNet1K":
-        model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+    # if weights == "Colorization-ImageNet1K":
+    #     model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
     model.load_state_dict(new_state_dict, strict=False)
 
-    preprocess = torchvision.models.get_model_weights(architecture)[
-        "DEFAULT"
-    ].transforms()
-    if weights == "Colorization-ImageNet1K":
-        preprocess = torchvision.transforms.Compose(
-            [
-                torchvision.transforms.CenterCrop(224),
-                torchvision.transforms.Resize(232),
-                torchvision.transforms.Grayscale(num_output_channels=1),
-                torchvision.transforms.ToTensor(),
-                torchvision.transforms.Normalize(
-                    mean=0.5, std=0.5
-                ),
-            ]
-        )
+    match weights:
+        # case "Colorization-ImageNet1K":
+        #     preprocess = torchvision.transforms.Compose(
+        #         [
+        #             torchvision.transforms.Resize(256),
+        #             torchvision.transforms.CenterCrop(224),
+        #             torchvision.transforms.Grayscale(num_output_channels=1),
+        #             torchvision.transforms.ToTensor(),
+        #             torchvision.transforms.Normalize(
+        #                 mean=0.5, std=0.5
+        #             ),
+        #         ]
+        #     )
+        case _:
+            preprocess = torchvision.transforms.Compose(
+                [
+                    torchvision.transforms.Resize(256),
+                    torchvision.transforms.CenterCrop(224),
+                    torchvision.transforms.ToTensor(),
+                    torchvision.transforms.Normalize(
+                        mean=[0.4850, 0.4560, 0.4060], 
+                        std=[0.2290, 0.2240, 0.2250],
+                    ),
+                ]
+            )
     return model, preprocess
