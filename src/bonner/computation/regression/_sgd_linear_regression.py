@@ -12,7 +12,7 @@ MIN_LR = 1e-6
 LR_STEP = 5
 
 
-class SGDLinearRegression():
+class SGDLinearRegression(Regression):
     def __init__(
         self, 
         lr: float = 1e-2, 

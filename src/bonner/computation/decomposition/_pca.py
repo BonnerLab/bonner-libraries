@@ -19,6 +19,7 @@ class PCA:
         self.seed = seed
 
         self.mean: torch.Tensor
+        self.std: torch.Tensor
         self.eigenvectors: torch.Tensor
         self.eigenvalues: torch.Tensor
 
