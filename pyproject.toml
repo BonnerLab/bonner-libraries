@@ -13,11 +13,6 @@ authors = [
 ]
 keywords = [
     "Bonner Lab",
-    "BrainIO",
-    "neural datasets",
-    "caching",
-    "files",
-    "figshare",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -50,3 +45,10 @@ dependencies = [
     "robustbench @ git+https://github.com/RobustBench/robustbench.git@master",
 ]
 dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+    "mypy",
+    "types-requests",
+    "sphinx",
+]
