@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import torch
 from torchdata.datapipes.iter import IterDataPipe, IterableWrapper
-from torchdata.datapipes.map import MapDataPipe, SequenceWrapper
+from torchdata.datapipes.map import MapDataPipe
 from PIL import Image
 
 
