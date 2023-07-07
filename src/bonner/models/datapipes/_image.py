@@ -23,7 +23,7 @@ def create_image_datapipe(
     *,
     preprocess_fn: Callable[[Image.Image], torch.Tensor],
     batch_size: int,
-    indices: list[Hashable] = None,
+    indices: list[Hashable] | None = None,
 ) -> IterDataPipe:
     """Creates a PyTorch datapipe for loading images and preprocessing them.
 

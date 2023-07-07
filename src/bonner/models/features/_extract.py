@@ -180,7 +180,7 @@ def _create_netcdf4_file(
     file.createVariable(node, dtype, dimensions)
 
 
-def _get_device(device: str | torch.device = None) -> torch.device:
+def _get_device(device: str | torch.device | None = None) -> torch.device:
     if device is None:
         if torch.cuda.is_available():
             device_ = torch.device("cuda")

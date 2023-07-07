@@ -1,14 +1,14 @@
 from collections.abc import Sequence
 
 import torch
-from bonner.computation.decomposition._utilities import svd_flip
+from bonner.computation.decomposition._svd import svd
 
 
 class PLSSVD:
     def __init__(
         self,
         *,
-        n_components: int = None,
+        n_components: int | None = None,
         seed: int = 0,
         center: bool = True,
         scale: bool = True,
@@ -43,7 +43,7 @@ class PLSSVD:
         self.device = torch.device(device)
 
     def _preprocess(
-        self, *, x: torch.Tensor, y: torch.Tensor
+        self, x: torch.Tensor, y: torch.Tensor, /,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if x.ndim == 1:
             x = x.unsqueeze(dim=-1)
@@ -95,24 +95,21 @@ class PLSSVD:
 
         return x, y
 
-    def fit(self, *, x: torch.Tensor, y: torch.Tensor) -> None:
-        x, y = self._preprocess(x=x, y=y)
+    def fit(self, x: torch.Tensor, y: torch.Tensor, /) -> None:
+        x, y = self._preprocess(x, y)
 
-        if self.truncated:
-            torch.manual_seed(self.seed)
-            u, s, v = torch.pca_lowrank(
-                x.transpose(-2, -1) @ y, center=False, q=self.n_components
-            )
-            v_h = v.transpose(-2, -1)
-        else:
-            u, s, v_h = torch.linalg.svd(x.transpose(-2, -1) @ y, full_matrices=False)
-        u, v_h = svd_flip(u=u, v=v_h)
+        u, s, v_h = svd(
+            x.transpose(-2, -1) @ y,
+            truncated=self.truncated,
+            n_components=self.n_components,
+            seed=self.seed,
+        )
 
         self.left_singular_vectors = u[..., : self.n_components]
         self.right_singular_vectors = v_h[..., : self.n_components, :].transpose(-2, -1)
         self.singular_values = s[..., : self.n_components] / (self.n_samples - 1)
 
-    def transform(self, z: torch.Tensor, *, direction: str) -> torch.Tensor:
+    def transform(self, z: torch.Tensor, /, *, direction: str) -> torch.Tensor:
         match direction:
             case "left":
                 mean = self.left_mean
@@ -132,10 +129,11 @@ class PLSSVD:
 
     def inverse_transform(
         self,
-        z: torch.Tensor = None,
+        z: torch.Tensor,
+        /,
         *,
         direction: str,
-        components: Sequence[int] | int = None,
+        components: Sequence[int] | int | None = None,
     ) -> torch.Tensor:
         if components is None:
             components = self.n_components

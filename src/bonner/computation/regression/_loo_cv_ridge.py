@@ -1,25 +1,27 @@
+from collections.abc import Collection
+
 import torch
 
 from bonner.computation.regression._utilities import Regression
 
 
-class LinearRegression(Regression):
+def columnwise_mean_square(x: torch.Tensor) -> torch.Tensor:
+    return (x**2).mean(dim=-2)
+
+
+class RidgeGCV(Regression):
     def __init__(
         self,
+        l2_penalties: Collection[float | int],
         fit_intercept: bool = True,
-        l2_penalty: float | int | torch.Tensor | None = None,
-        rcond: float | None = None,
-        driver: str | None = None,
-        allow_ols_on_cuda: bool = False,
     ) -> None:
         self.coefficients: torch.Tensor | None = None
         self.intercept: torch.Tensor | None = None
 
         self.fit_intercept = fit_intercept
-        self.l2_penalty = l2_penalty
-        self.rcond = rcond
-        self.driver = driver
-        self.allow_ols_on_cuda = allow_ols_on_cuda
+        self.l2_penalties = l2_penalties
+
+        self.loo_errors: torch.Tensor | None = None
 
     def to(self, device: torch.device | str) -> None:
         if self.coefficients is not None:
@@ -42,13 +44,7 @@ class LinearRegression(Regression):
         if x.ndim == 3 and y.ndim == 2:
             y = y.unsqueeze(0)
 
-        n_samples, n_features = x.shape[-2], x.shape[-1]
-
-        # TODO: underdetermined systems on CUDA use a different driver
-        if (not self.allow_ols_on_cuda) and (self.l2_penalty is None):
-            if n_samples < n_features:
-                x = x.to(torch.device("cpu"))
-                y = y.to(torch.device("cpu"))
+        n_samples = x.shape[-2]
 
         if y.shape[-2] != n_samples:
             raise ValueError(
@@ -62,27 +58,23 @@ class LinearRegression(Regression):
             y_mean = y.mean(dim=-2, keepdim=True)
             y -= y_mean
 
-        if self.l2_penalty is None:
-            self.coefficients, _, _, _ = torch.linalg.lstsq(
-                x, y, rcond=self.rcond, driver=self.driver
-            )
-        else:
-            if isinstance(self.l2_penalty, float | int) or (
-                isinstance(self.l2_penalty, torch.Tensor)
-                and self.l2_penalty.numel() == 1
-            ):
-                l2_penalty = self.l2_penalty * torch.ones(y.shape[-1], device=x.device)
-            elif isinstance(self.l2_penalty, torch.Tensor):
-                l2_penalty = self.l2_penalty.to(x.device)
+        u, s, vt = torch.linalg.svd(x, full_matrices=False)
+        del vt, x
 
-            u, s, vt = torch.linalg.svd(x, full_matrices=False)
-            idx = s > 1e-15
-            s_nnz = s[idx].unsqueeze(-1)
-            d = torch.zeros(
-                size=(len(s), l2_penalty.numel()), dtype=x.dtype, device=x.device
+        identity = torch.eye(n_samples)
+
+        self.loo_errors = torch.full(fill_value=torch.nan, size=(y.shape[-1], len(self.l2_penalties)))
+        
+        for i_penalty, l2_penalty in enumerate(self.l2_penalties):
+            s_bar = torch.diag(-(s**2) / (l2_penalty * s**2 + l2_penalty ** 2))
+            a = u @ s_bar @ u.T + identity / l2_penalty
+
+            self.loo_errors[:, i_penalty] = columnwise_mean_square(
+                a @ y / torch.diag(a)
             )
-            d[idx] = s_nnz / (s_nnz**2 + l2_penalty)
-            self.coefficients = vt.transpose(-2, -1) @ (d * (u.transpose(-2, -1) @ y))
+
+        raise NotImplementedError()
+        self.coefficients = vt.transpose(-2, -1) @ (d * (u.transpose(-2, -1) @ y))
 
         if self.fit_intercept:
             self.intercept = y_mean - x_mean @ self.coefficients

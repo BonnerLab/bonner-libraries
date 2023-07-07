@@ -1,12 +1,12 @@
 from collections.abc import Sequence
 
 import torch
-from bonner.computation.decomposition._utilities import svd_flip
+from bonner.computation.decomposition._svd import svd
 
 
 class PCA:
     def __init__(
-        self, n_components: int = None, truncated: bool = False, seed: int = 0
+        self, *, n_components: int | None = None, truncated: bool = False, seed: int = 0
     ) -> None:
         self.n_components = n_components
         self.n_samples: int
@@ -26,7 +26,7 @@ class PCA:
 
         self.device = torch.device(device)
 
-    def _preprocess(self, x: torch.Tensor) -> torch.Tensor:
+    def _preprocess(self, x: torch.Tensor, /) -> torch.Tensor:
         if x.ndim == 1:
             x = x.unsqueeze(dim=-1)
 
@@ -42,29 +42,29 @@ class PCA:
 
         return x
 
-    def fit(self, x: torch.Tensor) -> None:
+    def fit(self, x: torch.Tensor, /) -> None:
         x = self._preprocess(x)
 
         x = torch.clone(x)
         self.mean = x.mean(dim=-2, keepdim=True)
         x -= self.mean
 
-        if self.truncated:
-            torch.manual_seed(self.seed)
-            u, s, v = torch.pca_lowrank(x, center=False, q=self.n_components)
-            v_h = v.transpose(-2, -1)
-        else:
-            u, s, v_h = torch.linalg.svd(x, full_matrices=False)
-        u, v_h = svd_flip(u=u, v=v_h)
-
+        _, s, v_h = svd(
+            x,
+            truncated=self.truncated,
+            n_components=self.n_components,
+            seed=self.seed,
+        )
+        del _
         self.eigenvectors = v_h[..., : self.n_components, :].transpose(-2, -1)
         self.eigenvalues = (s[..., : self.n_components] ** 2) / (self.n_samples - 1)
 
     def transform(
         self,
         z: torch.Tensor,
+        /,
         *,
-        components: Sequence[int] | int = None,
+        components: Sequence[int] | int | None = None,
     ) -> torch.Tensor:
         if components is None:
             components = self.n_components
@@ -80,8 +80,9 @@ class PCA:
     def inverse_transform(
         self,
         z: torch.Tensor,
+        /,
         *,
-        components: Sequence[int] | int = None,
+        components: Sequence[int] | int | None = None,
     ) -> torch.Tensor:
         if components is None:
             components = self.n_components
