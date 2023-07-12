@@ -50,12 +50,6 @@ class SGDLinearRegression(Regression):
         y: torch.Tensor,
     ) -> None:
         self._initialized = False
-        # self._y_mean = y.mean(dim=-2, keepdim=True)
-        # y -= self._y_mean
-        # self._y_std = y.std(dim=-2, keepdim=True)
-        # self._y_std[self._y_std == 0] = 1
-        # y /= self._y_std
-        
         
         rng = np.random.default_rng(self._seed)
         assert x.size(-2) == y.size(-2)
