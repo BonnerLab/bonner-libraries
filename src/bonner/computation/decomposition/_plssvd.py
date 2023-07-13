@@ -11,7 +11,7 @@ class PLSSVD:
         n_components: int | None = None,
         seed: int = 0,
         center: bool = True,
-        scale: bool = True,
+        scale: bool = False,
         truncated: bool = True,
     ) -> None:
         self.n_components = n_components
@@ -98,12 +98,22 @@ class PLSSVD:
     def fit(self, x: torch.Tensor, y: torch.Tensor, /) -> None:
         x, y = self._preprocess(x, y)
 
-        u, s, v_h = svd(
-            x.transpose(-2, -1) @ y,
-            truncated=self.truncated,
-            n_components=self.n_components,
-            seed=self.seed,
-        )
+        if torch.equal(x, y):
+            _, s, v_h = svd(
+                x,
+                truncated=self.truncated,
+                n_components=self.n_components,
+                seed=self.seed,
+            )
+            u = v_h.transpose(-2, -1)
+            s = s**2
+        else:
+            u, s, v_h = svd(
+                x.transpose(-2, -1) @ y,
+                truncated=self.truncated,
+                n_components=self.n_components,
+                seed=self.seed,
+            )
 
         self.left_singular_vectors = u[..., : self.n_components]
         self.right_singular_vectors = v_h[..., : self.n_components, :].transpose(-2, -1)

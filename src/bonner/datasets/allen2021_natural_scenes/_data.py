@@ -1,14 +1,19 @@
+from collections.abc import Sequence
+import hashlib
 from pathlib import Path
-from collections.abc import Collection
 
 from tqdm.auto import tqdm
 import numpy as np
 import pandas as pd
 import xarray as xr
 from bonner.files import download_from_s3
-
 from bonner.datasets._utilities import nii
-from bonner.datasets.allen2021_natural_scenes._utilities import BUCKET_NAME, CACHE_PATH
+from bonner.datasets.allen2021_natural_scenes._utilities import (
+    IDENTIFIER,
+    BUCKET_NAME,
+    CACHE_PATH,
+    filter_betas_by_stimulus_id,
+)
 from bonner.datasets.allen2021_natural_scenes._stimuli import (
     load_stimulus_metadata,
 )
@@ -18,6 +23,7 @@ PREPROCESSING = "fithrf_GLMdenoise_RR"
 N_SUBJECTS = 8
 N_SESSIONS = (40, 40, 32, 30, 40, 32, 40, 30)
 N_SESSIONS_HELD_OUT = 3
+N_RUNS_PER_SESSION = 12
 N_TRIALS_PER_SESSION = 750
 ROI_SOURCES = {
     "surface": (
@@ -122,7 +128,9 @@ def load_betas(
     subject: int,
     resolution: str,
     preprocessing: str,
-    neuroid_filter: Collection[bool],
+    z_score: bool,
+    neuroid_filter: Sequence[bool] | None = None,
+    stimulus_filter: set[str] | None = None,
     exclude_held_out: bool = True,
 ) -> xr.DataArray:
     """Load betas.
@@ -135,13 +143,28 @@ def load_betas(
     Returns:
         betas
     """
-    betas = []
     stimulus_ids = _extract_stimulus_ids(subject)
 
     n_sessions = N_SESSIONS[subject]
     if exclude_held_out:
         n_sessions -= N_SESSIONS_HELD_OUT
     sessions = np.arange(n_sessions)
+
+    validity = load_validity(subject=subject, resolution=resolution)
+    validity = np.all(
+        validity.stack({"neuroid": ("x", "y", "z")}, create_index=True).values[:-1, :],
+        axis=0,
+    )
+    if neuroid_filter is not None:
+        neuroid_filter = np.logical_and(neuroid_filter, validity)
+
+    betas: list[xr.DataArray] | xr.DataArray = []
+
+    run_id = []
+    for i_run in range(N_RUNS_PER_SESSION):
+        n_trials = 63 if i_run % 2 == 0 else 62
+        run_id.extend([i_run] * n_trials)
+    run_id = np.array(run_id).astype(np.uint8)
 
     for session in tqdm(sessions, desc="session"):
         filepath = (
@@ -153,6 +176,7 @@ def load_betas(
             / f"betas_session{session + 1:02}.hdf5"
         )
         download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+
         betas_session = (
             xr.open_dataset(CACHE_PATH / filepath)["betas"]
             .rename(
@@ -167,9 +191,9 @@ def load_betas(
             .transpose("x", "y", "z", "presentation")
             .astype(dtype=np.int16, order="C")
         )
-
         betas_session = (
-            betas_session.assign_coords(
+            betas_session
+            .assign_coords(
                 {
                     dim: (dim, np.arange(betas_session.sizes[dim], dtype=np.uint8))
                     for dim in ("x", "y", "z")
@@ -179,25 +203,82 @@ def load_betas(
                         "presentation",
                         stimulus_ids.sel(session=session).data,
                     ),
-                    "session_id": (
+                    "session_id": lambda x: (
                         "presentation",
                         session
-                        * np.ones(betas_session.sizes["presentation"], dtype=np.uint8),
+                        * np.ones(x.sizes["presentation"], dtype=np.uint8),
                     ),
-                    "trial": (
+                    "trial": lambda x: (
                         "presentation",
-                        np.arange(betas_session.sizes["presentation"], dtype=np.uint16),
+                        np.arange(x.sizes["presentation"], dtype=np.uint16),
                     ),
+                    "run_id": ("presentation", run_id)
                 }
             )
             .stack({"neuroid": ("x", "y", "z")}, create_index=False)
-            .isel({"neuroid": neuroid_filter})
+        )
+        if neuroid_filter is not None:
+            betas_session = betas_session.isel({"neuroid": neuroid_filter})
+
+        betas_session = (
+            betas_session
             .transpose("neuroid", "presentation")
             .astype(dtype=np.float32, order="C")
+            .transpose("presentation", "neuroid")
         )
-        betas_session /= 300
+
+        if z_score:
+            betas_session = (betas_session - betas_session.mean("presentation")) / betas_session.std("presentation")
+        else:
+            betas_session /= 300
+
+        if stimulus_filter is not None:
+            betas_session = filter_betas_by_stimulus_id(
+                betas=betas_session, stimulus_ids=stimulus_filter
+            )
+
         betas.append(betas_session)
-    return xr.concat(betas, dim="presentation")
+
+    betas = xr.concat(betas, dim="presentation").dropna(dim="neuroid", how="any")
+
+    reps: dict[str, int] = {}
+    rep_id: list[int] = []
+    for stimulus_id in betas["stimulus_id"].values:
+        if stimulus_id in reps:
+            reps[stimulus_id] += 1
+        else:
+            reps[stimulus_id] = 0
+        rep_id.append(reps[stimulus_id])
+    rep_id = np.array(rep_id).astype(np.uint8)
+
+    betas = (
+        betas
+        .assign_coords({"rep_id": ("presentation", rep_id)})
+        .assign_attrs(
+            {
+                "subject": subject,
+                "resolution": resolution,
+                "preprocessing": preprocessing,
+                "z_score": int(z_score),
+                "presentations": _hash_index_coordinates(betas, coords=("session_id", "trial")),
+                "neuroids": _hash_index_coordinates(betas, coords=("x", "y", "z")),
+            }
+        )
+    )
+    identifier = ".".join([f"{key}={value}" for key, value in betas.attrs.items()])
+    return betas.rename(f"{IDENTIFIER}.{identifier}")
+
+
+def _hash_index_coordinates(x: xr.DataArray, /, coords: Sequence[str]) -> str:
+    coordinates = np.stack(
+        [
+            x[coord].values
+            for coord in coords
+        ],
+        axis=-1,
+    )
+    coordinates = coordinates[np.lexsort(coordinates.transpose())]
+    return hashlib.sha1(coordinates).hexdigest()
 
 
 def load_ncsnr(

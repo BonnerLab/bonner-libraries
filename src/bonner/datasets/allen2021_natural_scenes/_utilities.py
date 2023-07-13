@@ -88,13 +88,13 @@ def z_score_betas_within_sessions(
 def z_score_betas_within_runs(betas: xr.DataArray) -> xr.DataArray:
     # even-numbered trials (i.e. Python indices 1, 3, 5, ...) had 62 trials
     # odd-numbered trials (i.e. Python indices 0, 2, 4, ...) had 63 trials
-    n_runs_per_session = 12
     n_sessions = len(np.unique(betas["session_id"]))
+
+    n_runs_per_session = 12
     run_id = []
-    for i_session in range(n_sessions):
-        for i_run in range(n_runs_per_session):
-            n_trials = 63 if i_run % 2 == 0 else 62
-            run_id.extend([i_run + i_session * n_runs_per_session] * n_trials)
+    for i_run in range(n_runs_per_session):
+        n_trials = 63 if i_run % 2 == 0 else 62
+        run_id.extend([i_run] * n_trials)
     betas["run_id"] = ("presentation", run_id)
 
     return z_score_betas_within_sessions(betas, session_coord="run_id")
