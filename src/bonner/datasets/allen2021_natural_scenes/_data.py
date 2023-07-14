@@ -251,34 +251,7 @@ def load_betas(
         rep_id.append(reps[stimulus_id])
     rep_id = np.array(rep_id).astype(np.uint8)
 
-    betas = (
-        betas
-        .assign_coords({"rep_id": ("presentation", rep_id)})
-        .assign_attrs(
-            {
-                "subject": subject,
-                "resolution": resolution,
-                "preprocessing": preprocessing,
-                "z_score": int(z_score),
-                "presentations": _hash_index_coordinates(betas, coords=("session_id", "trial")),
-                "neuroids": _hash_index_coordinates(betas, coords=("x", "y", "z")),
-            }
-        )
-    )
-    identifier = ".".join([f"{key}={value}" for key, value in betas.attrs.items()])
-    return betas.rename(f"{IDENTIFIER}.{identifier}")
-
-
-def _hash_index_coordinates(x: xr.DataArray, /, coords: Sequence[str]) -> str:
-    coordinates = np.stack(
-        [
-            x[coord].values
-            for coord in coords
-        ],
-        axis=-1,
-    )
-    coordinates = coordinates[np.lexsort(coordinates.transpose())]
-    return hashlib.sha1(coordinates).hexdigest()
+    return betas.assign_coords({"rep_id": ("presentation", rep_id)})
 
 
 def load_ncsnr(
