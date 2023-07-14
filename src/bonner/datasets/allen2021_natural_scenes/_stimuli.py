@@ -142,6 +142,7 @@ def load_stimulus_metadata() -> pd.DataFrame:
         load_nsd_metadata()
         .merge(load_captions(), left_on="cocoId", right_index=True)
         .merge(load_instances(), on="stimulus_id")
+        .sort_index()
     )
 
 

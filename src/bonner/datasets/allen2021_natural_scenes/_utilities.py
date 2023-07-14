@@ -68,47 +68,7 @@ def compute_noise_ceiling(
     return (ncsnr_squared / (ncsnr_squared + fraction)).rename("noise ceiling")
 
 
-def z_score_betas_within_sessions(
-    betas: xr.DataArray, *, session_coord: str = "session_id"
-) -> xr.DataArray:
-    def z_score(betas: xr.DataArray) -> xr.DataArray:
-        mean = betas.mean("presentation")
-        std = betas.std("presentation")
-        return (betas - mean) / std
-
-    return (
-        betas.load()
-        .groupby(session_coord)
-        .map(func=z_score, shortcut=True)
-        .assign_attrs(betas.attrs)
-        .rename(betas.name)
-    )
-
-
-def z_score_betas_within_runs(betas: xr.DataArray) -> xr.DataArray:
-    # even-numbered trials (i.e. Python indices 1, 3, 5, ...) had 62 trials
-    # odd-numbered trials (i.e. Python indices 0, 2, 4, ...) had 63 trials
-    n_sessions = len(np.unique(betas["session_id"]))
-
-    n_runs_per_session = 12
-    run_id = []
-    for i_run in range(n_runs_per_session):
-        n_trials = 63 if i_run % 2 == 0 else 62
-        run_id.extend([i_run] * n_trials)
-    betas["run_id"] = ("presentation", run_id)
-
-    return z_score_betas_within_sessions(betas, session_coord="run_id")
-
-
 def average_betas_across_reps(betas: xr.DataArray) -> xr.DataArray:
-    """Average the provided betas across repetitions of stimuli.
-
-    Args:
-        betas: betas
-
-    Returns:
-        averaged betas
-    """
     return groupby_reset(
         betas.load()
         .groupby("stimulus_id")
