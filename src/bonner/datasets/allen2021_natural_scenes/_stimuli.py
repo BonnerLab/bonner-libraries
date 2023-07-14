@@ -40,7 +40,7 @@ def download_annotations(force_download: bool = False) -> Path:
     return directory / "annotations"
 
 
-@cache("bonner-datasets/allen2021_natural_scenes/instance-annotations.pkl")
+@cache("coco-metadata/instance-annotations.pkl", path=CACHE_PATH)
 def load_instances() -> Path:
     directory = download_annotations()
     nsd = load_nsd_metadata()
@@ -95,7 +95,7 @@ def load_instances() -> Path:
     )
 
 
-@cache("bonner-datasets/allen2021_natural_scenes/captions.pkl")
+@cache("coco-metadata/captions.pkl", path=CACHE_PATH)
 def load_captions() -> pd.DataFrame:
     def _helper(subset: str) -> pd.DataFrame:
         directory = download_annotations()
