@@ -12,7 +12,7 @@
     keywords        = ["Bonner Lab"]
     classifiers     = ["Development Status :: 4 - Beta", "Intended Audience :: Science/Research", "License :: OSI Approved :: GNU General Public License v3 (GPLv3)", "Natural Language :: English", "Operating System :: POSIX :: Linux", "Programming Language :: Python :: 3", "Topic :: Scientific/Engineering", "Typing :: Typed"]
     urls            = { repository = "https://github.com/BonnerLab/bonner-libraries" }
-    dependencies    = ["loguru", "tqdm", "boto3", "numpy", "pandas", "scipy", "torch", "torchvision", "torchdata", "xarray", "netCDF4", "dask", "nibabel", "Pillow", "matplotlib", "torchlens @ git+https://github.com/johnmarktaylor91/torchlens", "robustbench @ git+https://github.com/RobustBench/robustbench.git@master"]
+    dependencies    = ["loguru", "tqdm", "boto3", "numpy", "pandas", "scipy", "torch", "torchvision", "torchdata", "xarray", "netCDF4", "dask", "nibabel", "Pillow", "matplotlib", "torchlens @ git+https://github.com/johnmarktaylor91/torchlens"]
     dynamic         = ["version"]
 
 [project.optional-dependencies]

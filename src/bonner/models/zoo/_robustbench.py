@@ -4,7 +4,7 @@ from collections.abc import Callable
 import torch
 from torchvision.models import get_model_weights
 from PIL import Image
-from robustbench.utils import load_model
+# from robustbench.utils import load_model
 
 from bonner.models.utilities import BONNER_MODELS_HOME
 
@@ -12,7 +12,8 @@ from bonner.models.utilities import BONNER_MODELS_HOME
 def load_robustbench_model(**kwargs: Any) -> torch.nn.Module:
     robustbench_dir = BONNER_MODELS_HOME / "models" / "robustbench"
     robustbench_dir.mkdir(exist_ok=True, parents=True)
-    return load_model(model_dir=robustbench_dir, **kwargs).model
+    raise ValueError()
+    # return load_model(model_dir=robustbench_dir, **kwargs).model
 
 
 def load(
