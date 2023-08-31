@@ -94,13 +94,9 @@ def load_brain_mask(*, subject: int, resolution: str) -> xr.DataArray:
     return nii.to_dataarray(CACHE_PATH / filepath, flatten=None).astype(bool, order="C")
 
 
-def load_validity(
-    *, subject: int, resolution: str, exclude_held_out: bool = True
-) -> xr.DataArray:
+def load_validity(*, subject: int, resolution: str) -> xr.DataArray:
     validity = []
     n_sessions = N_SESSIONS[subject]
-    if exclude_held_out:
-        n_sessions -= N_SESSIONS_HELD_OUT
 
     sessions = {
         f"nsd-{session}": f"session{session + 1:02}" for session in range(n_sessions)
@@ -131,7 +127,6 @@ def load_betas(
     z_score: bool,
     neuroid_filter: Sequence[bool] | None = None,
     stimulus_filter: set[str] | None = None,
-    exclude_held_out: bool = True,
 ) -> xr.DataArray:
     """Load betas.
 
@@ -146,8 +141,6 @@ def load_betas(
     stimulus_ids = _extract_stimulus_ids(subject)
 
     n_sessions = N_SESSIONS[subject]
-    if exclude_held_out:
-        n_sessions -= N_SESSIONS_HELD_OUT
     sessions = np.arange(n_sessions)
 
     validity = load_validity(subject=subject, resolution=resolution)
