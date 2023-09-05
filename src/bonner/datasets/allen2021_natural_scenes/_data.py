@@ -147,9 +147,11 @@ def load_betas(
     validity = np.all(
         validity.stack({"neuroid": ("x", "y", "z")}, create_index=True).values[:-1, :],
         axis=0,
-    )
+    ).values
     if neuroid_filter is not None:
         neuroid_filter = np.logical_and(neuroid_filter, validity)
+    else:
+        neuroid_filter = validity
 
     betas: list[xr.DataArray] | xr.DataArray = []
 
@@ -210,14 +212,17 @@ def load_betas(
             )
             .stack({"neuroid": ("x", "y", "z")}, create_index=False)
         )
-        if neuroid_filter is not None:
-            betas_session = betas_session.isel({"neuroid": neuroid_filter})
 
         betas_session = (
             betas_session
             .transpose("neuroid", "presentation")
             .astype(dtype=np.float32, order="C")
             .transpose("presentation", "neuroid")
+        )
+
+        neuroid_filter = np.logical_and(
+            neuroid_filter,
+            ~(betas_session == 0).all(dim="presentation").values
         )
 
         if z_score:
@@ -232,7 +237,10 @@ def load_betas(
 
         betas.append(betas_session)
 
-    betas = xr.concat(betas, dim="presentation").dropna(dim="neuroid", how="any")
+    for session in tqdm(sessions, desc="session"):
+        betas[session] = betas[session].isel({"neuroid": neuroid_filter})
+
+    betas = xr.concat(betas, dim="presentation")
 
     reps: dict[str, int] = {}
     rep_id: list[int] = []
@@ -306,11 +314,7 @@ def load_structural_scans(*, subject: int, resolution: str) -> xr.DataArray:
     )
 
 
-def load_rois(
-    *,
-    subject: int,
-    resolution: str,
-) -> xr.DataArray:
+def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
     """Load the ROI masks for a subject.
 
     Args:
