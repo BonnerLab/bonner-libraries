@@ -147,7 +147,7 @@ def load_betas(
     validity = np.all(
         validity.stack({"neuroid": ("x", "y", "z")}, create_index=True).values[:-1, :],
         axis=0,
-    ).values
+    )
     if neuroid_filter is not None:
         neuroid_filter = np.logical_and(neuroid_filter, validity)
     else:
