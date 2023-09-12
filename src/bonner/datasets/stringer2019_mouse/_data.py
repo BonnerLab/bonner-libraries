@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from scipy.io import loadmat
 import xarray as xr
@@ -25,7 +26,7 @@ def _download_dataset(force: bool = False) -> None:
 def create_data_assembly(*, mouse: str, date: str) -> xr.Dataset:
     _download_dataset()
     raw = loadmat(CACHE_PATH / f"natimg2800_{mouse}_{date}.mat", simplify_cells=True)
-    return xr.Dataset(
+    assembly = xr.Dataset(
         data_vars={
             "stimulus-related activity": (
                 ("presentation", "neuroid"),
@@ -34,7 +35,7 @@ def create_data_assembly(*, mouse: str, date: str) -> xr.Dataset:
             "spontaneous activity": (("time", "neuroid"), raw["stim"]["spont"]),
         },
         coords={
-            "stimulus_id": (
+            "stimulus": (
                 "presentation",
                 [
                     "blank" if i_image == 2800 else f"image{i_image:04}"
@@ -49,7 +50,18 @@ def create_data_assembly(*, mouse: str, date: str) -> xr.Dataset:
                 pd.DataFrame(raw["stat"])["noiseLevel"].values,
             ),
         },
+        attrs={"mouse": mouse, "date": date},
     )
+    reps: dict[str, int] = {}
+    rep_id: list[int] = []
+    for stimulus_id in assembly["stimulus_id"].values:
+        if stimulus_id in reps:
+            reps[stimulus_id] += 1
+        else:
+            reps[stimulus_id] = 0
+        rep_id.append(reps[stimulus_id])
+    return assembly.assign_coords({"repetition": ("presentation", np.array(rep_id).astype(str))})
+
 
 
 def _save_images() -> tuple[Path, list[Path]]:

@@ -9,9 +9,10 @@ from bonner.datasets._utilities import BONNER_DATASETS_HOME
 IDENTIFIER = "allen2021.natural_scenes"
 BUCKET_NAME = "natural-scenes-dataset"
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
+N_SUBJECTS = 8
 
 
-def compute_shared_stimulus_ids(
+def compute_shared_stimuli(
     assemblies: Collection[xr.DataArray], *, n_repetitions: int = 1
 ) -> set[str]:
     """Gets the IDs of the stimuli shared across all the provided assemblies.
@@ -27,8 +28,8 @@ def compute_shared_stimulus_ids(
         return set.intersection(
             *[
                 set(
-                    assembly["stimulus_id"].values[
-                        (assembly["rep_id"] == n_repetitions - 1).values
+                    assembly["stimulus"].values[
+                        (assembly["repetition"] == n_repetitions - 1).values
                     ]
                 )
                 for assembly in assemblies
@@ -36,7 +37,7 @@ def compute_shared_stimulus_ids(
         )
     except Exception:
         return set.intersection(
-            *[set(assembly["stimulus_id"].values) for assembly in assemblies]
+            *[set(assembly["stimulus"].values) for assembly in assemblies]
         )
 
 
@@ -68,18 +69,6 @@ def compute_noise_ceiling(
     return (ncsnr_squared / (ncsnr_squared + fraction)).rename("noise ceiling")
 
 
-def average_betas_across_reps(betas: xr.DataArray) -> xr.DataArray:
-    return groupby_reset(
-        betas.load()
-        .groupby("stimulus_id")
-        .mean()
-        .assign_attrs(betas.attrs)
-        .rename(betas.name),
-        groupby_coord="stimulus_id",
-        groupby_dim="presentation",
-    ).transpose("presentation", "neuroid")
-
-
 def create_roi_selector(
     *,
     rois: xr.DataArray,
@@ -93,12 +82,3 @@ def create_roi_selector(
         selections.append(selection)
     selection = np.any(np.concatenate(selections, axis=0), axis=0)
     return selection
-
-
-def filter_betas_by_stimulus_id(
-    betas: xr.DataArray, *, stimulus_ids: set[str], exclude: bool = False
-) -> xr.DataArray:
-    selection = np.isin(betas["stimulus_id"].values, list(stimulus_ids))
-    if exclude:
-        selection = ~selection
-    return betas.isel({"presentation": selection})

@@ -52,4 +52,4 @@ def preprocess_assembly(assembly: xr.Dataset) -> xr.DataArray:
     _, eigenvectors = eigsh(spontaneous.values.T @ spontaneous.values, k=32)
     stimulus_related -= (stimulus_related.values @ eigenvectors) @ eigenvectors.T
     stimulus_related -= stimulus_related.mean("presentation")
-    return stimulus_related
+    return stimulus_related.transpose("presentation", "neuroid")

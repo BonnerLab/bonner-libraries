@@ -1,3 +1,4 @@
+import itertools
 import json
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from bonner.datasets.allen2021_natural_scenes._utilities import (
     BUCKET_NAME,
     CACHE_PATH,
     IDENTIFIER,
+    N_SUBJECTS,
 )
 from bonner.caching import cache
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
@@ -40,20 +42,22 @@ def download_annotations(force_download: bool = False) -> Path:
     return directory / "annotations"
 
 
-@cache("coco-metadata/instance-annotations.pkl", path=CACHE_PATH)
-def load_instances() -> Path:
-    directory = download_annotations()
+def get_coco_to_nsd_mapping() -> dict[int, int]:
     nsd = load_nsd_metadata()
-    mapping = {
+    return {
         coco_id: nsd_id
         for nsd_id, coco_id in zip(nsd["nsdId"].values, nsd["cocoId"].values)
     }
-    n_instances = np.full(
-        fill_value=np.nan,
-        shape=(N_STIMULI, N_OBJECT_CATEGORIES + N_STUFF_CATEGORIES + 1),
-    )
 
-    categories = []
+
+@cache("metadata/annotations.nc", path=CACHE_PATH)
+def load_annotations() -> xr.DataArray:
+    directory = download_annotations()
+    mapping = get_coco_to_nsd_mapping()
+
+    n_instances = np.zeros((N_STIMULI, N_OBJECT_CATEGORIES + N_STUFF_CATEGORIES + 1), dtype=np.uint8)
+
+    categories: list[pd.DataFrame] | pd.DataFrame = []
     for annotation_type in ("instances", "stuff"):
         for subset in ("train", "val"):
             with open(directory / f"{annotation_type}_{subset}2017.json", "r") as f:
@@ -62,7 +66,7 @@ def load_instances() -> Path:
             categories.append(
                 pd.DataFrame.from_dict(annotations["categories"])
                 .rename(columns={"id": "category_id"})
-                .assign(category_id=lambda x: x["category_id"] - 1)
+                .assign(category_id=lambda x: x["category_id"] - 1, annotation_type=annotation_type)
                 .set_index("category_id")
             )
 
@@ -83,67 +87,79 @@ def load_instances() -> Path:
 
     categories = pd.concat(categories).drop_duplicates().sort_index()
 
-    return (
-        pd.DataFrame(
-            n_instances[:, (~np.isnan(n_instances).all(axis=0))],
-            columns=categories["name"].to_list(),
-        )
-        .assign(stimulus_id=nsd.index)
-        .set_index("stimulus_id")
-        .fillna(0)
-        .astype(np.uint8)
+    return xr.DataArray(
+        name="count",
+        data=n_instances[:, ~(n_instances == 0).all(axis=0)],
+        dims=("stimulus", "category"),
+        coords={
+            "stimulus": np.arange(len(n_instances), dtype=np.uint32),
+            "category": categories["name"].values.astype(str),
+            "supercategory": ("category", categories["supercategory"].values.astype(str)),
+            "type": ("category", categories["annotation_type"].values.astype(str)),
+        }
     )
 
 
-@cache("coco-metadata/captions.pkl", path=CACHE_PATH)
+@cache("metadata/captions.pkl", path=CACHE_PATH)
 def load_captions() -> pd.DataFrame:
-    def _helper(subset: str) -> pd.DataFrame:
-        directory = download_annotations()
-        match subset:
-            case "train" | "val":
-                with open(directory / f"captions_{subset}2017.json", "r") as f:
-                    annotations = json.load(f)["annotations"]
-            case _:
-                raise ValueError()
+    mapping = get_coco_to_nsd_mapping()
 
-        result = {}
+    directory = download_annotations()
+
+    captions: dict[int, list[str]] = {}
+
+    for subset in ("train", "val"):
+        with open(directory / f"captions_{subset}2017.json", "r") as f:
+            annotations = json.load(f)["annotations"]
+
         for annotation in annotations:
-            coco_id = annotation["image_id"]
-            if coco_id not in result:
-                result[coco_id] = []
+            try:
+                nsd_id = mapping[annotation["image_id"]]
+            except:
+                continue
 
-            result[coco_id].append(annotation["caption"])
-        return pd.DataFrame.from_dict(
-            {"cocoId": result.keys(), "captions": result.values()}
-        ).set_index("cocoId")
+            if nsd_id not in captions:
+                captions[nsd_id] = []
 
-    return pd.concat(
-        [_helper(subset).assign(subset=subset) for subset in ("train", "val")],
-        axis=0,
-    )
+            captions[nsd_id].append(annotation["caption"])
+
+    return captions
 
 
 def load_nsd_metadata() -> pd.DataFrame:
     filepath = Path("nsddata") / "experiments" / "nsd" / "nsd_stim_info_merged.csv"
     download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
-    return (
-        pd.read_csv(CACHE_PATH / filepath, sep=",")
-        .rename(columns={"Unnamed: 0": "stimulus_id"})
-        .assign(
-            stimulus_id=lambda x: "image"
-            + x["stimulus_id"].astype("string").str.zfill(5)
+    metadata = (
+        pd.read_csv(
+            CACHE_PATH / filepath,
+            sep=",",
+            dtype={
+                f"subject{subject}_rep{rep}": np.uint32
+                for (subject, rep) in itertools.product(range(1, 1 + N_SUBJECTS), range(3))
+            } | {
+                f"subject{subject}": bool
+                for subject in range(1, 1 + N_SUBJECTS)
+            } | {
+                "nsdId": np.uint32,
+                "cocoId": np.uint64,
+            }
         )
-        .set_index("stimulus_id")
+        .rename(
+            columns={
+                "Unnamed: 0": "stimulus",
+            } | {
+                f"subject{subject + 1}_rep{rep}": f"subject{subject}_rep{rep}"
+                for (subject, rep) in itertools.product(range(N_SUBJECTS), range(3))
+            } | {
+                f"subject{subject + 1}": f"subject{subject}"
+                for subject in range(N_SUBJECTS)
+            }
+        )
+        .assign(stimulus=lambda x: x["stimulus"].astype(np.uint32))
+        .set_index("stimulus")
     )
 
-
-def load_stimulus_metadata() -> pd.DataFrame:
-    return (
-        load_nsd_metadata()
-        .merge(load_captions(), left_on="cocoId", right_index=True)
-        .merge(load_instances(), on="stimulus_id")
-        .sort_index()
-    )
+    return metadata
 
 
 def load_stimuli() -> xr.DataArray:
@@ -153,7 +169,7 @@ def load_stimuli() -> xr.DataArray:
         xr.open_dataset(CACHE_PATH / filepath)["imgBrick"]
         .rename(
             {
-                "phony_dim_0": "stimulus_id",
+                "phony_dim_0": "stimulus",
                 "phony_dim_1": "height",
                 "phony_dim_2": "width",
                 "phony_dim_3": "channel",
@@ -162,9 +178,9 @@ def load_stimuli() -> xr.DataArray:
         .assign_coords(
             {
                 "channel": ("channel", ["R", "G", "B"]),
-                "stimulus_id": (
-                    "stimulus_id",
-                    [f"image{idx:05}" for idx in range(N_STIMULI)],
+                "stimulus": (
+                    "stimulus",
+                    np.arange(N_STIMULI, dtype=np.uint32),
                 ),
             }
         )
@@ -174,11 +190,12 @@ def load_stimuli() -> xr.DataArray:
 class StimulusSet(MapDataPipe):
     def __init__(self) -> None:
         self.identifier = IDENTIFIER
-        self.metadata = load_stimulus_metadata()
         self.stimuli = load_stimuli()
+        self.annotations = load_annotations()
+        self.captions = load_captions()
 
-    def __getitem__(self, stimulus_id: str) -> Image.Image:
-        return Image.fromarray(self.stimuli.sel(stimulus_id=stimulus_id).values)
+    def __getitem__(self, stimulus: int) -> Image.Image:
+        return Image.fromarray(self.stimuli.sel(stimulus=stimulus).values)
 
     def __len__(self) -> int:
-        return len(self.metadata.index)
+        return self.stimuli.sizes["stimulus"]

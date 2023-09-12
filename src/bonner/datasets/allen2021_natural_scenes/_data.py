@@ -12,17 +12,13 @@ from bonner.datasets.allen2021_natural_scenes._utilities import (
     IDENTIFIER,
     BUCKET_NAME,
     CACHE_PATH,
-    filter_betas_by_stimulus_id,
+    N_SUBJECTS,
 )
-from bonner.datasets.allen2021_natural_scenes._stimuli import (
-    load_stimulus_metadata,
-)
+from bonner.datasets.allen2021_natural_scenes._stimuli import load_nsd_metadata
 
 RESOLUTION = "1pt8mm"
 PREPROCESSING = "fithrf_GLMdenoise_RR"
-N_SUBJECTS = 8
 N_SESSIONS = (40, 40, 32, 30, 40, 32, 40, 30)
-N_SESSIONS_HELD_OUT = 3
 N_RUNS_PER_SESSION = 12
 N_TRIALS_PER_SESSION = 750
 ROI_SOURCES = {
@@ -41,36 +37,6 @@ ROI_SOURCES = {
     ),
     "volume": ("MTL", "thalamus"),
 }
-
-
-def _extract_stimulus_ids(subject: int) -> xr.DataArray:
-    """Extract and format image IDs for all trials.
-
-    Returns:
-        stimulus_ids seen at each trial with "session" and "trial" dimensions
-    """
-    metadata = load_stimulus_metadata()
-    metadata = np.array(
-        metadata.loc[
-            :, [f"subject{subject + 1}_" in column for column in metadata.columns]
-        ]
-    )
-    assert metadata.shape[-1] == 3
-    indices = np.nonzero(metadata)
-    trials = metadata[indices] - 1  # fix 1-indexing
-
-    stimulus_ids_ = [f"image{idx:05}" for idx in indices[0]]
-    session_ids = trials // N_TRIALS_PER_SESSION
-    intra_session_trial_ids = trials % N_TRIALS_PER_SESSION
-
-    stimulus_ids = xr.DataArray(
-        data=np.full((max(N_SESSIONS), N_TRIALS_PER_SESSION), "", dtype="<U10"),
-        dims=("session", "trial"),
-    )
-    stimulus_ids.values[session_ids, intra_session_trial_ids] = stimulus_ids_
-    return stimulus_ids.assign_coords(
-        {dim: (dim, np.arange(stimulus_ids.sizes[dim])) for dim in stimulus_ids.dims}
-    )
 
 
 def load_brain_mask(*, subject: int, resolution: str) -> xr.DataArray:
@@ -125,8 +91,7 @@ def load_betas(
     resolution: str,
     preprocessing: str,
     z_score: bool,
-    neuroid_filter: Sequence[bool] | None = None,
-    stimulus_filter: set[str] | None = None,
+    neuroid_filter: Sequence[bool] | bool = True,
 ) -> xr.DataArray:
     """Load betas.
 
@@ -138,30 +103,99 @@ def load_betas(
     Returns:
         betas
     """
-    stimulus_ids = _extract_stimulus_ids(subject)
+    def load_presentations(subject: int) -> xr.DataArray:
+        metadata = load_nsd_metadata()
+        metadata = np.array(
+            metadata.loc[
+                :, [f"subject{subject}_" in column for column in metadata.columns]
+            ]
+        )
+        assert metadata.shape[-1] == 3
+        indices = np.nonzero(metadata)
+        trials = metadata[indices] - 1  # fix 1-indexing
+
+        sessions = trials // N_TRIALS_PER_SESSION
+        intra_session_trials = trials % N_TRIALS_PER_SESSION
+
+        stimuli = xr.DataArray(
+            data=np.empty((max(N_SESSIONS), N_TRIALS_PER_SESSION), dtype=np.uint32),
+            dims=("session", "trial"),
+        )
+        stimuli.values[sessions, intra_session_trials] = indices[0]
+
+        stimuli = (
+            stimuli
+            .assign_coords(
+                {
+                    "session": np.arange(stimuli.sizes["session"], dtype=np.uint8),
+                    "trial": np.arange(stimuli.sizes["trial"], dtype=np.uint16),
+                }
+            )
+            .stack({"presentation": ("session", "trial")}, create_index=True)
+        )
+        stimuli = stimuli.isel(presentation=stimuli["session"].values < N_SESSIONS[subject])
+
+        reps: dict[str, int] = {}
+        repetitions = np.empty(N_SESSIONS[subject] * N_TRIALS_PER_SESSION, dtype=np.uint8)
+        for i_stimulus, stimulus in enumerate(stimuli.values):
+            if stimulus in reps:
+                reps[stimulus] += 1
+            else:
+                reps[stimulus] = 0
+            repetitions[i_stimulus] = reps[stimulus]
+
+        runs = []
+        for i_run in range(N_RUNS_PER_SESSION):
+            n_trials = 63 if i_run % 2 == 0 else 62
+            runs.extend([i_run] * n_trials)
+        runs = np.tile(np.array(runs).astype(np.uint8), N_SESSIONS[subject])
+
+        stimuli = stimuli.assign_coords(
+            {
+                "stimulus": ("presentation", stimuli.values),
+                "repetition": ("presentation", repetitions),
+                "run": ("presentation", runs),
+            }
+        )
+        return stimuli["stimulus"]
 
     n_sessions = N_SESSIONS[subject]
-    sessions = np.arange(n_sessions)
+    stimuli = load_presentations(subject=subject)
+    n_trials = len(stimuli)
 
-    validity = load_validity(subject=subject, resolution=resolution)
-    validity = np.all(
-        validity.stack({"neuroid": ("x", "y", "z")}, create_index=True).values[:-1, :],
-        axis=0,
+    brain_mask = load_brain_mask(subject=subject, resolution=resolution)
+    validity = (
+        load_validity(subject=subject, resolution=resolution)
+        .stack({"neuroid": ("x", "y", "z")}, create_index=True)
+        .isel({"session": np.arange(n_sessions)})
+        .all("session")
     )
-    if neuroid_filter is not None:
-        neuroid_filter = np.logical_and(neuroid_filter, validity)
-    else:
-        neuroid_filter = validity
+
+    neuroid_filter = np.logical_and(neuroid_filter, validity)
+    neuroid_filter = np.logical_and(neuroid_filter, brain_mask.stack({"neuroid": ("x", "y", "z")}, create_index=True))
 
     betas: list[xr.DataArray] | xr.DataArray = []
 
-    run_id = []
-    for i_run in range(N_RUNS_PER_SESSION):
-        n_trials = 63 if i_run % 2 == 0 else 62
-        run_id.extend([i_run] * n_trials)
-    run_id = np.array(run_id).astype(np.uint8)
+    betas = xr.DataArray(
+        name="beta",
+        data=np.empty(shape=(n_trials, neuroid_filter.sum().values), dtype=np.float32),
+        dims=("presentation", "neuroid"),
+        coords={
+            coord: ("neuroid", neuroid_filter[neuroid_filter][coord].values)
+            for coord in ("x", "y", "z")
+        } | {
+            coord: ("presentation", stimuli[coord].values)
+            for coord in stimuli.reset_index("presentation").coords
+        },
+        attrs = {
+            "resolution": resolution,
+            "preprocessing": preprocessing,
+            "z_score": str(z_score),
+            "subject": subject,
+        },
+    )
 
-    for session in tqdm(sessions, desc="session"):
+    for session in tqdm(np.arange(n_sessions), desc="session"):
         filepath = (
             Path("nsddata_betas")
             / "ppdata"
@@ -173,7 +207,7 @@ def load_betas(
         download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
 
         betas_session = (
-            xr.open_dataset(CACHE_PATH / filepath)["betas"]
+            xr.load_dataset(CACHE_PATH / filepath)["betas"]
             .rename(
                 {
                     "phony_dim_0": "presentation",
@@ -182,47 +216,12 @@ def load_betas(
                     "phony_dim_3": "x",
                 }
             )
-            .load()
             .transpose("x", "y", "z", "presentation")
             .astype(dtype=np.int16, order="C")
-        )
-        betas_session = (
-            betas_session
-            .assign_coords(
-                {
-                    dim: (dim, np.arange(betas_session.sizes[dim], dtype=np.uint8))
-                    for dim in ("x", "y", "z")
-                }
-                | {
-                    "stimulus_id": (
-                        "presentation",
-                        stimulus_ids.sel(session=session).data,
-                    ),
-                    "session_id": lambda x: (
-                        "presentation",
-                        session
-                        * np.ones(x.sizes["presentation"], dtype=np.uint8),
-                    ),
-                    "trial": lambda x: (
-                        "presentation",
-                        np.arange(x.sizes["presentation"], dtype=np.uint16),
-                    ),
-                    "run_id": ("presentation", run_id)
-                }
-            )
             .stack({"neuroid": ("x", "y", "z")}, create_index=False)
-        )
-
-        betas_session = (
-            betas_session
-            .transpose("neuroid", "presentation")
-            .astype(dtype=np.float32, order="C")
+            .sel(neuroid=neuroid_filter)
             .transpose("presentation", "neuroid")
-        )
-
-        neuroid_filter = np.logical_and(
-            neuroid_filter,
-            ~(betas_session == 0).all(dim="presentation").values
+            .astype(dtype=np.float32, order="C")
         )
 
         if z_score:
@@ -230,29 +229,9 @@ def load_betas(
         else:
             betas_session /= 300
 
-        if stimulus_filter is not None:
-            betas_session = filter_betas_by_stimulus_id(
-                betas=betas_session, stimulus_ids=stimulus_filter
-            )
+        betas.values[session * N_TRIALS_PER_SESSION:(session + 1) * N_TRIALS_PER_SESSION, :] = betas_session
 
-        betas.append(betas_session)
-
-    for session in tqdm(sessions, desc="session"):
-        betas[session] = betas[session].isel({"neuroid": neuroid_filter})
-
-    betas = xr.concat(betas, dim="presentation")
-
-    reps: dict[str, int] = {}
-    rep_id: list[int] = []
-    for stimulus_id in betas["stimulus_id"].values:
-        if stimulus_id in reps:
-            reps[stimulus_id] += 1
-        else:
-            reps[stimulus_id] = 0
-        rep_id.append(reps[stimulus_id])
-    rep_id = np.array(rep_id).astype(np.uint8)
-
-    return betas.assign_coords({"rep_id": ("presentation", rep_id)})
+    return betas
 
 
 def load_ncsnr(
