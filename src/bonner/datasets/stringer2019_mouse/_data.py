@@ -36,11 +36,7 @@ def create_data_assembly(*, mouse: str, date: str) -> xr.Dataset:
         },
         coords={
             "stimulus": (
-                "presentation",
-                [
-                    "blank" if i_image == 2800 else f"image{i_image:04}"
-                    for i_image in raw["stim"]["istim"] - 1
-                ],
+                "presentation", (raw["stim"]["istim"] - 1).astype(np.uint16),
             ),
             "x": ("neuroid", raw["med"][:, 0]),
             "y": ("neuroid", raw["med"][:, 1]),
@@ -53,15 +49,14 @@ def create_data_assembly(*, mouse: str, date: str) -> xr.Dataset:
         attrs={"mouse": mouse, "date": date},
     )
     reps: dict[str, int] = {}
-    rep_id: list[int] = []
+    repetitions: list[int] = []
     for stimulus in assembly["stimulus"].values:
         if stimulus in reps:
             reps[stimulus] += 1
         else:
             reps[stimulus] = 0
-        rep_id.append(reps[stimulus])
-    return assembly.assign_coords({"repetition": ("presentation", np.array(rep_id).astype(str))})
-
+        repetitions.append(reps[stimulus])
+    return assembly.assign_coords({"repetition": ("presentation", np.array(repetitions).astype(np.uint8))})
 
 
 def _save_images() -> tuple[Path, list[Path]]:

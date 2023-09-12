@@ -46,10 +46,16 @@ def preprocess_assembly(assembly: xr.Dataset) -> xr.DataArray:
 
     stimulus_related = (assembly["stimulus-related activity"] - mean) / std
     stimulus_related = stimulus_related.isel(
-        {"presentation": stimulus_related["stimulus"].values != "blank"}
+        {"presentation": stimulus_related["stimulus"].values != 2800}
     )
 
     _, eigenvectors = eigsh(spontaneous.values.T @ spontaneous.values, k=32)
     stimulus_related -= (stimulus_related.values @ eigenvectors) @ eigenvectors.T
     stimulus_related -= stimulus_related.mean("presentation")
-    return stimulus_related.transpose("presentation", "neuroid")
+    return (
+        stimulus_related
+        .transpose("presentation", "neuroid")
+        .sortby(["x", "y", "z"])
+        .sortby(["stimulus", "repetition"])
+        .assign_attrs(assembly.attrs)
+    )

@@ -14,7 +14,7 @@ N_SUBJECTS = 8
 
 def compute_shared_stimuli(
     assemblies: Collection[xr.DataArray], *, n_repetitions: int = 1
-) -> set[str]:
+) -> set[int]:
     """Gets the IDs of the stimuli shared across all the provided assemblies.
 
     Args:
