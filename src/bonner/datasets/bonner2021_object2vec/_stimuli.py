@@ -30,7 +30,7 @@ def create_stimulus_set() -> pd.DataFrame:
     ]
     stimulus_set = pd.DataFrame.from_dict(
         {
-            "stimulus_id": [
+            "stimulus": [
                 f"{path.stem}{path.parent.name.split('_')[0]}" for path in paths
             ],
             "filename": [str(path) for path in paths],

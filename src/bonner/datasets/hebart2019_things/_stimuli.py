@@ -48,10 +48,10 @@ def load_metadata() -> pd.DataFrame:
         index_col=None,
         names=["filename"],
     )
-    metadata["stimulus_id"] = [
+    metadata["stimulus"] = [
         (CACHE_PATH / filename).stem for filename in metadata["filename"]
     ]
-    return metadata.set_index("stimulus_id")
+    return metadata.set_index("stimulus")
 
 
 class StimulusSet(MapDataPipe):

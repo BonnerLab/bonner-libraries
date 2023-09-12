@@ -30,7 +30,7 @@ def create_assembly(subject: int) -> xr.DataArray:
         .rename(f"{IDENTIFIER}-subject{subject}")
         .assign_coords(
             {
-                "stimulus_id": (
+                "stimulus": (
                     "presentation",
                     load_image_filename_stems(subject),
                 ),

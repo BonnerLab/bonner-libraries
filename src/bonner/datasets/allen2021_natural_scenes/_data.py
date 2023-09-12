@@ -144,7 +144,7 @@ def load_betas(
                 reps[stimulus] = 0
             repetitions[i_stimulus] = reps[stimulus]
 
-        runs = []
+        runs: list[int] | np.ndarray = []
         for i_run in range(N_RUNS_PER_SESSION):
             n_trials = 63 if i_run % 2 == 0 else 62
             runs.extend([i_run] * n_trials)

@@ -45,7 +45,7 @@ def create_data_assembly(subject: int) -> xr.DataArray:
             data=activations,
             dims=("condition", "neuroid", "repetition"),
             coords={
-                "stimulus_id": ("condition", load_conditions()),
+                "stimulus": ("condition", load_conditions()),
                 "x": ("neuroid", x),
                 "y": ("neuroid", y),
                 "z": ("neuroid", z),

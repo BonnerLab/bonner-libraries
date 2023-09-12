@@ -37,13 +37,13 @@ def extract_features(
         model_identifier: identifier for the model
         nodes: list of layer names to extract features from, in standard PyTorch format (e.g. 'classifier.0')
         hooks: dictionary mapping layer names to hooks to be applied to the features extracted from the layer (e.g. {"conv2": GlobalMaxpool()})
-        datapipe: torch datapipe that provides batches of data of the form ``(data, stimulus_ids)``. ``data`` is a torch Tensor with shape (batch_size, *) and ``stimulus_ids`` is a Numpy array of string identifiers corresponding to each stimulus in ``data``.
+        datapipe: torch datapipe that provides batches of data of the form ``(data, stimulus)``. ``data`` is a torch Tensor with shape (batch_size, *) and ``stimulus`` is a Numpy array of string identifiers corresponding to each stimulus in ``data``.
         datapipe_identifier: identifier for the dataset
         use_cached: whether to use previously computed features, defaults to True
         device: torch device on which the feature extraction will occur, defaults to None
 
     Returns:
-        dictionary where keys are node identifiers and values are xarray DataArrays containing the model's features. Each ``xarray.DataArray`` has a ``presentation`` dimension corresponding to the stimuli with a ``stimulus_id`` coordinate corresponding to the ``stimulus_ids`` from ``datapipe``, and other dimensions that depend on the layer type and the hook.
+        dictionary where keys are node identifiers and values are xarray DataArrays containing the model's features. Each ``xarray.DataArray`` has a ``presentation`` dimension corresponding to the stimuli with a ``stimulus`` coordinate corresponding to the ``stimulus`` from ``datapipe``, and other dimensions that depend on the layer type and the hook.
     """
 
     device = _get_device(device)
@@ -90,7 +90,7 @@ def _open_with_xarray(
         assemblies[node] = (
             assembly[node]
             .assign_coords(
-                {"stimulus_id": ("presentation", assembly["stimulus_id"].values)}
+                {"stimulus": ("presentation", assembly["stimulus"].values)}
             )
             .rename(f"{model_identifier}.node={node}.hook={hook}.{datapipe_identifier}")
         )
@@ -118,7 +118,7 @@ def _extract_features(
         extractor = extractor.to(device=device)
 
         start = 0
-        for batch, (input_data, stimulus_ids) in enumerate(
+        for batch, (input_data, stimuli) in enumerate(
             tqdm(datapipe, desc="batch", leave=False)
         ):
             input_data = input_data.to(device)
@@ -142,7 +142,7 @@ def _extract_features(
                 netcdf4_file.variables["presentation"][start:end] = (
                     np.arange(len(input_data)) + start
                 )
-                netcdf4_file.variables["stimulus_id"][start:end] = stimulus_ids
+                netcdf4_file.variables["stimulus"][start:end] = stimuli
 
             start += len(input_data)
 
@@ -171,7 +171,7 @@ def _create_netcdf4_file(
         file.createDimension(dimension, length)
         if dimension == "presentation":
             file.createVariable(dimension, np.int64, (dimension,))
-            file.createVariable("stimulus_id", str, (dimension,))
+            file.createVariable("stimulus", str, (dimension,))
         else:
             variable = file.createVariable(dimension, np.int64, (dimension,))
             variable[:] = np.arange(length)

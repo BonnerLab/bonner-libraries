@@ -54,12 +54,12 @@ def create_data_assembly(*, mouse: str, date: str) -> xr.Dataset:
     )
     reps: dict[str, int] = {}
     rep_id: list[int] = []
-    for stimulus_id in assembly["stimulus_id"].values:
-        if stimulus_id in reps:
-            reps[stimulus_id] += 1
+    for stimulus in assembly["stimulus"].values:
+        if stimulus in reps:
+            reps[stimulus] += 1
         else:
-            reps[stimulus_id] = 0
-        rep_id.append(reps[stimulus_id])
+            reps[stimulus] = 0
+        rep_id.append(reps[stimulus])
     return assembly.assign_coords({"repetition": ("presentation", np.array(rep_id).astype(str))})
 
 
@@ -84,7 +84,7 @@ def create_stimulus_set() -> tuple[Path, pd.DataFrame]:
     path, paths = _save_images()
     return path, pd.DataFrame(
         {
-            "stimulus_id": [path.stem for path in paths],
+            "stimulus": [path.stem for path in paths],
             "filename": paths,
         }
-    ).set_index("stimulus_id")
+    ).set_index("stimulus")

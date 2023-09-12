@@ -10,7 +10,7 @@ __all__ = (
     "load_receptive_fields",
     "load_rois",
     "create_roi_selector",
-    "compute_shared_stimulus_ids",
+    "compute_shared_stimuli",
 )
 
 from bonner.datasets.hebart2023_things_data._data import (
@@ -27,5 +27,5 @@ from bonner.datasets.hebart2023_things_data._data import (
 )
 from bonner.datasets.allen2021_natural_scenes._utilities import (
     create_roi_selector,
-    compute_shared_stimulus_ids,
+    compute_shared_stimuli,
 )

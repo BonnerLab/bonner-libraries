@@ -279,7 +279,7 @@ def load_betas(
                 betas.append(
                     betas_session.assign_coords(
                         {
-                            "stimulus_id": (
+                            "stimulus": (
                                 "presentation",
                                 [
                                     Path(filename).stem

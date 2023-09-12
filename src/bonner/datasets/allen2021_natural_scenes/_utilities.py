@@ -42,7 +42,7 @@ def compute_shared_stimuli(
 
 
 def compute_noise_ceiling(
-    stimulus_id: xr.DataArray, *, ncsnr: xr.DataArray
+    stimuli: xr.DataArray, *, ncsnr: xr.DataArray
 ) -> xr.DataArray:
     """Compute the noise ceiling for a subject's fMRI data using the method described
     in the NSD Data Manual under the "Conversion of ncsnr to noise ceiling percentages"
@@ -54,7 +54,7 @@ def compute_noise_ceiling(
     Returns:
         noise ceilings for all voxels
     """
-    groupby = stimulus_id.groupby("stimulus_id")
+    groupby = stimuli.groupby("stimulus")
 
     counts = np.array([len(reps) for reps in groupby.groups.values()])
 
