@@ -37,21 +37,28 @@ SESSIONS = (
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 
 
-def preprocess_assembly(assembly: xr.Dataset) -> xr.DataArray:
-    spontaneous = assembly["spontaneous activity"]
-    mean = spontaneous.mean("time")
-    std = spontaneous.std("time") + 1e-6
+def preprocess_assembly(assembly: xr.Dataset, *, denoise: bool = True) -> xr.DataArray:
+    if denoise:
+        spontaneous = assembly["spontaneous activity"]
+        mean = spontaneous.mean("time")
+        std = spontaneous.std("time") + 1e-6
 
-    spontaneous = (spontaneous - mean) / std
+        spontaneous = (spontaneous - mean) / std
 
-    stimulus_related = (assembly["stimulus-related activity"] - mean) / std
-    stimulus_related = stimulus_related.isel(
-        {"presentation": stimulus_related["stimulus"].values != 2800}
-    )
+        stimulus_related = (assembly["stimulus-related activity"] - mean) / std
 
-    _, eigenvectors = eigsh(spontaneous.values.T @ spontaneous.values, k=32)
-    stimulus_related -= (stimulus_related.values @ eigenvectors) @ eigenvectors.T
-    stimulus_related -= stimulus_related.mean("presentation")
+        stimulus_related = stimulus_related.isel(
+            {"presentation": stimulus_related["stimulus"].values != 2800}
+        )
+
+        _, eigenvectors = eigsh(spontaneous.values.T @ spontaneous.values, k=32)
+        stimulus_related -= (stimulus_related.values @ eigenvectors) @ eigenvectors.T
+        stimulus_related -= stimulus_related.mean("presentation")
+    else:
+        stimulus_related = assembly["stimulus-related activity"]
+        stimulus_related = stimulus_related.isel(
+            {"presentation": stimulus_related["stimulus"].values != 2800}
+        )
     return (
         stimulus_related
         .transpose("presentation", "neuroid")

@@ -31,7 +31,7 @@ class PLSSVD:
 
         self.device: torch.device
 
-    def to(self, device: torch.device | str) -> None:
+    def to(self, device: torch.device) -> None:
         self.left_mean = self.left_mean.to(device)
         self.right_mean = self.right_mean.to(device)
         self.left_std = self.left_std.to(device)

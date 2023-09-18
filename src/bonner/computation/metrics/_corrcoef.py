@@ -4,10 +4,11 @@ import torch
 def _helper(
     x: torch.Tensor,
     y: torch.Tensor | None,
+    /,
     *,
     center: bool,
     scale: bool,
-    correction: float = 1,
+    correction: int = 1,
     return_diagonal: bool = True,
     copy: bool = True,
 ) -> torch.Tensor:
@@ -70,9 +71,10 @@ def _helper(
 def pearson_r(
     x: torch.Tensor,
     y: torch.Tensor | None = None,
+    /,
     *,
     return_diagonal: bool = True,
-    correction: bool = 1,
+    correction: int = 1,
     copy: bool = True,
 ) -> torch.Tensor:
     """Computes Pearson correlation coefficients.
@@ -88,8 +90,8 @@ def pearson_r(
         Pearson correlation coefficients (*, n_features_x, n_features_y)
     """
     return _helper(
-        x=x,
-        y=y,
+        x,
+        y,
         center=True,
         scale=True,
         correction=correction,
@@ -101,9 +103,10 @@ def pearson_r(
 def covariance(
     x: torch.Tensor,
     y: torch.Tensor | None = None,
+    /,
     *,
     return_diagonal: bool = True,
-    correction: bool = 1,
+    correction: int = 1,
     copy: bool = True,
 ) -> torch.Tensor:
     """Computes covariance.
@@ -119,8 +122,8 @@ def covariance(
         covariance matrix (*, n_features_x, n_features_y)
     """
     return _helper(
-        x=x,
-        y=y,
+        x,
+        y,
         center=True,
         scale=False,
         correction=correction,
