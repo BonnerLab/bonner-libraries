@@ -12,7 +12,7 @@ class PLSSVD:
         seed: int = 0,
         center: bool = True,
         scale: bool = False,
-        truncated: bool = True,
+        truncated: bool = False,
     ) -> None:
         self.n_components = n_components
         self.n_samples: int

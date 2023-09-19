@@ -13,7 +13,7 @@ def svd(
         u, s, v = torch.pca_lowrank(x, center=False, q=n_components)
         v_h = v.transpose(-2, -1)
     else:
-        u, s, v_h = torch.linalg.svd(x, full_matrices=False)
+        u, s, v_h = torch.linalg.svd(x, full_matrices=False, driver="gesvd")
     u, v_h = svd_flip(u=u, v=v_h)
     return u, s, v_h
 
