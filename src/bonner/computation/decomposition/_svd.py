@@ -16,7 +16,7 @@ def svd(
         del v
         torch.cuda.empty_cache()
     else:
-        u, s, v_h = np.linalg.svd(x.numpy(), full_matrices=False)
+        u, s, v_h = np.linalg.svd(x.cpu().numpy(), full_matrices=False)
         u = torch.from_numpy(u)
         s = torch.from_numpy(s)
         v_h = torch.from_numpy(v_h)
