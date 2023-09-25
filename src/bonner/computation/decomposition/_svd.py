@@ -15,17 +15,19 @@ def svd(
         v_h = v.transpose(-2, -1)
         del v
         torch.cuda.empty_cache()
-    else:
+    elif x.get_device() == -1:
         u, s, v_h = np.linalg.svd(x.cpu().numpy(), full_matrices=False)
         u = torch.from_numpy(u)
         s = torch.from_numpy(s)
         v_h = torch.from_numpy(v_h)
+    else:
+        u, s, v_h = torch.linalg.svd(x, full_matrices=False, driver="gesvd")
 
-    u, v_h = svd_flip(u=u, v=v_h)
+    u, v_h = svd_flip(u=u, v_h=v_h)
     return u, s, v_h
 
 
-def svd_flip(*, u: torch.Tensor, v: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+def svd_flip(*, u: torch.Tensor, v_h: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     max_abs_cols = torch.argmax(torch.abs(u), dim=-2)
     match u.ndim:
         case 3:
@@ -40,6 +42,6 @@ def svd_flip(*, u: torch.Tensor, v: torch.Tensor) -> tuple[torch.Tensor, torch.T
             signs = torch.sign(u[..., max_abs_cols, range(u.shape[-1])])
 
     u *= signs.unsqueeze(-2)
-    v *= signs.unsqueeze(-1)
+    v_h *= signs.unsqueeze(-1)
 
-    return u, v
+    return u, v_h
