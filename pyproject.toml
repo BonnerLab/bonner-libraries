@@ -1,19 +1,45 @@
 [build-system]
-    requires      = ["setuptools", "setuptools-scm"]
-    build-backend = "setuptools.build_meta"
+requires      = [ "setuptools", "setuptools-scm" ]
+build-backend = "setuptools.build_meta"
 
 [project]
-    name            = "bonner-libraries"
-    description     = "Assorted Python libraries developed by the Bonner Lab"
-    readme          = "README.md"
-    requires-python = ">=3.10"
-    license         = { file = "LICENSE" }
-    authors         = [{ name = "Raj Magesh Gauthaman", email = "rgautha1@jh.edu" }]
-    keywords        = ["Bonner Lab"]
-    classifiers     = ["Development Status :: 4 - Beta", "Intended Audience :: Science/Research", "License :: OSI Approved :: GNU General Public License v3 (GPLv3)", "Natural Language :: English", "Operating System :: POSIX :: Linux", "Programming Language :: Python :: 3", "Topic :: Scientific/Engineering", "Typing :: Typed"]
-    urls            = { repository = "https://github.com/BonnerLab/bonner-libraries" }
-    dependencies    = ["loguru", "tqdm", "boto3", "numpy", "pandas", "scipy", "torch", "torchvision", "torchdata", "xarray", "netCDF4", "dask", "nibabel", "Pillow", "matplotlib", "torchlens @ git+https://github.com/johnmarktaylor91/torchlens"]
-    dynamic         = ["version"]
+name = "bonner-libraries"
+description = "Assorted Python libraries developed by the Bonner Lab"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [ { name = "Raj Magesh Gauthaman", email = "rgautha1@jh.edu" } ]
+keywords = [ "Bonner Lab" ]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
+]
+urls = { repository = "https://github.com/BonnerLab/bonner-libraries" }
+dependencies = [
+    "loguru",
+    "tqdm",
+    "boto3",
+    "numpy",
+    "pandas",
+    "scipy",
+    "torch",
+    "torchvision",
+    "torchdata",
+    "xarray",
+    "netCDF4",
+    "dask",
+    "nibabel",
+    "Pillow",
+    "matplotlib",
+    "torchlens @ git+https://github.com/johnmarktaylor91/torchlens",
+]
+dynamic = [ "version" ]
 
 [project.optional-dependencies]
-    dev = ["mypy", "types-requests", "sphinx"]
+dev = [ "mypy", "types-requests", "sphinx" ]
