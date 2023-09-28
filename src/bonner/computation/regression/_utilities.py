@@ -27,6 +27,7 @@ def regression(
     indices_train: Collection[int] = None,
     indices_test: Collection[int] = None,
     evaluate_only: bool = False,
+    train_score: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     if indices_train is None and indices_test is not None:
         indices_train = np.setdiff1d(np.arange(x.shape[-2]), np.array(indices_test))
@@ -42,6 +43,10 @@ def regression(
     if not evaluate_only:
         model.fit(x=x_train, y=y_train)
 
+    if train_score:
+        y_predicted = model.predict(x_train)
+        return y_train, y_predicted
+        
     y_predicted = model.predict(x_test)
     return y_test, y_predicted
 
@@ -65,6 +70,8 @@ def regression_cv(
             x=x,
             y=y,
             indices_test=indices_test,
+            # # TODO: needs change back
+            # train_score=True,
         )
         y_true.append(y_true_)
         y_predicted.append(y_predicted_)

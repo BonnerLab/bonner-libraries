@@ -97,6 +97,28 @@ def pearson_r(
         return_diagonal=return_diagonal,
         copy=copy,
     )
+    
+    
+def spearman_r(
+    x: torch.Tensor,
+    y: torch.Tensor | None = None,
+    *,
+    return_diagonal: bool = True,
+    correction: bool = 1,
+    copy: bool = True,
+) -> torch.Tensor:
+    rank_x = x.argsort(dim=0).argsort(dim=0).float()
+    rank_y = y.argsort(dim=0).argsort(dim=0).float()
+    return _helper(
+        x=rank_x,
+        y=rank_y,
+        center=True,
+        scale=True,
+        correction=correction,
+        return_diagonal=return_diagonal,
+        copy=copy,
+    )
+
 
 
 def covariance(
