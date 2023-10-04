@@ -31,8 +31,6 @@ dependencies = [
     "torch",
     "torchvision",
     "torchdata",
-    "jaxlib",
-    "jax",
     "xarray",
     "netCDF4",
     "dask",
