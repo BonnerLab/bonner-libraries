@@ -6,14 +6,20 @@ from bonner.computation.decomposition._svd import svd
 
 class PCA:
     def __init__(
-        self, *, n_components: int | None = None, truncated: bool = False, seed: int = 0
+        self, 
+        n_components: int | None = None,
+        scale: bool = False,
+        truncated: bool = False,
+        seed: int = 0
     ) -> None:
         self.n_components = n_components
         self.n_samples: int
+        self.scale = scale
         self.truncated = truncated
         self.seed = seed
 
         self.mean: torch.Tensor
+        self.std: torch.Tensor
         self.eigenvectors: torch.Tensor
         self.eigenvalues: torch.Tensor
 
@@ -40,15 +46,21 @@ class PCA:
                 raise ValueError(f"n_components must be <= {max_n_components}")
         self.device = x.device
 
-        return x
-
-    def fit(self, x: torch.Tensor, /) -> None:
-        x = self._preprocess(x)
-
         x = torch.clone(x)
         self.mean = x.mean(dim=-2, keepdim=True)
         x -= self.mean
 
+        if self.scale:
+            self.std = x.std(dim=-2, keepdim=True)
+            self.std[self.std == 0] = 1
+            x /= self.std
+        else:
+            self.std = torch.ones(1, device=self.device)
+
+        return x
+
+    def fit(self, x: torch.Tensor, /) -> None:
+        x = self._preprocess(x)
         _, s, v_h = svd(
             x,
             truncated=self.truncated,
@@ -74,6 +86,7 @@ class PCA:
         z = torch.clone(z)
         z = z.to(self.device)
         z -= self.mean
+        z /= self.std
 
         return z @ self.eigenvectors[..., components]
 
@@ -92,4 +105,4 @@ class PCA:
         z = z.to(self.device)
         z = z[..., components]
 
-        return (z @ self.eigenvectors[..., components].transpose(-2, -1)) + self.mean
+        return (z @ self.eigenvectors[..., components].transpose(-2, -1)) * self.std + self.mean
