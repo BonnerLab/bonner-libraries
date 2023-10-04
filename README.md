@@ -1,5 +1,17 @@
 # Bonner Lab | Libraries
 
+## Installation
+
+### With JAX CUDA support
+
+`pip install -r <path/to/requirements.txt>`, where `requirements.txt` contains:
+
+```
+-f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+jax[cuda12_pip]
+git+https://github.com/BonnerLab/bonner-libraries.git
+```
+
 ## Libraries
 
 - `bonner.brainio` - implementation of the BrainIO specification for neural datasets
