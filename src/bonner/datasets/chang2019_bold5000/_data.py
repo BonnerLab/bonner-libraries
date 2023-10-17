@@ -42,7 +42,7 @@ def create_assembly(subject: int) -> xr.DataArray:
         .assign_attrs(
             {
                 "brain_dimensions": mask.attrs["brain_dimensions"],
-                "structural_scan": structural_scan.values,
+                "structural_scan": structural_scan.data,
                 "structural_scan_brain_dimensions": structural_scan.attrs[
                     "brain_dimensions"
                 ],
@@ -56,7 +56,7 @@ def create_assembly(subject: int) -> xr.DataArray:
 
 def load_neuroid_metadata(subject: int) -> xr.DataArray:
     brain_mask = load_brain_mask(subject)
-    n_voxels = np.sum(brain_mask.values)
+    n_voxels = np.sum(brain_mask.data)
     metadata = xr.DataArray(np.full(n_voxels, np.nan), dims="neuroid").assign_coords(
         {"hemisphere": ("neuroid", [""] * n_voxels)}
     )

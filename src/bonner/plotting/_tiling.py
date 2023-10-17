@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from PIL import Image
-import matplotlib as mpl
+from matplotlib.colors import Colormap
 import seaborn as sns
 
 
@@ -11,7 +11,7 @@ def set_style(
     context: str = "paper",
     style: str = "white",
     palette: list[tuple[float, float, float]]
-    | mpl.colors.Colormap = sns.color_palette("colorblind"),
+    | Colormap = sns.color_palette("colorblind"),
     rc: dict[str, Any] = {},
 ) -> None:
     default_rc = {

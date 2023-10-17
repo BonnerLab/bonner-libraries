@@ -30,7 +30,7 @@ class Cacher:
         mode: str = os.getenv("BONNER_CACHING_MODE", "normal"),
         kwargs_save: Mapping[str, Any] = {},
         kwargs_load: Mapping[str, Any] = {},
-    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    ) -> None:
         """Caches outputs of functions to disk so that the (potentially expensive) function is not re-evaluated when called again.
 
         When the cacher is called on a function, it computes the output of the function and stores it on disk at the path ``path / identifier``. If the function is called again, the cached value is retrieved from disk and returned.

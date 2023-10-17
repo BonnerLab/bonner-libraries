@@ -25,7 +25,7 @@ def align_source_to_target(
         return np.array([indices[target_sample] for target_sample in target])
 
     indices = _helper(
-        source=source[sample_coord].values, target=target[sample_coord].values
+        source=source[sample_coord].data, target=target[sample_coord].data
     )
     return source.load().isel({sample_dim: indices})
 
@@ -33,7 +33,7 @@ def align_source_to_target(
 def filter_dataarray(
     array: xr.DataArray, *, coord: str, values: Collection[Any], exclude: bool = False
 ) -> xr.DataArray:
-    filter_ = np.isin(array[coord].values, values)
+    filter_ = np.isin(array[coord].data, values)
     if exclude:
         filter_ = ~filter_
 
