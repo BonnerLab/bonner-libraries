@@ -13,6 +13,14 @@ def align_source_to_target(
     sample_coord: str,
     sample_dim: str,
 ) -> xr.DataArray:
+    return align_source_to_target_coord(source, target[sample_coord].values, sample_coord, sample_dim)
+
+def align_source_to_target_coord(
+    source: xr.DataArray,
+    target_coord: np.array,
+    sample_coord: str,
+    sample_dim: str,
+) -> xr.DataArray:
     def _helper(  # type: ignore  # source and target can have Any dtype
         source: npt.NDArray[Any], target: npt.NDArray[Any]
     ) -> npt.NDArray[np.int_]:
@@ -25,7 +33,7 @@ def align_source_to_target(
         return np.array([indices[target_sample] for target_sample in target])
 
     indices = _helper(
-        source=source[sample_coord].values, target=target[sample_coord].values
+        source=source[sample_coord].values, target=target_coord,
     )
     return source.load().isel({sample_dim: indices})
 

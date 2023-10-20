@@ -45,12 +45,7 @@ class PCA:
             if self.n_components > max_n_components:
                 raise ValueError(f"n_components must be <= {max_n_components}")
         self.device = x.device
-
-        return x
-
-    def fit(self, x: torch.Tensor) -> None:
-        x = self._preprocess(x)
-
+        
         x = torch.clone(x)
         self.mean = x.mean(dim=-2, keepdim=True)
         x -= self.mean
@@ -61,7 +56,12 @@ class PCA:
             x /= self.std
         else:
             self.std = torch.ones(1, device=self.device)
-            
+
+        return x
+
+    def fit(self, x: torch.Tensor) -> None:
+        x = self._preprocess(x)
+        
         if self.truncated:
             torch.manual_seed(self.seed)
             u, s, v = torch.pca_lowrank(x, center=False, q=self.n_components)

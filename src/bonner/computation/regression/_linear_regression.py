@@ -12,15 +12,21 @@ class LinearRegression(Regression):
         rcond: float = None,
         driver: str = None,
         allow_ols_on_cuda: bool = True,
+        scale: bool = False,
+        center: bool = False,
     ) -> None:
         self.coefficients: torch.Tensor = None
         self.intercept: torch.Tensor = None
+        self.mean: torch.Tensor
+        self.std: torch.Tensor
 
         self.fit_intercept = fit_intercept
         self.l2_penalty = l2_penalty
         self.rcond = rcond
         self.driver = driver
         self.allow_ols_on_cuda = allow_ols_on_cuda
+        self.scale = scale
+        self.center = center
 
     def to(self, device: torch.device | str) -> None:
         if self.coefficients is not None:
@@ -44,6 +50,19 @@ class LinearRegression(Regression):
             y = y.unsqueeze(0)
 
         n_samples, n_features = x.shape[-2], x.shape[-1]
+        
+        if self.center:
+            self.mean = x.mean(dim=-2, keepdim=True)
+            x -= self.mean
+        else:
+            self.mean = torch.zeros(1, device=x.device)
+        
+        if self.scale:
+            self.std = x.std(dim=-2, keepdim=True)
+            self.std[self.std == 0] = 1
+            x /= self.std
+        else:
+            self.std = torch.ones(1, device=x.device)
 
         # TODO: underdetermined systems on CUDA use a different driver
         if (not self.allow_ols_on_cuda) and (self.l2_penalty is None):
@@ -91,4 +110,5 @@ class LinearRegression(Regression):
             self.intercept = torch.zeros(1)
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
-        return x.to(self.coefficients.device) @ self.coefficients + self.intercept
+        x = (x.to(self.coefficients.device) - self.mean) / self.std
+        return x @ self.coefficients + self.intercept
