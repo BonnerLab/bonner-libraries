@@ -1,45 +1,7 @@
-from typing import Any
 from collections.abc import Sequence
 from pathlib import Path
 
 from PIL import Image
-from matplotlib.colors import Colormap
-import seaborn as sns
-
-
-def set_style(
-    context: str = "paper",
-    style: str = "white",
-    palette: list[tuple[float, float, float]]
-    | Colormap = sns.color_palette("colorblind"),
-    rc: dict[str, Any] = {},
-) -> None:
-    default_rc = {
-        "font.family": ["sans-serif"],
-        "font.sans-serif": [
-            "Arial",
-            "Helvetica",
-            "Verdana",
-            "Computer Modern Sans Serif",
-        ],
-        "xtick.bottom": True,
-        "ytick.left": True,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "axes.labelsize": 28,
-        "font.size": 24,
-        "xtick.labelsize": 24,
-        "ytick.labelsize": 24,
-        "savefig.bbox": "tight",
-    }
-
-    sns.set_context(context)
-    sns.set_style(
-        style=style,
-        rc=default_rc | rc,
-    )
-    sns.set_palette(palette)
-
 
 
 def concatenate_images(

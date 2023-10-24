@@ -2,15 +2,9 @@
 
 ## Installation
 
-### With JAX CUDA support
+### Default
 
-`pip install -r <path/to/requirements.txt>`, where `requirements.txt` contains:
-
-```
--f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-jax[cuda12_pip]
-git+https://github.com/BonnerLab/bonner-libraries.git
-```
+`pip install -e git+https://github.com/BonnerLab/bonner-libraries.git@main#egg=bonner-libraries`
 
 ## Libraries
 
