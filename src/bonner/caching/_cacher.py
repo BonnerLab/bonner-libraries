@@ -22,10 +22,10 @@ BONNER_CACHING_HOME = Path(
 class Cacher:
     def __init__(  # type: ignore  # kwargs can be Any
         self,
-        identifier: str = None,
+        identifier: str | None = None,
         *,
         path: Path = BONNER_CACHING_HOME,
-        helper: Callable[[Mapping[str, Any]], dict[str, str]] = None,
+        helper: Callable[[Mapping[str, Any]], dict[str, str]] | None = None,
         filetype: str = "auto",
         mode: str = os.getenv("BONNER_CACHING_MODE", "normal"),
         kwargs_save: Mapping[str, Any] = {},
@@ -142,8 +142,8 @@ class Cacher:
                     result = func(*args, **kwargs)
                 case _:
                     raise ValueError(
-                        f"mode must be one of 'normal', 'readonly', 'overwrite',"
-                        f" 'delete', or 'ignore'"
+                        "mode must be one of 'normal', 'readonly', 'overwrite',"
+                        " 'delete', or 'ignore'"
                     )
             return result
 
