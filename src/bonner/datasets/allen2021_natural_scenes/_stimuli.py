@@ -125,13 +125,15 @@ def load_captions() -> pd.DataFrame:
 
     return captions
 
-
+#Work for MARCC environment
 def load_nsd_metadata() -> pd.DataFrame:
-    filepath = Path("nsddata") / "experiments" / "nsd" / "nsd_stim_info_merged.csv"
-    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+    #filepath = Path("nsddata") / "experiments" / "nsd" / "nsd_stim_info_merged.csv"
+    filepath= "/data/mbonner5/shared/brainio/bonner-datasets/allen2021.natural_scenes/nsddata/experiments/nsd/nsd_stim_info_merged.csv"
+    #download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     metadata = (
         pd.read_csv(
-            CACHE_PATH / filepath,
+            filepath,
+            #CACHE_PATH / filepath,
             sep=",",
             dtype={
                 f"subject{subject}_rep{rep}": np.uint32
@@ -162,11 +164,14 @@ def load_nsd_metadata() -> pd.DataFrame:
     return metadata
 
 
+#Work for MARCC environment
 def load_stimuli() -> xr.DataArray:
-    filepath = Path("nsddata_stimuli") / "stimuli" / "nsd" / "nsd_stimuli.hdf5"
-    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+    #filepath = Path("nsddata_stimuli") / "stimuli" / "nsd" / "nsd_stimuli.hdf5"
+    filepath = "/data/mbonner5/shared/brainio/bonner-datasets/allen2021.natural_scenes/nsddata_stimuli/stimuli/nsd/nsd_stimuli.hdf5"
+    #download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     return (
-        xr.open_dataset(CACHE_PATH / filepath)["imgBrick"]
+        #xr.open_dataset(CACHE_PATH / filepath)["imgBrick"]
+        xr.open_dataset(filepath)["imgBrick"]
         .rename(
             {
                 "phony_dim_0": "stimulus",
