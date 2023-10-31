@@ -1,12 +1,15 @@
 from collections.abc import Callable
 
 import torch
-from torchvision.models import get_model, get_model_weights
 from PIL import Image
+from torchvision.models import get_model, get_model_weights
 
 
 def load(
-    *, architecture: str, weights: str, seed: int = None,
+    *,
+    architecture: str,
+    weights: str,
+    seed: int | None = None,
 ) -> tuple[torch.nn.Module, Callable[[Image.Image], torch.Tensor]]:
     preprocess = None
     match weights:

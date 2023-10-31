@@ -1,15 +1,14 @@
 from pathlib import Path
 
-from tqdm.auto import tqdm
 import netCDF4
-import xarray as xr
 import numpy as np
 import torch
-from torchvision.models.feature_extraction import create_feature_extractor
-from torchdata.datapipes.iter import IterDataPipe
-
+import xarray as xr
 from bonner.models.hooks import Hook
 from bonner.models.utilities import BONNER_MODELS_HOME
+from torchdata.datapipes.iter import IterDataPipe
+from torchvision.models.feature_extraction import create_feature_extractor
+from tqdm.auto import tqdm
 
 
 def extract_features(
@@ -33,6 +32,7 @@ def extract_features(
     * all 3-D features are from patch-based Vision Transformers and have the shape ``(presentation, patch, channel)``
 
     Args:
+    ----
         model: a PyTorch model
         model_identifier: identifier for the model
         nodes: list of layer names to extract features from, in standard PyTorch format (e.g. 'classifier.0')
@@ -43,9 +43,9 @@ def extract_features(
         device: torch device on which the feature extraction will occur, defaults to None
 
     Returns:
+    -------
         dictionary where keys are node identifiers and values are xarray DataArrays containing the model's features. Each ``xarray.DataArray`` has a ``presentation`` dimension corresponding to the stimuli with a ``stimulus`` coordinate corresponding to the ``stimulus`` from ``datapipe``, and other dimensions that depend on the layer type and the hook.
     """
-
     device = _get_device(device)
     cache_dir = _create_cache_directory(
         cache_path=cache_path,
@@ -54,7 +54,9 @@ def extract_features(
     )
     filepaths = _get_filepaths(nodes=nodes, hooks=hooks, cache_dir=cache_dir)
     nodes_to_compute = _get_nodes_to_compute(
-        nodes=nodes, filepaths=filepaths, use_cached=use_cached
+        nodes=nodes,
+        filepaths=filepaths,
+        use_cached=use_cached,
     )
 
     if nodes_to_compute:
@@ -67,13 +69,12 @@ def extract_features(
             datapipe=datapipe,
         )
 
-    assemblies = _open_with_xarray(
+    return _open_with_xarray(
         model_identifier=model_identifier,
         filepaths=filepaths,
         hooks=hooks,
         datapipe_identifier=datapipe_identifier,
     )
-    return assemblies
 
 
 def _open_with_xarray(
@@ -85,12 +86,12 @@ def _open_with_xarray(
 ) -> dict[str, xr.DataArray]:
     assemblies = {}
     for node, filepath in filepaths.items():
-        hook = hooks[node].identifier if node in hooks.keys() else None
+        hook = hooks[node].identifier if node in hooks else None
         assembly = xr.open_dataset(filepath)
         assemblies[node] = (
             assembly[node]
             .assign_coords(
-                {"stimulus": ("presentation", assembly["stimulus"].values)}
+                {"stimulus": ("presentation", assembly["stimulus"].data)},
             )
             .rename(f"{model_identifier}.node={node}.hook={hook}.{datapipe_identifier}")
         )
@@ -119,12 +120,12 @@ def _extract_features(
 
         start = 0
         for batch, (input_data, stimuli) in enumerate(
-            tqdm(datapipe, desc="batch", leave=False)
+            tqdm(datapipe, desc="batch", leave=False),
         ):
             input_data = input_data.to(device)
             features = extractor(input_data)
-            for node in features.keys():
-                if node in hooks.keys():
+            for node in features:
+                if node in hooks:
                     features[node] = hooks[node](features[node])
 
             for node, netcdf4_file in netcdf4_files.items():
@@ -165,7 +166,8 @@ def _create_netcdf4_file(
         case 3:  # ASSUMPTION: patch-based ViT
             dimensions = ["presentation", "patch", "channel"]
         case _:
-            raise ValueError("features do not have the appropriate shape")
+            error = "features do not have the appropriate shape"
+            raise ValueError(error)
 
     for dimension, length in zip(dimensions, (None, *features.shape[1:])):
         file.createDimension(dimension, length)
@@ -192,7 +194,10 @@ def _get_device(device: str | torch.device | None = None) -> torch.device:
 
 
 def _create_cache_directory(
-    *, cache_path: Path, model_identifier: str, datapipe_identifier: str
+    *,
+    cache_path: Path,
+    model_identifier: str,
+    datapipe_identifier: str,
 ) -> Path:
     cache_dir = (
         cache_path
@@ -212,17 +217,17 @@ def _get_filepaths(
 ) -> dict[str, Path]:
     filepaths: dict[str, Path] = {}
     for node in nodes:
-        if node in hooks.keys():
-            hook_identifier = hooks[node].identifier
-        else:
-            hook_identifier = "None"
+        hook_identifier = hooks[node].identifier if node in hooks else None
         filepaths[node] = cache_dir / f"node={node}" / f"hook={hook_identifier}.nc"
         filepaths[node].parent.mkdir(exist_ok=True, parents=True)
     return filepaths
 
 
 def _get_nodes_to_compute(
-    *, nodes: list[str], filepaths: dict[str, Path], use_cached: bool
+    *,
+    nodes: list[str],
+    filepaths: dict[str, Path],
+    use_cached: bool,
 ) -> list[str]:
     nodes_to_compute = nodes.copy()
     for node in nodes:

@@ -1,19 +1,18 @@
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 import torch
 import torchvision
-from PIL import Image
-
 from bonner.files import download_from_url
 from bonner.models.utilities import BONNER_MODELS_HOME
+from PIL import Image
 
 VISSL_CACHE = BONNER_MODELS_HOME / "models" / "vissl"
 URLS = {
     "Jigsaw-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/jigsaw_rn50_in1k_ep105_perm2k_jigsaw_8gpu_resnet_17_07_20.db174a43/model_final_checkpoint_phase104.torch",
     # Colorization model seems to have multiple issues:
     # 1. ambiguous architecture and transform
-    # 2. reported issue of not being reproduced 
+    # 2. reported issue of not being reproduced
     # "Colorization-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/converted_vissl_rn50_colorization_in1k_goyal19.torch",
     "RotNet-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/rotnet_rn50_in1k_ep105_rotnet_8gpu_resnet_17_07_20.46bada9f/model_final_checkpoint_phase125.torch",
     "ClusterFit-16K-RotNet-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/converted_vissl_rn50_rotnet_16kclusters_in1k_ep105.torch",
@@ -23,9 +22,9 @@ URLS = {
     "SwAV-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/swav_in1k_rn50_800ep_swav_8node_resnet_27_07_20.a0a6b676/model_final_checkpoint_phase799.torch",
     "MoCoV2-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/moco_v2_1node_lr.03_step_b32_zero_init/model_final_checkpoint_phase199.torch",
     "BarlowTwins-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/barlow_twins/barlow_twins_32gpus_4node_imagenet1k_1000ep_resnet50.torch",
-    # 
+    #
     "DeepClusterV2-ImageNet1K": "https://dl.fbaipublicfiles.com/vissl/model_zoo/deepclusterv2_800ep_pretrain.pth.tar",
-    # 
+    #
     "Instagram-ImageNet": "https://dl.fbaipublicfiles.com/vissl/model_zoo/converted_vissl_rn50_semi_weakly_sup_16a12f1b.torch",
     "YFCC100M-ImageNet": "https://dl.fbaipublicfiles.com/vissl/model_zoo/converted_vissl_rn50_semi_sup_08389792.torch",
     "Places205-Caffe2": "https://dl.fbaipublicfiles.com/vissl/model_zoo/converted_vissl_rn50_supervised_places205_caffe2.torch",
@@ -42,7 +41,9 @@ def load_vissl_checkpoint(*, architecture: str, weights: str) -> dict[str, Any]:
 
 
 def load(
-    *, architecture: str, weights: str
+    *,
+    architecture: str,
+    weights: str,
 ) -> tuple[torch.nn.Module, Callable[[Image.Image], torch.Tensor]]:
     checkpoint = load_vissl_checkpoint(architecture=architecture, weights=weights)
 
@@ -66,15 +67,15 @@ def load(
                 case "DeepClusterV2-ImageNet1K":
                     checkpoint = checkpoint
                 case (
-                    "Instagram-ImageNet" 
-                    | "YFCC100M-ImageNet" 
+                    "Instagram-ImageNet"
+                    | "YFCC100M-ImageNet"
                     | "Places205-Caffe2"
-                    # | "Colorization-ImageNet1K" 
+                    # | "Colorization-ImageNet1K"
                 ):
                     checkpoint = checkpoint["model_state_dict"]
                 case _:
                     raise ValueError(
-                        f"architecture {architecture} has no weights '{weights}'"
+                        f"architecture {architecture} has no weights '{weights}'",
                     )
         case _:
             raise ValueError(f"architecture {architecture} not defined")
@@ -86,7 +87,9 @@ def load(
                 new_state_dict[key.replace("module.", "")] = checkpoint[key]
         case "MoCoV2-ImageNet1K":
             for key in checkpoint.keys():
-                new_state_dict[key.replace("moco_encoder.trunk._feature_blocks.", "")] = checkpoint[key]
+                new_state_dict[
+                    key.replace("moco_encoder.trunk._feature_blocks.", "")
+                ] = checkpoint[key]
         case _:
             for key in checkpoint.keys():
                 new_state_dict[key.replace("_feature_blocks.", "")] = checkpoint[key]
@@ -115,9 +118,9 @@ def load(
                     torchvision.transforms.CenterCrop(224),
                     torchvision.transforms.ToTensor(),
                     torchvision.transforms.Normalize(
-                        mean=[0.4850, 0.4560, 0.4060], 
+                        mean=[0.4850, 0.4560, 0.4060],
                         std=[0.2290, 0.2240, 0.2250],
                     ),
-                ]
+                ],
             )
     return model, preprocess

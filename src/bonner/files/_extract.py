@@ -1,20 +1,25 @@
-from pathlib import Path
 import tarfile
 import zipfile
+from pathlib import Path
 
 from loguru import logger
 
 
-def untar(filepath: Path, *, extract_dir: Path = None, remove_tar: bool = True) -> Path:
+def untar(
+    filepath: Path,
+    *,
+    extract_dir: Path | None = None,
+    remove_tar: bool = True,
+) -> Path:
     if extract_dir is None:
         extract_dir = Path("/tmp")
     extract_dir.mkdir(parents=True, exist_ok=True)
 
     with tarfile.open(filepath) as tar:
-        if all([(extract_dir / filename).exists() for filename in tar.getnames()]):
+        if all((extract_dir / filename).exists() for filename in tar.getnames()):
             logger.debug(
                 f"Using previously extracted files from {extract_dir}"
-                f" instead of extracting from {filepath}"
+                f" instead of extracting from {filepath}",
             )
         else:
             logger.debug(f"Extracting from {filepath} to {extract_dir}")
@@ -30,19 +35,19 @@ def untar(filepath: Path, *, extract_dir: Path = None, remove_tar: bool = True) 
 def unzip(
     filepath: Path,
     *,
-    extract_dir: Path = None,
+    extract_dir: Path | None = None,
     remove_zip: bool = True,
-    password: bytes = None,
+    password: bytes | None = None,
 ) -> Path:
     if extract_dir is None:
         extract_dir = Path("/tmp")
     extract_dir.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(filepath, "r") as f:
-        if all([(extract_dir / filename).exists() for filename in f.namelist()]):
+        if all((extract_dir / filename).exists() for filename in f.namelist()):
             logger.debug(
                 f"Using previously extracted files from {extract_dir}"
-                f" instead of extracting from {filepath}"
+                f" instead of extracting from {filepath}",
             )
         else:
             logger.debug(f"Extracting from {filepath} to {extract_dir}")

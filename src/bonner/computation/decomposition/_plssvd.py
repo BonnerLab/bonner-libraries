@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from typing import Self
 
 import torch
 from bonner.computation.decomposition._svd import svd
@@ -6,7 +7,7 @@ from bonner.computation.decomposition._svd import svd
 
 class PLSSVD:
     def __init__(
-        self,
+        self: Self,
         *,
         n_components: int | None = None,
         seed: int = 0,
@@ -43,7 +44,10 @@ class PLSSVD:
         self.device = torch.device(device)
 
     def _preprocess(
-        self, x: torch.Tensor, y: torch.Tensor, /,
+        self: Self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        /,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if x.ndim == 1:
             x = x.unsqueeze(dim=-1)
@@ -51,20 +55,23 @@ class PLSSVD:
             y = y.unsqueeze(dim=-1)
 
         if x.shape[-2] != y.shape[-2]:
-            raise ValueError("x and y must have the same number of samples")
+            error = "x and y must have the same number of samples"
+            raise ValueError(error)
         self.n_samples = x.shape[-2]
 
         max_n_components = min(self.n_samples, x.shape[-1], y.shape[-1])
         if self.n_components is None:
             self.n_components = max_n_components
-        else:
-            if self.n_components > max_n_components:
-                raise ValueError(f"n_components must be <= {max_n_components}")
+        elif self.n_components > max_n_components:
+            error = f"n_components must be <= {max_n_components}"
+            raise ValueError(error)
 
         if x.dtype != y.dtype:
-            raise ValueError("x and y must have the same dtype")
+            error = "x and y must have the same dtype"
+            raise ValueError(error)
         if x.device != y.device:
-            raise ValueError("x and y must be on the same device")
+            error = "x and y must be on the same device"
+            raise ValueError(error)
         self.device = x.device
 
         x = torch.clone(x)
@@ -95,7 +102,7 @@ class PLSSVD:
 
         return x, y
 
-    def fit(self, x: torch.Tensor, y: torch.Tensor, /) -> None:
+    def fit(self: Self, x: torch.Tensor, y: torch.Tensor, /) -> None:
         x, y = self._preprocess(x, y)
 
         if torch.equal(x, y):
@@ -119,7 +126,7 @@ class PLSSVD:
         self.right_singular_vectors = v_h[..., : self.n_components, :].transpose(-2, -1)
         self.singular_values = s[..., : self.n_components] / (self.n_samples - 1)
 
-    def transform(self, z: torch.Tensor, /, *, direction: str) -> torch.Tensor:
+    def transform(self: Self, z: torch.Tensor, /, *, direction: str) -> torch.Tensor:
         match direction:
             case "left":
                 mean = self.left_mean
@@ -130,7 +137,8 @@ class PLSSVD:
                 std = self.right_std
                 projection = self.right_singular_vectors
             case _:
-                raise ValueError("direction must be 'left' or 'right'")
+                error = "direction must be 'left' or 'right'"
+                raise ValueError(error)
 
         z = torch.clone(z)
         z = z.to(self.device)
@@ -138,7 +146,7 @@ class PLSSVD:
         return z @ projection
 
     def inverse_transform(
-        self,
+        self: Self,
         z: torch.Tensor,
         /,
         *,
@@ -163,5 +171,6 @@ class PLSSVD:
                 mean = self.right_mean
                 std = self.right_std
             case _:
-                raise ValueError("direction must be 'left' or 'right'")
+                error = "direction must be 'left' or 'right'"
+                raise ValueError(error)
         return (z @ projection[..., :, components].transpose(-2, -1)) * std + mean

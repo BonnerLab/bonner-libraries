@@ -5,7 +5,10 @@ from PIL import Image
 
 
 def concatenate_images(
-    image_paths: Sequence[Path], *, direction: str, resize: bool = True
+    image_paths: Sequence[Path],
+    *,
+    direction: str,
+    resize: bool = True,
 ) -> Image.Image:
     images = [Image.open(image_path) for image_path in image_paths]
     sizes = [image.size for image in images]
@@ -18,16 +21,10 @@ def concatenate_images(
 
     match direction:
         case "horizontal":
-            if resize:
-                w = sum([int(w * h_max / h) for w, h in zip(ws, hs)])
-            else:
-                w = sum(ws)
+            w = sum([int(w * h_max / h) for w, h in zip(ws, hs)]) if resize else sum(ws)
             shape = (w, h_max)
         case "vertical":
-            if resize:
-                h = sum([int(h * w_max / w) for w, h in zip(ws, hs)])
-            else:
-                h = sum(hs)
+            h = sum([int(h * w_max / w) for w, h in zip(ws, hs)]) if resize else sum(hs)
             shape = (w_max, h)
 
     concatenated_image = Image.new("RGB", shape)

@@ -1,14 +1,13 @@
-from pathlib import Path
 import os
+from pathlib import Path
 
-from PIL import Image
 import torch
-from torchvision.models import alexnet, AlexNet_Weights
-from torchvision.datasets import DTD
-
+from bonner.models.datapipes import create_image_datapipe
 from bonner.models.features import extract_features
 from bonner.models.hooks import GlobalMaxpool
-from bonner.models.datapipes import create_image_datapipe
+from PIL import Image
+from torchvision.datasets import DTD
+from torchvision.models import AlexNet_Weights, alexnet
 
 weights = AlexNet_Weights.IMAGENET1K_V1
 

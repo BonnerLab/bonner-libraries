@@ -28,7 +28,11 @@ def svd(
     return u, s, v_h
 
 
-def svd_flip(*, u: torch.Tensor, v_h: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+def svd_flip(
+    *,
+    u: torch.Tensor,
+    v_h: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
     max_abs_cols = torch.argmax(torch.abs(u), dim=-2)
     match u.ndim:
         case 3:

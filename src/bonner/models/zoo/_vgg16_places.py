@@ -1,14 +1,13 @@
-from pathlib import Path
 from collections.abc import Callable
+from pathlib import Path
 
-from PIL import Image
 import numpy as np
 import torch
 import torchvision
 import xarray as xr
 from bonner.files import download_from_url
-from bonner.caching import cache
 from bonner.models.utilities import BONNER_MODELS_HOME
+from PIL import Image
 
 # https://github.com/GKalliatakis/Keras-VGG16-places365/issues/5
 # https://github.com/antorsae/landmark-recognition-challenge/blob/master/extra/vgg16_places365.py
@@ -61,10 +60,6 @@ def load(weights: str) -> tuple[torch.nn.Module, Callable[[Image.Image], torch.T
     return model, preprocess
 
 
-# @cache(
-#     "state_dicts/architecture=VGG16.weights={weights}.pkl",
-#     path=CUSTOM_CACHE,
-# )
 def create_state_dict(weights: str) -> dict[str, torch.Tensor]:
     filepath = download_weights(weights)
     state_dict = {}
@@ -88,14 +83,12 @@ def preprocess(image: Image.Image) -> torch.Tensor:
     image_ = torch.from_numpy(np.asarray(resizer(image)).astype(np.float32))
     image_ = (image_ - image_.min()) / (image_.max() - image_.min())
     image_ -= torch.Tensor([0.485, 0.456, 0.406])
-    # image_ -= torch.Tensor([122.679, 116.669, 104.006])
 
     # (H, W, C) -> (C, H, W)
     image_ = image_.permute((2, 0, 1))
     # RGB -> BGR
     image_ = image_.flip(0)
 
-    # image_ = torch.from_numpy(np.random.random(size=(3, 224, 224)).astype(np.float32))
     return image_
 
 
@@ -107,9 +100,11 @@ if __name__ == "__main__":
     classes_filepath = download_from_url(CLASSES_URL)
 
     classes = []
-    with open(classes_filepath) as class_file:
-        for line in class_file:
-            classes.append(line.strip().split(" ")[0][3:])
+    with classes_filepath.open() as class_file:
+        classes = [
+            line.strip().split(" ")[0][3:]
+            for line in class_file:
+        ]
     classes = tuple(classes)
 
     model, preprocess_ = load("Places365")
@@ -121,4 +116,3 @@ if __name__ == "__main__":
     top_predictions = torch.argsort(predictions, descending=True, stable=True)[:n]
     for i in range(n):
         print(classes[top_predictions[i]])
-    print(1)

@@ -1,10 +1,8 @@
-import pytest
-
 import numpy as np
+import pytest
 import torch
-from sklearn.metrics import r2_score as r2_score_sklearn
-
 from bonner.computation.metrics import r2_score
+from sklearn.metrics import r2_score as r2_score_sklearn
 
 
 @pytest.mark.parametrize("shape", [(10,), (5, 10)])

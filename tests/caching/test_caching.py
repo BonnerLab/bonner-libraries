@@ -1,5 +1,4 @@
 import numpy as np
-
 from bonner.caching import cache
 
 

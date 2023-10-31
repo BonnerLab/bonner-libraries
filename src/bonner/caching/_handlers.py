@@ -1,36 +1,36 @@
-from abc import ABC, abstractmethod
-from typing import Any
-from pathlib import Path
-from collections.abc import Mapping
 import pickle
+from abc import ABC, abstractmethod
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any, Self
 
-from loguru import logger
-from tqdm.dask import TqdmCallback
+import nibabel as nib
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
-import nibabel as nib
+from loguru import logger
+from tqdm.dask import TqdmCallback
 
 
 class Handler(ABC):
-    def __init__(self) -> None:
+    def __init__(self: Self) -> None:
         return
 
     @abstractmethod
-    def save(self, result: Any, *, path: Path, **kwargs: Any) -> None:
+    def save(self: Self, result: Any, *, path: Path, **kwargs: Any) -> None:
         pass
 
     @abstractmethod
-    def load(self, path: Path, **kwargs: Any) -> Any:
+    def load(self: Self, path: Path, **kwargs: Any) -> Any:
         pass
 
 
 class NumpyHandler(Handler):
-    def __init__(self) -> None:
+    def __init__(self: Self) -> None:
         super().__init__()
 
     def save(
-        self,
+        self: Self,
         result: npt.NDArray[Any] | Mapping[str, npt.NDArray[Any]],
         *,
         path: Path,
@@ -46,28 +46,34 @@ class NumpyHandler(Handler):
                 np.savez(path, **result)
 
     def load(
-        self, path: Path, **kwargs: Any
+        self: Self,
+        path: Path,
+        **kwargs: Any,
     ) -> npt.NDArray[Any] | Mapping[str, npt.NDArray[Any]]:
         return np.load(path, **kwargs)
 
 
 class XarrayHandler(Handler):
-    def __init__(self) -> None:
+    def __init__(self: Self) -> None:
         super().__init__()
 
     def save(
-        self, result: xr.DataArray | xr.Dataset, *, path: Path, **kwargs: Any
+        self: Self,
+        result: xr.DataArray | xr.Dataset,
+        *,
+        path: Path,
+        **kwargs: Any,
     ) -> None:
         if isinstance(result, xr.DataArray) and result.size == 0:
             logger.warning(
-                f"The result has size 0, writing an empty netCDF4 file to {path}"
+                f"The result has size 0, writing an empty netCDF4 file to {path}",
             )
             xr.DataArray().to_netcdf(path)
         else:
             with TqdmCallback(desc="dask", leave=False):
                 result.to_netcdf(path, **kwargs)
 
-    def load(self, path: Path, **kwargs: Any) -> xr.DataArray | xr.Dataset:
+    def load(self: Self, path: Path, **kwargs: Any) -> xr.DataArray | xr.Dataset:
         try:
             return xr.open_dataarray(path, **kwargs)
         except Exception:
@@ -75,29 +81,33 @@ class XarrayHandler(Handler):
 
 
 class PickleHandler(Handler):
-    def __init__(self) -> None:
+    def __init__(self: Self) -> None:
         super().__init__()
 
-    def save(self, result: Any, *, path: Path, **kwargs) -> None:
-        with open(path, "wb") as f:
+    def save(self: Self, result: Any, *, path: Path, **kwargs) -> None:
+        with path.open("wb") as f:
             pickle.dump(result, f, **kwargs)
 
-    def load(self, path: Path, **kwargs: Any) -> Any:
-        with open(path, "rb") as f:
+    def load(self: Self, path: Path, **kwargs: Any) -> Any:
+        with path.open("rb") as f:
             return pickle.load(f, **kwargs)
 
 
 class Nifti1ImageHandler(Handler):
-    def __init__(self) -> None:
+    def __init__(self: Self) -> None:
         super().__init__()
 
     def save(
-        self, result: nib.nifti1.Nifti1Image, *, path: Path, **kwargs: Any
+        self: Self,
+        result: nib.nifti1.Nifti1Image,
+        *,
+        path: Path,
+        **kwargs: Any,
     ) -> None:
         if isinstance(result, nib.nifti1.Nifti1Image):
             nib.save(result, path)
 
-    def load(self, path: Path, **kwargs: Any) -> nib.nifti1.Nifti1Image:
+    def load(self: Self, path: Path, **kwargs: Any) -> nib.nifti1.Nifti1Image:
         return nib.load(path)
 
 
@@ -112,4 +122,5 @@ def get_handler(filetype: str) -> Handler:
         case "NIfTI":
             return Nifti1ImageHandler()
         case _:
-            raise ValueError(f"Handler for filetype {filetype} not supported")
+            error = f"Handler for filetype {filetype} not supported"
+            raise ValueError(error)

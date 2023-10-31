@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
+from typing import Self
 
 import torch
 
 
 class Regression(ABC):
     @abstractmethod
-    def fit(self, *, x: torch.Tensor, y: torch.Tensor) -> None:
+    def fit(self: Self, *, x: torch.Tensor, y: torch.Tensor) -> None:
         pass
 
     @abstractmethod
-    def predict(self, x: torch.Tensor) -> torch.Tensor:
+    def predict(self: Self, x: torch.Tensor) -> torch.Tensor:
         pass

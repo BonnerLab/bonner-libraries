@@ -1,16 +1,16 @@
-import pytest
-
-from scipy.stats import zscore
 import numpy as np
+import pytest
 import torch
-
 from bonner.computation.normalization import z_score
+from scipy.stats import zscore
 
 
 @pytest.mark.parametrize("dim", [0, -1, 2])
 @pytest.mark.parametrize("correction", [1, 0])
 def test_z_score(
-    correction: float, dim: int, shape: tuple[int, ...] = (5, 10, 3)
+    correction: float,
+    dim: int,
+    shape: tuple[int, ...] = (5, 10, 3),
 ) -> None:
     rng = np.random.default_rng(seed=0)
     x_numpy = rng.normal(size=shape)

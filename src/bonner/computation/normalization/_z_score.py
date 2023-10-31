@@ -2,7 +2,11 @@ import torch
 
 
 def z_score(
-    x: torch.Tensor, *, dim: int = 0, correction: float = 1, nan_policy: str = "omit"
+    x: torch.Tensor,
+    *,
+    dim: int = 0,
+    correction: float = 1,
+    nan_policy: str = "omit",
 ) -> torch.Tensor:
     match nan_policy:
         case "propagate":
@@ -15,7 +19,7 @@ def z_score(
                 / (x.shape[dim] - correction)
             ).sqrt()
         case _:
-            raise ValueError("x contains NaNs")
+            error = "x contains NaNs"
+            raise ValueError(error)
 
-    x = (x - x_mean) / x_std
-    return x
+    return (x - x_mean) / x_std

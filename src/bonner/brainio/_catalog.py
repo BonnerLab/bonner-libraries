@@ -1,10 +1,9 @@
 import zipfile
 from pathlib import Path
+from typing import Self
 
 import pandas as pd
 import xarray as xr
-from loguru import logger
-
 from bonner.brainio._network import fetch, send
 from bonner.brainio._utilities import (
     BONNER_BRAINIO_HOME,
@@ -13,11 +12,12 @@ from bonner.brainio._utilities import (
     validate_data_assembly,
     validate_stimulus_set,
 )
+from loguru import logger
 
 
 class Catalog:
     def __init__(
-        self,
+        self: Self,
         identifier: str = "bonner-brainio",
         *,
         csv_file: Path | None = None,
@@ -27,6 +27,7 @@ class Catalog:
         """Initialize a Catalog.
 
         Args:
+        ----
             identifier: identifier of the Catalog
             csv_file: path to the (potentially existing) Catalog CSV file
             cache_directory: directory to use as a local file cache
@@ -60,7 +61,7 @@ class Catalog:
             validate_catalog(path=self.csv_file)
 
     def load_stimulus_set(
-        self,
+        self: Self,
         *,
         identifier: str,
         use_cached: bool = True,
@@ -70,16 +71,20 @@ class Catalog:
         """Load a Stimulus Set from the Catalog.
 
         Args:
+        ----
             identifier: identifier of the Stimulus Set
             use_cached: whether to use the local cache, defaults to True
             check_integrity: whether to check the SHA1 hashes of the files, defaults to True
             validate: whether to ensure that the Stimulus Set conforms to the BrainIO specification, defaults to True
 
         Returns:
+        -------
             paths to the Stimulus Set CSV file and ZIP archive, with keys "csv" and "zip" respectively
         """
         metadata = self.lookup(identifier=identifier, lookup_type="stimulus_set")
-        assert not metadata.empty, f"Stimulus Set {identifier} not found in Catalog"
+        if metadata.empty:
+            error = f"Stimulus Set {identifier} not found in Catalog"
+            raise ValueError(error)
 
         paths = {}
         for row in metadata.itertuples():
@@ -92,7 +97,7 @@ class Catalog:
 
             if check_integrity:
                 assert row.sha1 == compute_sha1(
-                    path
+                    path,
                 ), f"SHA1 hash from the Catalog does not match that of {path}"
 
             if zipfile.is_zipfile(path):
@@ -106,7 +111,7 @@ class Catalog:
         return paths
 
     def load_data_assembly(
-        self,
+        self: Self,
         *,
         identifier: str,
         use_cached: bool = True,
@@ -116,16 +121,20 @@ class Catalog:
         """Load a Data Assembly from the Catalog.
 
         Args:
+        ----
             identifier: identifier of the Data Assembly
             use_cached: whether to use the local cache, defaults to True
             check_integrity: whether to check the SHA1 hashes of the files, defaults to True
             validate: whether to ensure that the Data Assembly conforms to the BrainIO specification, defaults to True
 
         Returns:
+        -------
             path to the Data Assembly netCDF-4 file
         """
         metadata = self.lookup(identifier=identifier, lookup_type="assembly")
-        assert not metadata.empty, f"Data Assembly {identifier} not found in Catalog"
+        if metadata.empty:
+            error = f"Data Assembly {identifier} not found in Catalog"
+            raise ValueError(error)
 
         path = fetch(
             path_cache=self.cache_directory,
@@ -134,10 +143,9 @@ class Catalog:
             use_cached=use_cached,
         )
 
-        if check_integrity:
-            assert metadata["sha1"].item() == compute_sha1(
-                path
-            ), f"SHA1 hash from the Catalog does not match that of {path}"
+        if check_integrity and metadata["sha1"].item() != compute_sha1(path):
+            error = f"SHA1 hash from the Catalog does not match that of {path}"
+            raise ValueError(error)
 
         if validate:
             validate_data_assembly(path=path)
@@ -145,7 +153,7 @@ class Catalog:
         return path
 
     def package_stimulus_set(
-        self,
+        self: Self,
         *,
         identifier: str,
         path_csv: Path,
@@ -160,6 +168,7 @@ class Catalog:
         """Add a Stimulus Set to the Catalog.
 
         Args:
+        ----
             identifier: identifier of the Stimulus Set
             path_csv: path to the Stimulus Set CSV file
             path_zip: path to the Stimulus Set ZIP file
@@ -174,7 +183,7 @@ class Catalog:
         if not (metadata.empty or force):
             logger.debug(
                 f"Stimulus Set {identifier} exists in Catalog {self.identifier}, not"
-                " re-packaging"
+                " re-packaging",
             )
             return
 
@@ -182,15 +191,15 @@ class Catalog:
             self._delete(identifier=identifier, lookup_type="stimulus_set")
 
         logger.debug(
-            f"Packaging Stimulus Set {identifier} to Catalog {self.identifier}"
+            f"Packaging Stimulus Set {identifier} to Catalog {self.identifier}",
         )
 
         validate_stimulus_set(path_csv=path_csv, path_zip=path_zip)
 
-        for path, location, class_ in {
+        for path, location, class_ in (
             (path_csv, location_csv, class_csv),
             (path_zip, location_zip, class_zip),
-        }:
+        ):
             send(path=path, location_type=location_type, location=location)
             self._append(
                 {
@@ -201,12 +210,12 @@ class Catalog:
                     "location": location,
                     "sha1": compute_sha1(path),
                     "stimulus_set_identifier": "",
-                }
+                },
             )
         validate_catalog(self.csv_file)
 
     def package_data_assembly(
-        self,
+        self: Self,
         *,
         path: Path,
         location_type: str,
@@ -217,6 +226,7 @@ class Catalog:
         """Add a Data Assembly to the Catalog.
 
         Args:
+        ----
             path: path to the Data Assembly netCDF-4 file
             location_type: location_type of the Data Assembly
             location: remote URL of the Data Assembly
@@ -232,7 +242,7 @@ class Catalog:
         if not (metadata.empty or force):
             logger.debug(
                 f"Data Assembly {identifier} exists in Catalog {self.identifier}, not"
-                " re-packaging"
+                " re-packaging",
             )
             return
 
@@ -240,7 +250,7 @@ class Catalog:
             self._delete(identifier=identifier, lookup_type="assembly")
 
         logger.debug(
-            f"Packaging Data Assembly {identifier} to Catalog {self.identifier}"
+            f"Packaging Data Assembly {identifier} to Catalog {self.identifier}",
         )
 
         send(path=path, location_type=location_type, location=location)
@@ -254,14 +264,15 @@ class Catalog:
                 "location": location,
                 "sha1": compute_sha1(path),
                 "stimulus_set_identifier": assembly.attrs["stimulus_set_identifier"],
-            }
+            },
         )
         validate_catalog(self.csv_file)
 
-    def _create(self, path: Path) -> None:
+    def _create(self: Self, path: Path) -> None:
         """Create a new Catalog CSV file.
 
         Args:
+        ----
             path: path where the Catalog CSV file should be created
         """
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -280,7 +291,7 @@ class Catalog:
         catalog.to_csv(path, index=False)
 
     def lookup(
-        self,
+        self: Self,
         *,
         identifier: str,
         lookup_type: str,
@@ -288,10 +299,12 @@ class Catalog:
         """Look up the metadata for a Data Assembly or Stimulus Set in the Catalog.
 
         Args:
+        ----
             identifier: identifier of the Data Assembly or Stimulus Set
             lookup_type: 'assembly' or 'stimulus_set', when looking up Data Assemblies or Stimulus Sets respectively
 
         Returns:
+        -------
             metadata corresponding to the Data Assembly or Stimulus Set
         """
         catalog = pd.read_csv(self.csv_file)
@@ -300,17 +313,18 @@ class Catalog:
         )
         return catalog.loc[filter_, :]
 
-    def _append(self, entry: dict[str, str]) -> None:
+    def _append(self: Self, entry: dict[str, str]) -> None:
         """Append an entry to the Catalog.
 
         Args:
+        ----
             entry: a row to be appended to the Catalog CSV file, where keys correspond to column header names
         """
         catalog = pd.read_csv(self.csv_file)
         catalog = pd.concat([catalog, pd.DataFrame(entry, index=[len(catalog)])])
         catalog.to_csv(self.csv_file, index=False)
 
-    def _delete(self, *, identifier: str, lookup_type: str) -> None:
+    def _delete(self: Self, *, identifier: str, lookup_type: str) -> None:
         catalog = pd.read_csv(self.csv_file)
         filter_ = (catalog["identifier"] == identifier) & (
             catalog["lookup_type"] == lookup_type

@@ -1,15 +1,14 @@
 from pathlib import Path
+
 import requests
-
-from loguru import logger
-
 from bonner.files._utilities import prepare_filepath
+from loguru import logger
 
 
 def download(
     url: str,
     *,
-    filepath: Path = None,
+    filepath: Path | None = None,
     stream: bool = True,
     allow_redirects: bool = True,
     chunk_size: int = 1024**2,
@@ -25,7 +24,7 @@ def download(
 
     logger.debug(f"Downloading from {url} to {filepath}")
     r = requests.Session().get(url, stream=stream, allow_redirects=allow_redirects)
-    with open(filepath, "wb") as f:
+    with filepath.open("wb") as f:
         for chunk in r.iter_content(chunk_size=chunk_size):
             f.write(chunk)
 

@@ -1,9 +1,6 @@
-import pytest
-
 import numpy as np
+import pytest
 import torch
-from sklearn.cross_decomposition import CCA
-
 from bonner.computation.decomposition._cca import CCAPytorch
 
 
@@ -43,15 +40,20 @@ def test_cca(regularization: float) -> None:
     test_correlations_rcca = cca_rcca.validate([test1, test2])
 
     cca_torch = CCAPytorch(
-        alpha=regularization, n_components=2, kwargs_kernel=None, device="cpu"
+        alpha=regularization,
+        n_components=2,
+        kwargs_kernel=None,
+        device="cpu",
     )
     cca_torch.fit([torch.from_numpy(train1), torch.from_numpy(train2)])
     test_correlations_torch = cca_torch.validate(
-        [torch.from_numpy(test1), torch.from_numpy(test2)]
+        [torch.from_numpy(test1), torch.from_numpy(test2)],
     )
     for _rcca, _torch in zip(test_correlations_rcca, test_correlations_torch):
         assert np.allclose(_rcca, _torch.cpu().numpy(), rtol=0.01)
     assert np.allclose(
-        cca_rcca.cancorrs, cca_torch._canonical_correlations.cpu().numpy(), rtol=0.01
+        cca_rcca.cancorrs,
+        cca_torch._canonical_correlations.cpu().numpy(),
+        rtol=0.01,
     )
     print(1)

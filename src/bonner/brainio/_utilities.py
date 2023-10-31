@@ -1,5 +1,5 @@
-import os
 import hashlib
+import os
 import re
 import zipfile
 from pathlib import Path
@@ -8,7 +8,7 @@ import pandas as pd
 import xarray as xr
 
 BONNER_BRAINIO_HOME = Path(
-    os.getenv("BONNER_BRAINIO_HOME", str(Path.home() / ".cache" / "bonner-brainio"))
+    os.getenv("BONNER_BRAINIO_HOME", str(Path.home() / ".cache" / "bonner-brainio")),
 )
 
 
@@ -22,15 +22,17 @@ def validate_catalog(path: Path) -> None:
     * Warning: This does NOT check whether the all the entries in the 'stimulus_set_identifier' column are present a
 
     Args:
+    ----
         path: path to the Catalog CSV file
     """
-    assert pd.read_csv(
+    column_headers_are_unique = pd.read_csv(
         path,
         nrows=1,
         dtype=str,
-    ).columns.is_unique, (
-        f"The column headers of the Catalog CSV file {path} MUST be unique"
-    )
+    ).columns.is_unique
+    if not column_headers_are_unique:
+        error = f"The column headers of the Catalog CSV file {path} MUST be unique"
+        raise ValueError(error)
 
     catalog = pd.read_csv(path, dtype=str)
     required_columns = {
@@ -43,9 +45,11 @@ def validate_catalog(path: Path) -> None:
         "class",
     }
     for required_column in required_columns:
-        assert (
-            required_column in catalog.columns
-        ), f"'{required_column}' MUST be a column of the Catalog CSV file {path}"
+        if required_column not in catalog.columns:
+            error = (
+                f"'{required_column}' MUST be a column of the Catalog CSV file {path}"
+            )
+            raise ValueError(error)
 
     for column in catalog.columns:
         assert re.match(r"^[a-z0-9_]+$", column), (
@@ -56,7 +60,7 @@ def validate_catalog(path: Path) -> None:
     if catalog.empty:
         return
 
-    for column in {"identifier", "stimulus_set_identifier"}:
+    for column in ("identifier", "stimulus_set_identifier"):
         assert catalog.dtypes[column] == "O", (
             f"The column '{column}' of the Catalog CSV file {path} MUST have string"
             " entries"
@@ -86,14 +90,12 @@ def validate_catalog(path: Path) -> None:
         f" file {path}"
     )
 
-    assert catalog[
-        "sha1"
-    ].is_unique, (
-        f"The 'sha1' column of the Catalog CSV file {path} MUST contain unique entries"
-    )
+    assert (
+        catalog["sha1"].is_unique
+    ), f"The 'sha1' column of the Catalog CSV file {path} MUST contain unique entries"
 
     assert set(catalog["lookup_type"].unique()).issubset(
-        {"assembly", "stimulus_set"}
+        {"assembly", "stimulus_set"},
     ), (
         f"The values of the 'lookup_type' column of the Catalog CSV file {path} MUST be"
         " either 'assembly' or 'stimulus_set'"
@@ -106,12 +108,12 @@ def validate_data_assembly(path: Path) -> None:
     Ensures that the Data Assembly complies with the BrainIO specification.
 
     Args:
+    ----
         path: path to the Data Assembly netCDF-4 file
     """
-
     assembly = xr.open_dataset(path)
 
-    for required_attribute in {"identifier", "stimulus_set_identifier"}:
+    for required_attribute in ("identifier", "stimulus_set_identifier"):
         assert required_attribute in assembly.attrs, (
             f"'{required_attribute}' MUST be a global attribute of the Data Assembly"
             f" netCDF-4 file {path}"
@@ -129,17 +131,19 @@ def validate_stimulus_set(*, path_csv: Path, path_zip: Path) -> None:
     Ensures that the Stimulus Set complies with the BrainIO specification.
 
     Args:
+    ----
         path_csv: path to the Stimulus Set CSV file
         path_zip: path to the Stimulus Set ZIP file
     """
-    assert pd.read_csv(
-        path_csv, nrows=1
-    ).columns.is_unique, (
-        f"The column headers of the Stimulus Set CSV file {path_csv} MUST be unique"
-    )
+    assert (
+        pd.read_csv(
+            path_csv,
+            nrows=1,
+        ).columns.is_unique
+    ), f"The column headers of the Stimulus Set CSV file {path_csv} MUST be unique"
 
     file_csv = pd.read_csv(path_csv)
-    for column in {"stimulus_id", "filename"}:
+    for column in ("stimulus_id", "filename"):
         assert (
             column in file_csv.columns
         ), f"'{column}' MUST be a column of the Stimulus Set CSV file {path_csv}"
@@ -163,7 +167,7 @@ def validate_stimulus_set(*, path_csv: Path, path_zip: Path) -> None:
 
     with zipfile.ZipFile(path_zip, mode="r") as f:
         assert set(file_csv["filename"]).issubset(
-            {zipinfo.filename for zipinfo in f.infolist()}
+            {zipinfo.filename for zipinfo in f.infolist()},
         ), (
             "All the filepaths in the 'filename' column of the Stimulus Set CSV file"
             f" {path_csv} MUST be present in the Stimulus Set ZIP archive {path_zip}"
@@ -174,9 +178,11 @@ def compute_sha1(path: Path) -> str:
     """Compute the SHA1 hash of a file.
 
     Args:
+    ----
         path: path to the file
 
     Returns:
+    -------
         SHA1 hash of the file as a hexdigest
     """
     buffer_size = 64 * 2**10

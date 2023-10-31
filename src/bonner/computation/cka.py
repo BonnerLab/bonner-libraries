@@ -17,7 +17,9 @@ def hsic(k: torch.Tensor, l: torch.Tensor) -> torch.Tensor:
 
 
 def cka(
-    x: torch.Tensor, y: torch.Tensor, kernel: Callable = linear_kernel
+    x: torch.Tensor,
+    y: torch.Tensor,
+    kernel: Callable = linear_kernel,
 ) -> torch.Tensor:
     k = kernel(x, x)
     l = kernel(y, y)

@@ -1,12 +1,16 @@
-from typing import Any
 from pathlib import Path
-import requests
+from typing import Any
 
+import requests
 from bonner.files._utilities import prepare_filepath
 
 
 def download(
-    file_id: str, *, filepath: Path, chunk_size: int = 32768, force: bool = True
+    file_id: str,
+    *,
+    filepath: Path,
+    chunk_size: int = 32768,
+    force: bool = True,
 ) -> Path:
     url = "https://docs.google.com/uc?export=download"
 
@@ -27,7 +31,7 @@ def download(
         params = {"id": file_id, "confirm": token}
         response = session.get(url, params=params, stream=True)
 
-    with open(filepath, "wb") as f:
+    with filepath.open("wb") as f:
         for chunk in response.iter_content(chunk_size):
             if chunk:
                 f.write(chunk)

@@ -1,10 +1,8 @@
-import pytest
-
 import numpy as np
+import pytest
 import torch
-from sklearn.linear_model import LinearRegression as LinearRegressionSklearn, Ridge
-
 from bonner.computation.regression import LinearRegression
+from sklearn.linear_model import Ridge
 
 
 class NumpyRegression:
@@ -88,11 +86,15 @@ def test_linear_regression(
         model_sklearn.fit(x_sklearn, y_sklearn)
 
     assert np.allclose(
-        model_torch.coefficients.transpose(-2, -1).cpu(), model_sklearn.coef_, atol=1e-3
+        model_torch.coefficients.transpose(-2, -1).cpu(),
+        model_sklearn.coef_,
+        atol=1e-3,
     )
     if fit_intercept:
         assert np.allclose(
-            model_torch.intercept.cpu(), model_sklearn.intercept_, atol=1e-3
+            model_torch.intercept.cpu(),
+            model_sklearn.intercept_,
+            atol=1e-3,
         )
     else:
         assert model_torch.intercept == 0 and model_sklearn.intercept_ == 0

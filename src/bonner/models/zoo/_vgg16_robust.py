@@ -1,12 +1,11 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from PIL import Image
 import torch
 import torchvision
-
 from bonner.files import download_from_url
 from bonner.models.utilities import BONNER_MODELS_HOME
+from PIL import Image
 
 URLS = {
     "robust-epsilon=0": "https://robustnessws4285631339.blob.core.windows.net/public-models/robust_imagenet/vgg16_bn_l2_eps0.ckpt?sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupitfx&se=2051-10-06T07:09:59Z&st=2021-10-05T23:09:59Z&spr=https,http&sig=U69sEOSMlliobiw8OgiZpLTaYyOA5yt5pHHH5%2FKUYgI%3D",
@@ -32,7 +31,7 @@ def load(weights: str) -> tuple[torch.nn.Module, Callable[[Image.Image], torch.T
             key.split("module.model.model.")[-1]: value
             for key, value in checkpoint["model"].items()
             if "module.model.model." in key
-        }
+        },
     )
     return (
         model,

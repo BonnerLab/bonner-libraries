@@ -1,27 +1,26 @@
-from typing import Any, ParamSpec, TypeVar
-from collections.abc import Callable, Mapping
 import functools
 import inspect
-from pathlib import Path
 import os
+from collections.abc import Callable, Mapping
+from pathlib import Path
+from typing import Any, ParamSpec, Self, TypeVar
 
+import nibabel as nib
 import numpy as np
 import xarray as xr
-import nibabel as nib
-
 from bonner.caching._handlers import get_handler
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
 BONNER_CACHING_HOME = Path(
-    os.getenv("BONNER_CACHING_HOME", str(Path.home() / ".cache" / "bonner-caching"))
+    os.getenv("BONNER_CACHING_HOME", str(Path.home() / ".cache" / "bonner-caching")),
 )
 
 
 class Cacher:
     def __init__(  # type: ignore  # kwargs can be Any
-        self,
+        self: Self,
         identifier: str | None = None,
         *,
         path: Path = BONNER_CACHING_HOME,
@@ -31,7 +30,7 @@ class Cacher:
         kwargs_save: Mapping[str, Any] = {},
         kwargs_load: Mapping[str, Any] = {},
     ) -> None:
-        """Caches outputs of functions to disk so that the (potentially expensive) function is not re-evaluated when called again.
+        """Cache outputs of functions to disk so that the (potentially expensive) function is not re-evaluated when called again.
 
         When the cacher is called on a function, it computes the output of the function and stores it on disk at the path ``path / identifier``. If the function is called again, the cached value is retrieved from disk and returned.
 
@@ -69,10 +68,12 @@ class Cacher:
         ```
 
         Todo:
+        ----
             * Support filetype = "auto", which auto-detects filetype based on output class
             * Track progress of :PEP: `501` (https://peps.python.org/pep-0501/) which introduces lazy f-strings. This would allow for a simpler implementation without the ``helper`` argument.
 
         Args:
+        ----
             path: Cache directory to save to/load from. Defaults to the value of the environment variable BONNER_CACHING_HOME. If the environment variable is not set, defaults to ``~/.cache/bonner-caching``.
             mode: Controls the behavior of the cacher:
                 * "normal": If the function output has been previously cached, the stored value is retrieved and returned. If the output has not been previously cached, the function body is run and the output is cached.
@@ -92,6 +93,7 @@ class Cacher:
             kwargs_load: Keyword arguments passed on to the `.load` method of the `Handler` corresponding to `filetype`. Defaults to {}.
 
         Returns:
+        -------
             Any: The output of the function.
         """
         self.path = path
@@ -108,7 +110,7 @@ class Cacher:
         self.kwargs_load = kwargs_load
 
     def __call__(
-        self,
+        self: Self,
         func: Callable[P, R],
     ) -> Callable[P, R]:
         @functools.wraps(func)
@@ -141,15 +143,16 @@ class Cacher:
                 case "ignore":
                     result = func(*args, **kwargs)
                 case _:
-                    raise ValueError(
+                    error = (
                         "mode must be one of 'normal', 'readonly', 'overwrite',"
                         " 'delete', or 'ignore'"
                     )
+                    raise ValueError(error)
             return result
 
         return wrapper
 
-    def _save(self, result: Any, *, identifier: str) -> None:  # type: ignore  # result can be Any
+    def _save(self: Self, result: Any, *, identifier: str) -> None:  # type: ignore  # result can be Any
         path = self.path / identifier
         path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -157,26 +160,25 @@ class Cacher:
             if isinstance(result, np.ndarray):
                 filetype = "numpy"
                 if path.suffix != ".npy":
-                    raise ValueError(
-                        "identifier must have suffix '.npy' if filetype is 'auto'"
-                    )
+                    error = "identifier must have suffix '.npy' if filetype is 'auto'"
+                    raise ValueError(error)
             elif isinstance(result, (xr.DataArray, xr.Dataset)):
                 filetype = "netCDF4"
                 if path.suffix != ".nc":
                     raise ValueError(
-                        "identifier must have suffix '.nc' if filetype is 'auto'"
+                        "identifier must have suffix '.nc' if filetype is 'auto'",
                     )
             elif isinstance(result, nib.nifti1.Nifti1Image):
                 filetype = "NIfTI"
                 if path.suffix != ".nii.gz":
                     raise ValueError(
-                        "identifier must have suffix '.nii.gz' if filetype is 'auto'"
+                        "identifier must have suffix '.nii.gz' if filetype is 'auto'",
                     )
             else:
                 filetype = "pickle"
                 if path.suffix != ".pkl":
                     raise ValueError(
-                        "identifier must have suffix '.pkl' if filetype is 'auto'"
+                        "identifier must have suffix '.pkl' if filetype is 'auto'",
                     )
         else:
             filetype = self.filetype
@@ -184,7 +186,7 @@ class Cacher:
         handler = get_handler(filetype=filetype)
         handler.save(result=result, path=path, **self.kwargs_save)
 
-    def _load(self, identifier: str) -> Any:  # type: ignore  # file contents can be Any
+    def _load(self: Self, identifier: str) -> Any:  # type: ignore  # file contents can be Any
         path = self._get_path(identifier)
 
         if self.filetype == "auto":
@@ -201,11 +203,11 @@ class Cacher:
         handler = get_handler(filetype=filetype)
         return handler.load(path=path, **self.kwargs_load)
 
-    def _delete(self, identifier: str) -> None:
+    def _delete(self: Self, identifier: str) -> None:
         filepath = self._get_path(identifier)
         filepath.unlink()
 
-    def _get_path(self, identifier: str) -> Path | None:
+    def _get_path(self: Self, identifier: str) -> Path | None:
         path = self.path / identifier
         if path.exists():
             return path
@@ -213,7 +215,10 @@ class Cacher:
             return None
 
     def _get_args(  # type: ignore  # arguments can be Any
-        self, function: Callable[P, R], *args: P.args, **kwargs: P.kwargs
+        self: Self,
+        function: Callable[P, R],
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> dict[str, Any]:
         signature = inspect.signature(function)
         bound_arguments = signature.bind(*args, **kwargs)

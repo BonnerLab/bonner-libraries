@@ -8,7 +8,7 @@ def center(x: torch.Tensor, *, dim: int = 0, nan_policy: str = "omit") -> torch.
         case "omit":
             x_mean = x.nanmean(dim=dim, keepdim=True)
         case _:
-            raise ValueError("x contains NaNs")
+            error = "x contains NaNs"
+            raise ValueError(error)
 
-    x = x - x_mean
-    return x
+    return x - x_mean

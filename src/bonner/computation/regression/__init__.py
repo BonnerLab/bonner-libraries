@@ -5,6 +5,7 @@ __all__ = [
     "SGDLinearRegression",
     "regression",
     "regression_cv",
+    "create_splits",
 ]
 
 from bonner.computation.regression._definition import Regression

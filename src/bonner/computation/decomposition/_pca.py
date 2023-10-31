@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from typing import Self
 
 import torch
 from bonner.computation.decomposition._svd import svd
@@ -6,11 +7,12 @@ from bonner.computation.decomposition._svd import svd
 
 class PCA:
     def __init__(
-        self, 
+        self: Self,
+        *,
         n_components: int | None = None,
         scale: bool = False,
         truncated: bool = False,
-        seed: int = 0
+        seed: int = 0,
     ) -> None:
         self.n_components = n_components
         self.n_samples: int
@@ -25,14 +27,14 @@ class PCA:
 
         self.device: torch.device
 
-    def to(self, device: torch.device | str) -> None:
+    def to(self: Self, device: torch.device | str) -> None:
         self.mean = self.mean.to(device)
         self.eigenvectors = self.eigenvectors.to(device)
         self.eigenvalues = self.eigenvalues.to(device)
 
         self.device = torch.device(device)
 
-    def _preprocess(self, x: torch.Tensor, /) -> torch.Tensor:
+    def _preprocess(self: Self, x: torch.Tensor, /) -> torch.Tensor:
         if x.ndim == 1:
             x = x.unsqueeze(dim=-1)
 
@@ -41,9 +43,9 @@ class PCA:
 
         if self.n_components is None:
             self.n_components = max_n_components
-        else:
-            if self.n_components > max_n_components:
-                raise ValueError(f"n_components must be <= {max_n_components}")
+        elif self.n_components > max_n_components:
+            error = f"n_components must be <= {max_n_components}"
+            raise ValueError(error)
         self.device = x.device
 
         x = torch.clone(x)
@@ -59,7 +61,7 @@ class PCA:
 
         return x
 
-    def fit(self, x: torch.Tensor, /) -> None:
+    def fit(self: Self, x: torch.Tensor, /) -> None:
         x = self._preprocess(x)
         _, s, v_h = svd(
             x,
@@ -72,7 +74,7 @@ class PCA:
         self.eigenvalues = (s[..., : self.n_components] ** 2) / (self.n_samples - 1)
 
     def transform(
-        self,
+        self: Self,
         z: torch.Tensor,
         /,
         *,
@@ -91,7 +93,7 @@ class PCA:
         return z @ self.eigenvectors[..., components]
 
     def inverse_transform(
-        self,
+        self: Self,
         z: torch.Tensor,
         /,
         *,
@@ -105,4 +107,6 @@ class PCA:
         z = z.to(self.device)
         z = z[..., components]
 
-        return (z @ self.eigenvectors[..., components].transpose(-2, -1)) * self.std + self.mean
+        return (
+            z @ self.eigenvectors[..., components].transpose(-2, -1)
+        ) * self.std + self.mean

@@ -1,13 +1,17 @@
-import torch
+from typing import Self
 
+import torch
 from bonner.computation.regression._utilities import Regression
+
+EPSILON = 1e-15
 
 
 class LinearRegression(Regression):
     def __init__(
-        self,
+        self: Self,
+        *,
         fit_intercept: bool = True,
-        l2_penalty: float | int | torch.Tensor | None = None,
+        l2_penalty: float | torch.Tensor | None = None,
         rcond: float | None = None,
         driver: str | None = None,
         allow_ols_on_cuda: bool = False,
@@ -21,14 +25,14 @@ class LinearRegression(Regression):
         self.driver = driver
         self.allow_ols_on_cuda = allow_ols_on_cuda
 
-    def to(self, device: torch.device | str) -> None:
+    def to(self: Self, device: torch.device | str) -> None:
         if self.coefficients is not None:
             self.coefficients = self.coefficients.to(device)
         if self.intercept is not None:
             self.intercept = self.intercept.to(device)
 
     def fit(
-        self,
+        self: Self,
         x: torch.Tensor,
         y: torch.Tensor,
     ) -> None:
@@ -45,16 +49,20 @@ class LinearRegression(Regression):
         n_samples, n_features = x.shape[-2], x.shape[-1]
 
         # TODO: underdetermined systems on CUDA use a different driver
-        if (not self.allow_ols_on_cuda) and (self.l2_penalty is None):
-            if n_samples < n_features:
-                x = x.to(torch.device("cpu"))
-                y = y.to(torch.device("cpu"))
+        if (
+            (not self.allow_ols_on_cuda)
+            and (self.l2_penalty is None)
+            and (n_samples < n_features)
+        ):
+            x = x.to(torch.device("cpu"))
+            y = y.to(torch.device("cpu"))
 
         if y.shape[-2] != n_samples:
-            raise ValueError(
+            error = (
                 f"number of samples in x and y must be equal (x={n_samples},"
-                f" y={y.shape[-2]})"
+                f" y={y.shape[-2]})",
             )
+            raise ValueError(error)
 
         if self.fit_intercept:
             x_mean = x.mean(dim=-2, keepdim=True)
@@ -64,7 +72,10 @@ class LinearRegression(Regression):
 
         if self.l2_penalty is None:
             self.coefficients, _, _, _ = torch.linalg.lstsq(
-                x, y, rcond=self.rcond, driver=self.driver
+                x,
+                y,
+                rcond=self.rcond,
+                driver=self.driver,
             )
         else:
             if isinstance(self.l2_penalty, float | int) or (
@@ -76,10 +87,12 @@ class LinearRegression(Regression):
                 l2_penalty = self.l2_penalty.to(x.device)
 
             u, s, vt = torch.linalg.svd(x, full_matrices=False)
-            idx = s > 1e-15
+            idx = s > EPSILON
             s_nnz = s[idx].unsqueeze(-1)
             d = torch.zeros(
-                size=(len(s), l2_penalty.numel()), dtype=x.dtype, device=x.device
+                size=(len(s), l2_penalty.numel()),
+                dtype=x.dtype,
+                device=x.device,
             )
             d[idx] = s_nnz / (s_nnz**2 + l2_penalty)
             self.coefficients = vt.transpose(-2, -1) @ (d * (u.transpose(-2, -1) @ y))
@@ -89,5 +102,5 @@ class LinearRegression(Regression):
         else:
             self.intercept = torch.zeros(1)
 
-    def predict(self, x: torch.Tensor) -> torch.Tensor:
+    def predict(self: Self, x: torch.Tensor) -> torch.Tensor:
         return x.to(self.coefficients.device) @ self.coefficients + self.intercept

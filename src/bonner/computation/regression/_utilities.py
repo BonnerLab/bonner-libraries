@@ -1,14 +1,16 @@
 from collections.abc import Collection
 
-from tqdm.auto import tqdm
 import numpy as np
 import torch
-
 from bonner.computation.regression._definition import Regression
 
 
 def create_splits(
-    n: int, *, n_folds: int, shuffle: bool, seed: int
+    n: int,
+    *,
+    n_folds: int,
+    shuffle: bool,
+    seed: int,
 ) -> list[np.ndarray]:
     if shuffle:
         rng = np.random.default_rng(seed=seed)
@@ -24,8 +26,8 @@ def regression(
     x: torch.Tensor,
     y: torch.Tensor,
     model: Regression,
-    indices_train: Collection[int] = None,
-    indices_test: Collection[int] = None,
+    indices_train: Collection[int] | None = None,
+    indices_test: Collection[int] | None = None,
     evaluate_only: bool = False,
     train_score: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -46,7 +48,7 @@ def regression(
     if train_score:
         y_predicted = model.predict(x_train)
         return y_train, y_predicted
-        
+
     y_predicted = model.predict(x_test)
     return y_test, y_predicted
 
@@ -77,4 +79,3 @@ def regression_cv(
         y_predicted.append(y_predicted_)
 
     return y_true, y_predicted
-

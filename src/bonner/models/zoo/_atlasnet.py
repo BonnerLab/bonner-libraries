@@ -1,14 +1,15 @@
+import itertools
 import math
 import random
-import itertools
-from collections.abc import Sequence, Callable
+from collections.abc import Callable, Sequence
+from typing import Self
 
 import numpy as np
-from scipy.ndimage import gaussian_filter
 import torch
-import torch.nn as nn
-from torchvision import transforms
 from PIL import Image
+from scipy.ndimage import gaussian_filter
+from torch import nn
+from torchvision import transforms
 
 
 def create_curvature_filters(
@@ -35,7 +36,10 @@ def create_curvature_filters(
             filter_size=filter_size,
         )
         for curvature, gaussian_size, orientation, frequency in itertools.product(
-            curvatures, gaussian_sizes, orientations, frequencies
+            curvatures,
+            gaussian_sizes,
+            orientations,
+            frequencies,
         )
     ]
     return torch.stack(weights).unsqueeze(1)
@@ -87,14 +91,14 @@ def create_banana_filter(
     filter_ = np.real(filter_)
     filter_ -= filter_.mean()
 
-    filter_ = torch.from_numpy(filter_).float()
-    return filter_
+    return torch.from_numpy(filter_).float()
 
 
 def create_random_filters(
     out_channels: int,
     in_channels: int,
     kernel_size: int,
+    *,
     smooth: bool = False,
     seed: int = 27,
 ) -> torch.Tensor:
@@ -106,7 +110,7 @@ def create_random_filters(
         idx_smoothed = random.sample(list(np.arange(0, out_channels)), num_smoothed)
         for i in idx_smoothed:
             channel_smoothed = torch.Tensor(
-                gaussian_filter(weights[i, :, :, :], sigma=1)
+                gaussian_filter(weights[i, :, :, :], sigma=1),
             )
             weights[i, :, :, :] = channel_smoothed
 
@@ -114,11 +118,14 @@ def create_random_filters(
 
 
 class AtlasNet(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self: Self) -> None:
         super().__init__()
 
         self.conv1 = nn.Conv2d(
-            in_channels=1, out_channels=24, kernel_size=45, padding=math.floor(45 / 2)
+            in_channels=1,
+            out_channels=24,
+            kernel_size=45,
+            padding=math.floor(45 / 2),
         )
         self.maxpool1 = nn.MaxPool2d(6)
         self.conv2 = nn.Conv2d(
@@ -138,10 +145,12 @@ class AtlasNet(nn.Module):
             frequencies=[1.2],
         )
         self.conv2.data = create_random_filters(
-            out_channels=20000, in_channels=24, kernel_size=9
+            out_channels=20000,
+            in_channels=24,
+            kernel_size=9,
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self: Self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv1(x)
         x = self.maxpool1(x)
         x = self.conv2(x)
@@ -158,7 +167,7 @@ def preprocess(image: Image.Image) -> torch.Tensor:
             transforms.Grayscale(),
             transforms.ToTensor(),
             transforms.Normalize(mean=0.5, std=0.5),
-        ]
+        ],
     )
     return transform(image.convert("RGB"))
 

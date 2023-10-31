@@ -1,10 +1,10 @@
-from typing import ParamSpec, TypeVar, Any
+import gc
 from collections.abc import Callable, Collection, Mapping
 from functools import wraps
-import gc
+from typing import Any, ParamSpec, TypeVar
 
-from loguru import logger
 import torch
+from loguru import logger
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -24,7 +24,7 @@ class Environment:
         Attempts to runs the function `func` with each set of kwargs specified by `environments`.
 
         Example:
-
+        -------
         ```
         import numpy as np
         import numpy.typing as npy
@@ -44,10 +44,12 @@ class Environment:
         ```
 
         Args:
+        ----
             func: The function that should be wrapped.
             environments: The environments that the function should be run in, passed to the function as func(*args, **kwargs, **environment) for each environment, in the order specified.
 
         Returns:
+        -------
             Wrapped function that can be called.
         """
 
@@ -59,11 +61,11 @@ class Environment:
                 except Exception as e:
                     logger.info(
                         f"Could not run the function {func} with environment"
-                        f" {environment} (exception {e})"
+                        f" {environment} (exception {e})",
                     )
                     continue
             logger.error(
-                f"Could not run the function {func} in any specified environment"
+                f"Could not run the function {func} in any specified environment",
             )
             return None
 
@@ -76,12 +78,12 @@ def try_devices(
     *,
     current: bool = False,
 ) -> Callable[P, R]:
-    """Tries to run a function on any of the provided `devices`, exiting on success.
+    """Try to run a function on any of the provided `devices`, exiting on success.
 
     For each device provided, the tensor-valued arguments and keyword arguments to `func` are copied to the device before the function is run. This allows us to write device-agnostic code, since the function can be run on whichever device is available at runtime. This function can be used as a decorator.
 
     Example:
-
+    -------
     ```
     import torch
 
@@ -109,11 +111,13 @@ def try_devices(
     If you need more flexibility in how the function should be applied on different devices (for e.g., your function takes in numpy arrays and not tensors as inputs), consider using the function `try_environments`.
 
     Args:
+    ----
         func: The function that should be wrapped.
         devices: GPUs/CPU that the function should be tried on, in the order specified. Defaults to all the GPUs available and then the CPU (i.e., ["cuda:0", ..., f"cuda:{torch.cuda.device_count()}", "cpu"])
         current: Whether to try running the function with all the tensors on their current devices, defaults to False.
 
     Returns:
+    -------
         Wrapped function that can be called.
     """
     if not devices:  # handle case with empty Collection
@@ -130,12 +134,12 @@ def try_devices(
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         contains_tensor_arg = any(
             [isinstance(arg, torch.Tensor) for arg in args]
-            + [isinstance(kwarg, torch.Tensor) for kwarg in kwargs.values()]
+            + [isinstance(kwarg, torch.Tensor) for kwarg in kwargs.values()],
         )
         if not contains_tensor_arg:
             logger.warning(
                 f"The function {func} does not have any tensor-valued arg/kwarg:"
-                " `try_devices` is redundant"
+                " `try_devices` is redundant",
             )
 
         for device in devices:
@@ -156,14 +160,14 @@ def try_devices(
             except Exception as e:
                 logger.info(
                     f"Could not run the function {func} with device"
-                    f" {device} (exception {e})"
+                    f" {device} (exception {e})",
                 )
                 try:
                     del args_device
                     del kwargs_device
                     gc.collect()
                     torch.cuda.empty_cache()
-                except Exception as e2:
+                except Exception:
                     continue
 
                 continue

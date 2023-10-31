@@ -1,5 +1,5 @@
-from pathlib import Path
 import uuid
+from pathlib import Path
 
 from loguru import logger
 
@@ -11,7 +11,7 @@ def prepare_filepath(*, force: bool, filepath: Path, url: str) -> Path:
         if not force:
             logger.debug(
                 "Using previously downloaded file at"
-                f" {filepath} instead of downloading from {url}"
+                f" {filepath} instead of downloading from {url}",
             )
         else:
             filepath.unlink()

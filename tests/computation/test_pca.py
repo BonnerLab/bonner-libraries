@@ -1,9 +1,8 @@
-import pytest
-
 import numpy as np
+import pytest
 import torch
-from sklearn.decomposition import PCA as PCASklearn
 from bonner.computation.decomposition._pca import PCA
+from sklearn.decomposition import PCA as PCASklearn
 
 
 @pytest.mark.parametrize("shape", [(100, 10), (20, 20), (10, 100), (100, 1), (2, 10)])
@@ -51,7 +50,8 @@ def test_pca_2d(
 
 
 @pytest.mark.parametrize(
-    "shape", [(5, 100, 10), (1, 20, 20), (2, 10, 100), (5, 100, 1), (5, 2, 10)]
+    "shape",
+    [(5, 100, 10), (1, 20, 20), (2, 10, 100), (5, 100, 1), (5, 2, 10)],
 )
 @pytest.mark.parametrize("n_components_fraction", [0, 0.25, 0.5, None])
 def test_pca_3d(
@@ -91,7 +91,8 @@ def test_pca_3d(
             pca_torch.eigenvectors[i_batch, ...].transpose(-2, -1),
         )
         assert np.allclose(
-            pca_sklearn.explained_variance_, pca_torch.eigenvalues[i_batch, ...]
+            pca_sklearn.explained_variance_,
+            pca_torch.eigenvalues[i_batch, ...],
         )
         assert np.allclose(pca_sklearn.mean_, pca_torch.mean[i_batch, ...])
         assert np.allclose(x_transformed_sklearn, x_transformed_torch[i_batch, ...])

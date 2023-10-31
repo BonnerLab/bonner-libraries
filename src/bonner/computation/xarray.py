@@ -1,5 +1,5 @@
-from typing import Any
 from collections.abc import Collection, Hashable
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -14,24 +14,33 @@ def align_source_to_target(
     sample_dim: str,
 ) -> xr.DataArray:
     def _helper(  # type: ignore  # source and target can have Any dtype
-        source: npt.NDArray[Any], target: npt.NDArray[Any]
+        source: npt.NDArray[Any],
+        target: npt.NDArray[Any],
     ) -> npt.NDArray[np.int_]:
-        assert len(set(source)) == len(source), "source has duplicate values"
-        assert set(target).issubset(
-            set(source)
-        ), "not all the target elements are present in the source"
+        if len(set(source)) != len(source):
+            error = "source has duplicate values"
+            raise ValueError(error)
+
+        if not set(target).issubset(set(source)):
+            error = "not all the target elements are present in the source"
+            raise ValueError(error)
 
         indices = {value: idx for idx, value in enumerate(source)}
         return np.array([indices[target_sample] for target_sample in target])
 
     indices = _helper(
-        source=source[sample_coord].data, target=target[sample_coord].data
+        source=source[sample_coord].data,
+        target=target[sample_coord].data,
     )
     return source.load().isel({sample_dim: indices})
 
 
 def filter_dataarray(
-    array: xr.DataArray, *, coord: str, values: Collection[Any], exclude: bool = False
+    array: xr.DataArray,
+    *,
+    coord: str,
+    values: Collection[Any],
+    exclude: bool = False,
 ) -> xr.DataArray:
     filter_ = np.isin(array[coord].data, values)
     if exclude:
@@ -42,11 +51,14 @@ def filter_dataarray(
 
 
 def groupby_reset(
-    x: xr.DataArray, *, groupby_coord: str, groupby_dim: Hashable
+    x: xr.DataArray,
+    *,
+    groupby_coord: str,
+    groupby_dim: Hashable,
 ) -> xr.DataArray:
     return (
         x.reset_index(groupby_coord)
         .rename({groupby_coord: groupby_dim})
-        .assign_coords({groupby_coord: (groupby_dim, x[groupby_coord].values)})
+        .assign_coords({groupby_coord: (groupby_dim, x[groupby_coord].data)})
         .drop_vars(groupby_dim)
     )
