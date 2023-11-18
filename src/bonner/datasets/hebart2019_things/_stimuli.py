@@ -1,11 +1,11 @@
 import shutil
+from typing import Self
 
-from PIL import Image
 import pandas as pd
-from torchdata.datapipes.map import MapDataPipe
-
-from bonner.files import download_from_url, unzip
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
+from bonner.files import download_from_url, unzip
+from PIL import Image
+from torchdata.datapipes.map import MapDataPipe
 
 IDENTIFIER = "hebart2019.things"
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
@@ -13,12 +13,12 @@ URL = "https://files.osf.io/v1/resources/jum2f/providers/osfstorage/?zip="
 
 
 def get_password() -> bytes:
-    with open(CACHE_PATH / "password.txt", "r") as f:
+    with (CACHE_PATH / "password.txt").open("r") as f:
         text = f.read()
     return text.split(" ")[-1].encode()
 
 
-def download_stimuli(force: bool = False) -> None:
+def download_stimuli(*, force: bool = False) -> None:
     path = CACHE_PATH / "download" / "things.zip"
     download_from_url(URL, filepath=path, force=force)
 
@@ -55,14 +55,14 @@ def load_metadata() -> pd.DataFrame:
 
 
 class StimulusSet(MapDataPipe):
-    def __init__(self) -> None:
+    def __init__(self: Self) -> None:
         download_stimuli()
         self.identifier = IDENTIFIER
         self.metadata = load_metadata()
         self.root = CACHE_PATH
 
-    def __getitem__(self, index: str) -> Image.Image:
+    def __getitem__(self: Self, index: str) -> Image.Image:
         return Image.open(self.root / self.metadata.loc[index, ["filename"]].item())
 
-    def __len__(self) -> int:
+    def __len__(self: Self) -> int:
         return len(self.metadata.index)

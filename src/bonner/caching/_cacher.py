@@ -30,7 +30,9 @@ class Cacher:
         kwargs_save: Mapping[str, Any] = {},
         kwargs_load: Mapping[str, Any] = {},
     ) -> None:
-        """Cache outputs of functions to disk so that the (potentially expensive) function is not re-evaluated when called again.
+        """Cache outputs of functions to disk.
+
+        Avoids re-evaluation of (potentially expensive) function when called again.
 
         When the cacher is called on a function, it computes the output of the function and stores it on disk at the path ``path / identifier``. If the function is called again, the cached value is retrieved from disk and returned.
 
@@ -159,27 +161,19 @@ class Cacher:
         if self.filetype == "auto":
             if isinstance(result, np.ndarray):
                 filetype = "numpy"
-                if path.suffix != ".npy":
-                    error = "identifier must have suffix '.npy' if filetype is 'auto'"
-                    raise ValueError(error)
-            elif isinstance(result, (xr.DataArray, xr.Dataset)):
+                suffix = ".npy"
+            elif isinstance(result, xr.DataArray | xr.Dataset):
                 filetype = "netCDF4"
-                if path.suffix != ".nc":
-                    raise ValueError(
-                        "identifier must have suffix '.nc' if filetype is 'auto'",
-                    )
+                suffix = ".nc"
             elif isinstance(result, nib.nifti1.Nifti1Image):
                 filetype = "NIfTI"
-                if path.suffix != ".nii.gz":
-                    raise ValueError(
-                        "identifier must have suffix '.nii.gz' if filetype is 'auto'",
-                    )
+                suffix = ".nii.gz"
             else:
                 filetype = "pickle"
-                if path.suffix != ".pkl":
-                    raise ValueError(
-                        "identifier must have suffix '.pkl' if filetype is 'auto'",
-                    )
+                suffix = ".pkl"
+            if path.suffix != suffix:
+                error = f"identifier must have suffix '{suffix}' if filetype is 'auto'"
+                raise ValueError(error)
         else:
             filetype = self.filetype
 

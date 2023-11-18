@@ -2,13 +2,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.io import loadmat
-
 from bonner.datasets.bonner2021_object2vec._utilities import (
-    load_conditions,
-    N_SUBJECTS,
     FILENAMES,
+    N_SUBJECTS,
+    load_conditions,
 )
+from scipy.io import loadmat
 
 
 def create_stimulus_set() -> pd.DataFrame:
@@ -25,7 +24,7 @@ def create_stimulus_set() -> pd.DataFrame:
 
     paths = [
         path
-        for path in sorted((Path("stimuli").rglob("*.*")))
+        for path in sorted(Path("stimuli").rglob("*.*"))
         if path.suffix in (".jpg", ".png")
     ]
     stimulus_set = pd.DataFrame.from_dict(
@@ -36,8 +35,6 @@ def create_stimulus_set() -> pd.DataFrame:
             "filename": [str(path) for path in paths],
             "condition": [path.stem[:-3] for path in paths],
             "background": [path.parent.name.split("_")[0] for path in paths],
-        }
+        },
     )
-    stimulus_set = pd.merge(stimulus_set, metadata, on="condition")
-
-    return stimulus_set
+    return stimulus_set.merge(metadata, on="condition")

@@ -1,20 +1,17 @@
 from collections.abc import Sequence
-import hashlib
 from pathlib import Path
 
-from tqdm.auto import tqdm
 import numpy as np
 import pandas as pd
 import xarray as xr
-from bonner.files import download_from_s3
 from bonner.datasets._utilities import nii
+from bonner.datasets.allen2021_natural_scenes._stimuli import load_nsd_metadata
 from bonner.datasets.allen2021_natural_scenes._utilities import (
-    IDENTIFIER,
     BUCKET_NAME,
     CACHE_PATH,
-    N_SUBJECTS,
 )
-from bonner.datasets.allen2021_natural_scenes._stimuli import load_nsd_metadata
+from bonner.files import download_from_s3
+from tqdm.auto import tqdm
 
 RESOLUTION = "1pt8mm"
 PREPROCESSING = "fithrf_GLMdenoise_RR"
@@ -43,10 +40,12 @@ def load_brain_mask(*, subject: int, resolution: str) -> xr.DataArray:
     """Load and format a Boolean brain mask for the functional data.
 
     Args:
+    ----
         subject: subject ID
         resolution: "1pt8mm" or "1mm"
 
     Returns:
+    -------
         Boolean brain mask
     """
     filepath = (
@@ -80,7 +79,7 @@ def load_validity(*, subject: int, resolution: str) -> xr.DataArray:
         validity.append(
             nii.to_dataarray(CACHE_PATH / filepath, flatten=None)
             .expand_dims({"session": [session]})
-            .astype(dtype=bool, order="C")
+            .astype(dtype=bool, order="C"),
         )
     return xr.concat(validity, dim="session")
 
@@ -96,19 +95,23 @@ def load_betas(
     """Load betas.
 
     Args:
+    ----
         subject: subject ID
         resolution: "1pt8mm" or "1mm"
         preprocessing: "fithrf_GLMdenoise_RR", "fithrf", or "assumehrf"
 
     Returns:
+    -------
         betas
     """
+
     def load_presentations(subject: int) -> xr.DataArray:
         metadata = load_nsd_metadata()
         metadata = np.array(
             metadata.loc[
-                :, [f"subject{subject}_" in column for column in metadata.columns]
-            ]
+                :,
+                [f"subject{subject}_" in column for column in metadata.columns],
+            ],
         )
         assert metadata.shape[-1] == 3
         indices = np.nonzero(metadata)
@@ -123,21 +126,22 @@ def load_betas(
         )
         stimuli.values[sessions, intra_session_trials] = indices[0]
 
-        stimuli = (
-            stimuli
-            .assign_coords(
-                {
-                    "session": np.arange(stimuli.sizes["session"], dtype=np.uint8),
-                    "trial": np.arange(stimuli.sizes["trial"], dtype=np.uint16),
-                }
-            )
-            .stack({"presentation": ("session", "trial")}, create_index=True)
+        stimuli = stimuli.assign_coords(
+            {
+                "session": np.arange(stimuli.sizes["session"], dtype=np.uint8),
+                "trial": np.arange(stimuli.sizes["trial"], dtype=np.uint16),
+            },
+        ).stack({"presentation": ("session", "trial")}, create_index=True)
+        stimuli = stimuli.isel(
+            presentation=stimuli["session"].data < N_SESSIONS[subject],
         )
-        stimuli = stimuli.isel(presentation=stimuli["session"].values < N_SESSIONS[subject])
 
         reps: dict[str, int] = {}
-        repetitions = np.empty(N_SESSIONS[subject] * N_TRIALS_PER_SESSION, dtype=np.uint8)
-        for i_stimulus, stimulus in enumerate(stimuli.values):
+        repetitions = np.empty(
+            N_SESSIONS[subject] * N_TRIALS_PER_SESSION,
+            dtype=np.uint8,
+        )
+        for i_stimulus, stimulus in enumerate(stimuli.data):
             if stimulus in reps:
                 reps[stimulus] += 1
             else:
@@ -152,10 +156,10 @@ def load_betas(
 
         stimuli = stimuli.assign_coords(
             {
-                "stimulus": ("presentation", stimuli.values),
+                "stimulus": ("presentation", stimuli.data),
                 "repetition": ("presentation", repetitions),
                 "run": ("presentation", runs),
-            }
+            },
         )
         return stimuli["stimulus"]
 
@@ -172,22 +176,26 @@ def load_betas(
     )
 
     neuroid_filter = np.logical_and(neuroid_filter, validity)
-    neuroid_filter = np.logical_and(neuroid_filter, brain_mask.stack({"neuroid": ("x", "y", "z")}, create_index=True))
+    neuroid_filter = np.logical_and(
+        neuroid_filter,
+        brain_mask.stack({"neuroid": ("x", "y", "z")}, create_index=True),
+    )
 
     betas: list[xr.DataArray] | xr.DataArray = []
 
     betas = xr.DataArray(
         name="beta",
-        data=np.empty(shape=(n_trials, neuroid_filter.sum().values), dtype=np.float32),
+        data=np.empty(shape=(n_trials, neuroid_filter.sum().data), dtype=np.float32),
         dims=("presentation", "neuroid"),
         coords={
-            coord: ("neuroid", neuroid_filter[neuroid_filter][coord].values)
+            coord: ("neuroid", neuroid_filter[neuroid_filter][coord].data)
             for coord in ("x", "y", "z")
-        } | {
-            coord: ("presentation", stimuli[coord].values)
+        }
+        | {
+            coord: ("presentation", stimuli[coord].data)
             for coord in stimuli.reset_index("presentation").coords
         },
-        attrs = {
+        attrs={
             "resolution": resolution,
             "preprocessing": preprocessing,
             "z_score": str(z_score),
@@ -214,7 +222,7 @@ def load_betas(
                     "phony_dim_1": "z",
                     "phony_dim_2": "y",
                     "phony_dim_3": "x",
-                }
+                },
             )
             .transpose("x", "y", "z", "presentation")
             .astype(dtype=np.int16, order="C")
@@ -225,11 +233,16 @@ def load_betas(
         )
 
         if z_score:
-            betas_session = (betas_session - betas_session.mean("presentation")) / betas_session.std("presentation")
+            betas_session = (
+                betas_session - betas_session.mean("presentation")
+            ) / betas_session.std("presentation")
         else:
             betas_session /= 300
 
-        betas.values[session * N_TRIALS_PER_SESSION:(session + 1) * N_TRIALS_PER_SESSION, :] = betas_session
+        betas.data[
+            session * N_TRIALS_PER_SESSION : (session + 1) * N_TRIALS_PER_SESSION,
+            :,
+        ] = betas_session
 
     return betas
 
@@ -243,11 +256,13 @@ def load_ncsnr(
     """Load and format noise-ceiling signal-to-noise ratios (NCSNR).
 
     Args:
+    ----
         subject: subject ID
         resolution: "1pt8mm" or "1mm"
         preprocessing: "fithrf_GLMdenoise_RR", "fithrf", or "assumehrf
 
     Returns:
+    -------
         noise-ceiling SNRs
     """
     filepath = (
@@ -256,7 +271,7 @@ def load_ncsnr(
         / f"subj{subject + 1:02}"
         / f"func{resolution}"
         / f"betas_{preprocessing}"
-        / f"ncsnr.nii.gz"
+        / "ncsnr.nii.gz"
     )
     download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     return nii.to_dataarray(CACHE_PATH / filepath).astype(dtype=np.float64, order="C")
@@ -266,10 +281,12 @@ def load_structural_scans(*, subject: int, resolution: str) -> xr.DataArray:
     """Load and format the structural scans registered to the functional data.
 
     Args:
+    ----
         subject: subject ID
         resolution: "1pt8mm" or "1mm"
 
     Returns:
+    -------
         structural scans
     """
     scans = []
@@ -286,10 +303,10 @@ def load_structural_scans(*, subject: int, resolution: str) -> xr.DataArray:
         scans.append(
             nii.to_dataarray(CACHE_PATH / filepath, flatten=None)
             .expand_dims("sequence", axis=0)
-            .astype(dtype=np.uint16, order="C")
+            .astype(dtype=np.uint16, order="C"),
         )
     return xr.concat(scans, dim="sequence").assign_coords(
-        {"sequence": ("sequence", sequences)}
+        {"sequence": ("sequence", sequences)},
     )
 
 
@@ -297,10 +314,12 @@ def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
     """Load the ROI masks for a subject.
 
     Args:
+    ----
         subject: subject ID
         resolution: "1pt8mm" or "1mm"
 
     Returns:
+    -------
         ROI masks
     """
     rois = []
@@ -319,7 +338,9 @@ def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
                     filepath = Path("nsddata") / "templates" / f"{source}.ctab"
 
             download_from_s3(
-                filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath
+                filepath,
+                bucket=BUCKET_NAME,
+                local_path=CACHE_PATH / filepath,
             )
 
             mapping = (
@@ -343,7 +364,9 @@ def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
                     / f"{hemisphere}.{source}.nii.gz"
                 )
                 download_from_s3(
-                    filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath
+                    filepath,
+                    bucket=BUCKET_NAME,
+                    local_path=CACHE_PATH / filepath,
                 )
                 volumes[hemisphere] = nii.to_dataarray(CACHE_PATH / filepath)
 
@@ -359,7 +382,7 @@ def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
                                     "hemisphere": ("roi", [hemisphere[0]]),
                                 },
                             )
-                            .astype(bool, order="C")
+                            .astype(bool, order="C"),
                         )
     rois = xr.concat(rois, dim="roi")
     rois["label"] = rois["roi"].astype(str)
@@ -370,10 +393,12 @@ def load_receptive_fields(*, subject: int, resolution: str) -> xr.DataArray:
     """Load population receptive field mapping data.
 
     Args:
+    ----
         subject: subject ID
         resolution: "1pt8mm" or "1mm"
 
     Returns:
+    -------
         pRF data
     """
     prf_data = []
@@ -385,7 +410,7 @@ def load_receptive_fields(*, subject: int, resolution: str) -> xr.DataArray:
             "gain",
             "R2",
             "size",
-        )
+        ),
     )
     for quantity in quantities:
         filepath = (
@@ -399,10 +424,10 @@ def load_receptive_fields(*, subject: int, resolution: str) -> xr.DataArray:
         prf_data.append(
             nii.to_dataarray(CACHE_PATH / filepath)
             .expand_dims("quantity", axis=0)
-            .astype(dtype=np.float64, order="C")
+            .astype(dtype=np.float64, order="C"),
         )
     return xr.concat(prf_data, dim="quantity").assign_coords(
-        {"quantity": ("quantity", quantities)}
+        {"quantity": ("quantity", quantities)},
     )
 
 
@@ -410,10 +435,12 @@ def load_functional_contrasts(*, subject: int, resolution: str) -> xr.DataArray:
     """Load functional contrasts.
 
     Args:
+    ----
         subject: subject ID
         resolution: "1pt8mm" or "1mm"
 
     Returns:
+    -------
         functional contrasts
     """
     categories = {}
@@ -422,15 +449,12 @@ def load_functional_contrasts(*, subject: int, resolution: str) -> xr.DataArray:
         download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
 
         categories[filename] = list(
-            pd.read_csv(CACHE_PATH / filepath, sep="\t").iloc[:, 0].values
+            pd.read_csv(CACHE_PATH / filepath, sep="\t").iloc[:, 0].values,
         )
 
     categories_combined = categories["domains"] + categories["categories"]
     superordinate = np.array(
-        [
-            True if category in categories["domains"] else False
-            for category in categories_combined
-        ],
+        [category in categories["domains"] for category in categories_combined],
         dtype=bool,
     )
     floc_data = {}
@@ -445,7 +469,9 @@ def load_functional_contrasts(*, subject: int, resolution: str) -> xr.DataArray:
                 / f"floc_{category}{metric}.nii.gz"
             )
             download_from_s3(
-                filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath
+                filepath,
+                bucket=BUCKET_NAME,
+                local_path=CACHE_PATH / filepath,
             )
 
             floc_data[category].append(
@@ -457,14 +483,14 @@ def load_functional_contrasts(*, subject: int, resolution: str) -> xr.DataArray:
                     },
                     axis=(0, 1),
                 )
-                .astype(np.float64, order="C")
+                .astype(np.float64, order="C"),
             )
         floc_data[category] = xr.concat(floc_data[category], dim="metric")
     floc_data = xr.concat(list(floc_data.values()), dim="category")
     return floc_data.assign_coords(
         {
-            coord: (coord, floc_data[coord].astype(str).values)
+            coord: (coord, floc_data[coord].astype(str).data)
             for coord in ("category", "metric")
         }
-        | {"superordinate": ("category", superordinate)}
+        | {"superordinate": ("category", superordinate)},
     )

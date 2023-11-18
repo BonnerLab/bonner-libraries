@@ -17,9 +17,7 @@ S3_ROI_MASKS = "s3://openneuro.org/ds001499/derivatives/spm"
 
 
 def get_betas_filename(subject: int, session: int) -> str:
-    return (
-        f"CSI{subject + 1}_GLMbetas-TYPED-FITHRF-GLMDENOISE-RR_ses-{session + 1:02}.nii.gz"
-    )
+    return f"CSI{subject + 1}_GLMbetas-TYPED-FITHRF-GLMDENOISE-RR_ses-{session + 1:02}.nii.gz"
 
 
 def get_brain_mask_filename(subject: int) -> str:

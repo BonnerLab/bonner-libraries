@@ -7,22 +7,24 @@ def svd(
     *,
     truncated: bool,
     n_components: int,
-    seed: int,
+    random_state: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    if x.get_device() == -1:  # CPU
+    # if x is on the CPU, use numpy.linalg.svd
+    if x.get_device() == -1:
         u, s, v_h = np.linalg.svd(x.cpu().numpy(), full_matrices=False)
         u = torch.from_numpy(u)
         s = torch.from_numpy(s)
         v_h = torch.from_numpy(v_h)
-    else:  # GPU
-        if truncated:
-            torch.manual_seed(seed)
-            u, s, v = torch.pca_lowrank(x, center=False, q=n_components)
-            v_h = v.transpose(-2, -1)
-            del v
-            torch.cuda.empty_cache()
-        else:
-            u, s, v_h = torch.linalg.svd(x, full_matrices=False, driver="gesvd")
+    # if x is on the GPU and truncated is True
+    elif truncated:
+        torch.manual_seed(random_state)
+        u, s, v = torch.pca_lowrank(x, center=False, q=n_components)
+        v_h = v.transpose(-2, -1)
+        del v
+        torch.cuda.empty_cache()
+    # if x is on the GPU and truncated is False
+    else:
+        u, s, v_h = torch.linalg.svd(x, full_matrices=False, driver="gesvd")
 
     u, v_h = svd_flip(u=u, v_h=v_h)
     return u, s, v_h

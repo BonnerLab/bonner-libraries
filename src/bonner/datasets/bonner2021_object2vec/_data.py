@@ -1,34 +1,36 @@
 import itertools
 
+import nibabel as nib
 import numpy as np
 import xarray as xr
-from scipy.io import loadmat
-import nibabel as nib
-
 from bonner.datasets.bonner2021_object2vec._utilities import (
-    load_conditions,
-    IDENTIFIER,
-    URLS,
-    FILENAMES,
-    ROIS,
     BRAIN_DIMENSIONS,
+    FILENAMES,
+    IDENTIFIER,
+    ROIS,
+    URLS,
+    load_conditions,
 )
+from scipy.io import loadmat
 
 
 def create_data_assembly(subject: int) -> xr.DataArray:
     """Load and format functional activations.
 
     Args:
+    ----
         subject: subject ID
 
     Returns:
+    -------
         functional activations with "presentation" and "neuroid" dimensions
     """
     activations = loadmat(FILENAMES["activations"][subject], simplify_cells=True)[
         "betas"
     ]
     x, y, z = np.unravel_index(
-        np.arange(np.product(BRAIN_DIMENSIONS)), BRAIN_DIMENSIONS
+        np.arange(np.prod(BRAIN_DIMENSIONS)),
+        BRAIN_DIMENSIONS,
     )
     n_voxels = activations.shape[1]
 
@@ -40,7 +42,7 @@ def create_data_assembly(subject: int) -> xr.DataArray:
     noise_ceilings = loadmat(FILENAMES["noise_ceilings"][subject], simplify_cells=True)
 
     # TODO check whether MATLAB's ordering differs from Python (FORTRAN vs C)
-    assembly = (
+    return (
         xr.DataArray(
             data=activations,
             dims=("condition", "neuroid", "repetition"),
@@ -60,13 +62,10 @@ def create_data_assembly(subject: int) -> xr.DataArray:
             {
                 f"roi_{roi}": (
                     "neuroid",
-                    [
-                        True if idx in roi_indices[roi][hemisphere] else False
-                        for idx in range(n_voxels)
-                    ],
+                    [idx in roi_indices[roi][hemisphere] for idx in range(n_voxels)],
                 )
                 for roi, hemisphere in itertools.product(ROIS.keys(), ("L", "R"))
-            }
+            },
         )
         .assign_coords(
             {
@@ -76,14 +75,14 @@ def create_data_assembly(subject: int) -> xr.DataArray:
                     .get_fdata()
                     .reshape(-1),
                 )
-                for contrast in URLS["contrasts"].keys()
-            }
+                for contrast in URLS["contrasts"]
+            },
         )
         .assign_coords(
             {
                 noise_ceiling: ("neuroid", noise_ceilings[noise_ceiling])
                 for noise_ceiling in ("upperR", "lowerR", "splitR")
-            }
+            },
         )
         .dropna(dim="neuroid", how="all")
         .assign_attrs(
@@ -91,8 +90,7 @@ def create_data_assembly(subject: int) -> xr.DataArray:
                 "identifier": f"{IDENTIFIER}-subject{subject}",
                 "stimulus_set_identifier": IDENTIFIER,
                 "brain_dimensions": BRAIN_DIMENSIONS,
-            }
+            },
         )
         .drop_vars("condition")
     )
-    return assembly

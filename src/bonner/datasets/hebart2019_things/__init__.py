@@ -1,5 +1,3 @@
-__all__ = (
-    "StimulusSet",
-)
+__all__ = ("StimulusSet",)
 
 from ._stimuli import StimulusSet

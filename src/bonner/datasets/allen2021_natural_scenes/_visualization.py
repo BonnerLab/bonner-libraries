@@ -1,25 +1,26 @@
-"""
-Adapted from https://github.com/cvnlab/nsdcode
-"""
+"""Adapted from https://github.com/cvnlab/nsdcode."""
 
 from collections.abc import Collection
 from pathlib import Path
 
+import nibabel as nib
 import numpy as np
 import xarray as xr
-from scipy.ndimage import map_coordinates
-import nibabel as nib
-
-from bonner.files import download_from_s3
-from bonner.datasets.allen2021_natural_scenes._utilities import BUCKET_NAME, CACHE_PATH
 from bonner.datasets.allen2021_natural_scenes._data import load_brain_mask
+from bonner.datasets.allen2021_natural_scenes._utilities import BUCKET_NAME, CACHE_PATH
+from bonner.files import download_from_s3
+from scipy.ndimage import map_coordinates
 
 MNI_ORIGIN = np.asarray([183 - 91, 127, 73]) - 1
 MNI_RESOLUTION = 1
 
 
 def load_transformation(
-    subject: int, *, source_space: str, target_space: str, suffix: str
+    subject: int,
+    *,
+    source_space: str,
+    target_space: str,
+    suffix: str,
 ) -> np.ndarray:
     filepath = (
         Path("nsddata")
@@ -30,18 +31,20 @@ def load_transformation(
     )
 
     download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
-    transformation = nib.load(CACHE_PATH / filepath).get_fdata()
-    return transformation
+    return nib.load(CACHE_PATH / filepath).get_fdata()
 
 
 def load_native_surface(
-    subject: int, *, hemisphere: str, surface_type: str = "w-g.pct.mgh"
+    subject: int,
+    *,
+    hemisphere: str,
+    surface_type: str = "w-g.pct.mgh",
 ) -> Path:
     filepath = (
         Path("nsddata")
         / "freesurfer"
         / f"subj{subject + 1:02}"
-        / f"surf"
+        / "surf"
         / f"{hemisphere}.{surface_type}"
     )
     download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
@@ -49,12 +52,17 @@ def load_native_surface(
 
 
 def _interpolate(
-    volume: np.ndarray, *, coordinates: np.ndarray, interpolation_type: str = "cubic"
+    volume: np.ndarray,
+    *,
+    coordinates: np.ndarray,
+    interpolation_type: str = "cubic",
 ) -> np.ndarray:
-    """
-    Wrapper for ba_interp3. Normal calls to ba_interp3 assign values to interpolation points that lie outside the original data range. We ensure that coordinates outside the original field-of-view (i.e. if the value along a dimension is less than 1 or greater than the number of voxels in the original volume along that dimension) are returned as NaN and coordinates that have any NaNs are returned as NaN.
+    """Wrap ba_interp3.
+
+    Normal calls to ba_interp3 assign values to interpolation points that lie outside the original data range. We ensure that coordinates outside the original field-of-view (i.e. if the value along a dimension is less than 1 or greater than the number of voxels in the original volume along that dimension) are returned as NaN and coordinates that have any NaNs are returned as NaN.
 
     Args:
+    ----
         volume: 3D matrix (can be complex-valued)
         coordinates: (3, N) matrix coordinates to interpolate at
         interpolation_type: "nearest", "linear", or "cubic"
@@ -68,7 +76,8 @@ def _interpolate(
         case "nearest":
             order = 0
         case _:
-            raise ValueError("interpolation method not implemented")
+            error = "interpolation method not implemented"
+            raise ValueError(error)
 
     # bad locations must get set to NaN
     bad = np.any(np.isinf(coordinates), axis=0)
@@ -109,12 +118,14 @@ def _transform(
     """_summary_
 
     Args:
+    ----
         data: data to be transformed from one space to another
         transformation: transformation matrix
         interpolation_type: passed to _interpolate
         target_type: "volume" or "surface"
 
     Returns:
+    -------
         Transformed data
     """
     target_shape = transformation.shape[:3]
@@ -128,7 +139,9 @@ def _transform(
     coordinates -= 1  # Kendrick's 1-based indexing.
 
     data_ = _interpolate(
-        data, coordinates=coordinates, interpolation_type=interpolation_type
+        data,
+        coordinates=coordinates,
+        interpolation_type=interpolation_type,
     )
     data_ = np.nan_to_num(data_)
     if target_type == "volume":
@@ -157,18 +170,24 @@ def convert_ndarray_to_nifti1image(
 
 
 def transform_volume_to_mni(
-    data: np.ndarray, *, subject: int, source_space: str, interpolation_type: str
+    data: np.ndarray,
+    *,
+    subject: int,
+    source_space: str,
+    interpolation_type: str,
 ) -> np.ndarray:
     transformation = load_transformation(
-        subject=subject, source_space=source_space, target_space="MNI", suffix=".nii.gz"
+        subject=subject,
+        source_space=source_space,
+        target_space="MNI",
+        suffix=".nii.gz",
     )
-    transformed_data = _transform(
+    return _transform(
         data=data,
         transformation=transformation,
         target_type="volume",
         interpolation_type=interpolation_type,
     )
-    return transformed_data
 
 
 def transform_volume_to_native_surface(
@@ -205,14 +224,17 @@ def transform_volume_to_native_surface(
         if average_across_layers:
             native_surface[hemisphere] = {
                 "average": np.vstack(list(native_surface[hemisphere].values())).mean(
-                    axis=0
-                )
+                    axis=0,
+                ),
             }
     return native_surface
 
 
 def reshape_dataarray_to_brain(
-    data: xr.DataArray, *, subject: int, resolution: str
+    data: xr.DataArray,
+    *,
+    subject: int,
+    resolution: str,
 ) -> np.ndarray:
     brain_shape = load_brain_mask(subject=subject, resolution=resolution).shape
     if data.ndim == 2:
@@ -221,7 +243,7 @@ def reshape_dataarray_to_brain(
         output_shape = brain_shape
 
     output = np.full(output_shape, fill_value=np.nan)
-    output[..., data["x"].data, data["y"].data, data["z"].data] = data.values
+    output[..., data["x"].data, data["y"].data, data["z"].data] = data.data
     return output
 
 

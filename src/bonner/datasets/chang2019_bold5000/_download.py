@@ -1,24 +1,23 @@
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
-from tqdm import tqdm
-
-from bonner.files._figshare import get_url_dict
-from bonner.files import download_from_url, unzip
 from bonner.datasets.chang2019_bold5000._utilities import (
     FIGSHARE_ARTICLE_ID_V1,
     FIGSHARE_ARTICLE_ID_V2,
-    URL_IMAGES,
-    S3_ROI_MASKS,
-    N_SUBJECTS,
     N_SESSIONS,
+    N_SUBJECTS,
+    S3_ROI_MASKS,
+    URL_IMAGES,
+    get_betas_filename,
     get_brain_mask_filename,
     get_imagenames_filename,
-    get_betas_filename,
 )
+from bonner.files import download_from_url, unzip
+from bonner.files._figshare import get_url_dict
+from tqdm import tqdm
 
 
-def download_dataset(force_download: bool = False, **kwargs: str) -> None:
+def download_dataset(*, force: bool = False, **kwargs: str) -> None:
     urls = get_url_dict(FIGSHARE_ARTICLE_ID_V2)
 
     for subject in tqdm(range(N_SUBJECTS), desc="subject", leave=False):
@@ -27,10 +26,10 @@ def download_dataset(force_download: bool = False, **kwargs: str) -> None:
             get_imagenames_filename(subject),  # image names
         ]
         for filename in filenames:
-            download_from_url(urls[filename], Path(filename), force=force_download)
+            download_from_url(urls[filename], Path(filename), force=force)
         for session in tqdm(range(N_SESSIONS[subject]), desc="session", leave=False):
             filename = get_betas_filename(subject, session)  # betas
-            download_from_url(urls[filename], Path(filename), force=force_download)
+            download_from_url(urls[filename], Path(filename), force=force)
 
     urls = get_url_dict(FIGSHARE_ARTICLE_ID_V1)
     urls = {
@@ -38,7 +37,7 @@ def download_dataset(force_download: bool = False, **kwargs: str) -> None:
         "stimuli.zip": URL_IMAGES,
     }
     for filename, url in urls.items():
-        filepath = download_from_url(url, filepath=Path(filename), force=force_download)
+        filepath = download_from_url(url, filepath=Path(filename), force=force)
         unzip(filepath, extract_dir=Path.cwd(), remove_zip=False)
 
     # ROI masks
@@ -50,7 +49,7 @@ def download_dataset(force_download: bool = False, **kwargs: str) -> None:
             "--no-sign-request",
             f"{S3_ROI_MASKS}",
             f"{Path.cwd()}",
-        ]
+        ],
     )
     # rename some inconsistently named files
     remapping = {

@@ -1,21 +1,21 @@
 from pathlib import Path
 
+from bonner.datasets.bonner2021_object2vec._utilities import FILENAMES, N_SUBJECTS, URLS
 from bonner.files import download_from_url, unzip
-from bonner.datasets.bonner2021_object2vec._utilities import N_SUBJECTS, URLS, FILENAMES
 
 
-def download_dataset(force_download: bool) -> None:
+def download_dataset(*, force: bool) -> None:
     filepath = download_from_url(
         URLS["stimuli"],
         filepath=Path(FILENAMES["stimuli"]),
-        force=force_download,
+        force=force,
     )
     unzip(filepath, extract_dir=Path.cwd(), remove_zip=False)
 
     download_from_url(
         URLS["conditions"],
         filepath=Path(FILENAMES["conditions"]),
-        force=force_download,
+        force=force,
     )
 
     for subject in range(N_SUBJECTS):
@@ -23,11 +23,15 @@ def download_dataset(force_download: bool) -> None:
             download_from_url(
                 URLS[filetype][subject],
                 filepath=Path(FILENAMES[filetype][subject]),
-                force=force_download,
+                force=force,
             )
         for urls, filenames in zip(
-            URLS["contrasts"].values(), FILENAMES["contrasts"].values()
+            URLS["contrasts"].values(),
+            FILENAMES["contrasts"].values(),
+            strict=True,
         ):
             download_from_url(
-                urls[subject], filepath=Path(filenames[subject]), force=force_download
+                urls[subject],
+                filepath=Path(filenames[subject]),
+                force=force,
             )

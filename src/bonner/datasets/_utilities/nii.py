@@ -1,10 +1,10 @@
+import copy
 from collections.abc import Sequence
 from pathlib import Path
-import copy
 
+import nibabel as nib
 import numpy as np
 import xarray as xr
-import nibabel as nib
 
 
 def to_dataarray(
@@ -16,10 +16,12 @@ def to_dataarray(
     """Format an NII file as a DataArray.
 
     Args:
+    ----
         filepath: path to NII file [must be a 3D array (x, y, z) or 4D array e.g. (presentation, x, y, z)]
         flatten: whether to flatten all the spatial dimensions into a "neuroid" dimension
 
     Returns:
+    -------
         brain volume
     """
     nii = nib.load(filepath).get_fdata()
@@ -29,7 +31,7 @@ def to_dataarray(
         dims=dims,
     )
     nii = nii.assign_coords(
-        {dim: (dim, np.arange(nii.sizes[dim], dtype=np.uint8)) for dim in dims}
+        {dim: (dim, np.arange(nii.sizes[dim], dtype=np.uint8)) for dim in dims},
     )
     if flatten:
         assert len(flatten) == 1

@@ -48,7 +48,3 @@ def permutation_test(
             error = "tail must be `left`, `right` or `both`"
             raise ValueError(error)
     return p_value
-
-
-if __name__ == "__main__":
-    derange(1000, n_derangements=103)

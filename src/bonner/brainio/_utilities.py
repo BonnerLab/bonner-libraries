@@ -186,8 +186,8 @@ def compute_sha1(path: Path) -> str:
         SHA1 hash of the file as a hexdigest
     """
     buffer_size = 64 * 2**10
-    sha1 = hashlib.sha1()
-    with open(path, "rb") as f:
+    sha1 = hashlib.sha1()  # noqa: S324
+    with path.open("rb") as f:
         buffer = f.read(buffer_size)
         while len(buffer) > 0:
             sha1.update(buffer)

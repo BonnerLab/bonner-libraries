@@ -2,19 +2,17 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.io import loadmat
 import xarray as xr
-
-from PIL import Image
-
-from bonner.files._figshare import get_url_dict
-from bonner.files import download_from_url
 from bonner.datasets.stringer2019_mouse._utilities import CACHE_PATH
+from bonner.files import download_from_url
+from bonner.files._figshare import get_url_dict
+from PIL import Image
+from scipy.io import loadmat
 
 FIGSHARE_ARTICLE_ID = 6845348
 
 
-def _download_dataset(force: bool = False) -> None:
+def _download_dataset(*, force: bool = False) -> None:
     urls = get_url_dict(FIGSHARE_ARTICLE_ID)
     urls_data = {key: url for key, url in urls.items() if "natimg2800_M" in key}
     for filename, url in urls_data.items():
@@ -36,27 +34,30 @@ def create_data_assembly(*, mouse: str, date: str) -> xr.Dataset:
         },
         coords={
             "stimulus": (
-                "presentation", (raw["stim"]["istim"] - 1).astype(np.uint16),
+                "presentation",
+                (raw["stim"]["istim"] - 1).astype(np.uint16),
             ),
             "x": ("neuroid", raw["med"][:, 0]),
             "y": ("neuroid", raw["med"][:, 1]),
             "z": ("neuroid", raw["med"][:, 2]),
             "noise_level": (
                 "neuroid",
-                pd.DataFrame(raw["stat"])["noiseLevel"].values,
+                pd.DataFrame(raw["stat"])["noiseLevel"].to_numpy(),
             ),
         },
         attrs={"mouse": mouse, "date": date},
     )
     reps: dict[str, int] = {}
     repetitions: list[int] = []
-    for stimulus in assembly["stimulus"].values:
+    for stimulus in assembly["stimulus"].data:
         if stimulus in reps:
             reps[stimulus] += 1
         else:
             reps[stimulus] = 0
         repetitions.append(reps[stimulus])
-    return assembly.assign_coords({"repetition": ("presentation", np.array(repetitions).astype(np.uint8))})
+    return assembly.assign_coords(
+        {"repetition": ("presentation", np.array(repetitions).astype(np.uint8))},
+    )
 
 
 def _save_images() -> tuple[Path, list[Path]]:
@@ -81,5 +82,5 @@ def create_stimulus_set() -> tuple[Path, pd.DataFrame]:
         {
             "stimulus": [path.stem for path in paths],
             "filename": paths,
-        }
+        },
     ).set_index("stimulus")

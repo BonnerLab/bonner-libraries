@@ -1,7 +1,6 @@
 import xarray as xr
-from scipy.sparse.linalg import eigsh
-
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
+from scipy.sparse.linalg import eigsh
 
 IDENTIFIER = "stringer2019.mouse"
 SESSIONS = (
@@ -35,6 +34,7 @@ SESSIONS = (
     },
 )
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
+N_STIMULI = 2_800
 
 
 def preprocess_assembly(assembly: xr.Dataset, *, denoise: bool = True) -> xr.DataArray:
@@ -48,7 +48,7 @@ def preprocess_assembly(assembly: xr.Dataset, *, denoise: bool = True) -> xr.Dat
         stimulus_related = (assembly["stimulus-related activity"] - mean) / std
 
         stimulus_related = stimulus_related.isel(
-            {"presentation": stimulus_related["stimulus"].data != 2800}
+            {"presentation": stimulus_related["stimulus"].data != N_STIMULI},
         )
 
         _, eigenvectors = eigsh(spontaneous.data.T @ spontaneous.data, k=32)
@@ -57,11 +57,10 @@ def preprocess_assembly(assembly: xr.Dataset, *, denoise: bool = True) -> xr.Dat
     else:
         stimulus_related = assembly["stimulus-related activity"]
         stimulus_related = stimulus_related.isel(
-            {"presentation": stimulus_related["stimulus"].data != 2800}
+            {"presentation": stimulus_related["stimulus"].data != N_STIMULI},
         )
     return (
-        stimulus_related
-        .transpose("presentation", "neuroid")
+        stimulus_related.transpose("presentation", "neuroid")
         .sortby(["x", "y", "z"])
         .sortby(["stimulus", "repetition"])
         .assign_attrs(assembly.attrs)

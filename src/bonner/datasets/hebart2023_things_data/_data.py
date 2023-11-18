@@ -1,14 +1,14 @@
-from pathlib import Path
 import itertools
 from collections.abc import Sequence
+from pathlib import Path
 
-from tqdm.auto import tqdm
+import nibabel as nib
 import numpy as np
 import pandas as pd
 import xarray as xr
-import nibabel as nib
-from bonner.files import download_from_url, untar, unzip
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
+from bonner.files import download_from_url, untar, unzip
+from tqdm.auto import tqdm
 
 IDENTIFIER = "hebart2023.things-data"
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
@@ -42,7 +42,7 @@ ROIS = FUNCTIONAL_ROIS | {
         "TO2",
         "V3a",
         "V3b",
-    )
+    ),
 }
 
 N_SUBJECTS = 3
@@ -69,7 +69,9 @@ def load_functional_rois(subject: int) -> xr.DataArray:
     def _download() -> Path:
         filename = "rois.zip"
         filepath = download_from_url(
-            URLS[filename], filepath=CACHE_PATH / "downloads" / filename, force=False
+            URLS[filename],
+            filepath=CACHE_PATH / "downloads" / filename,
+            force=False,
         )
         filepath = unzip(filepath, remove_zip=False, extract_dir=CACHE_PATH / "rois")
         return filepath
@@ -97,8 +99,8 @@ def load_functional_rois(subject: int) -> xr.DataArray:
                                 "hemisphere": ("roi", [hemisphere]),
                                 "localizer": ("roi", [localizer_type]),
                                 "label": ("roi", [roi]),
-                            }
-                        )
+                            },
+                        ),
                     )
                 except:
                     pass
@@ -115,7 +117,9 @@ def load_receptive_fields(subject: int) -> xr.DataArray:
     def _download() -> Path:
         filename = "rois.zip"
         filepath = download_from_url(
-            URLS[filename], filepath=CACHE_PATH / "downloads" / filename, force=False
+            URLS[filename],
+            filepath=CACHE_PATH / "downloads" / filename,
+            force=False,
         )
         filepath = unzip(filepath, remove_zip=False, extract_dir=CACHE_PATH / "rois")
         return filepath
@@ -175,11 +179,11 @@ def load_rois(subject: int) -> xr.DataArray:
                     "hemisphere": ("roi", [""]),
                     "localizer": ("roi", ["pRF"]),
                     "label": ("roi", [roi]),
-                }
-            )
+                },
+            ),
         )
     return xr.concat(rois + [functional_rois], dim="roi").set_index(
-        {"roi": ["hemisphere", "localizer", "label"]}
+        {"roi": ["hemisphere", "localizer", "label"]},
     )
 
 
@@ -187,12 +191,15 @@ def load_brain_mask(subject: int) -> xr.DataArray:
     def _download() -> Path:
         filename = "brain_masks.zip"
         filepath = download_from_url(
-            URLS[filename], filepath=CACHE_PATH / "downloads" / filename, force=False
+            URLS[filename],
+            filepath=CACHE_PATH / "downloads" / filename,
+            force=False,
         )
-        filepath = unzip(
-            filepath, remove_zip=False, extract_dir=CACHE_PATH / "brain_masks"
+        return unzip(
+            filepath,
+            remove_zip=False,
+            extract_dir=CACHE_PATH / "brain_masks",
         )
-        return filepath
 
     def _package() -> xr.DataArray:
         path = (
@@ -214,12 +221,15 @@ def load_noise_ceilings(subject: int) -> xr.DataArray:
     def _download() -> Path:
         filename = "noise_ceilings.zip"
         filepath = download_from_url(
-            URLS[filename], filepath=CACHE_PATH / "downloads" / filename, force=False
+            URLS[filename],
+            filepath=CACHE_PATH / "downloads" / filename,
+            force=False,
         )
-        filepath = unzip(
-            filepath, remove_zip=False, extract_dir=CACHE_PATH / "noise_ceilings"
+        return unzip(
+            filepath,
+            remove_zip=False,
+            extract_dir=CACHE_PATH / "noise_ceilings",
         )
-        return filepath
 
     def _package() -> xr.DataArray:
         noise_ceilings = []
@@ -243,17 +253,20 @@ def load_noise_ceilings(subject: int) -> xr.DataArray:
 def load_betas(
     *,
     subject: int,
-    neuroid_filter: Sequence[bool] = None,
+    neuroid_filter: Sequence[bool] | None = None,
 ) -> xr.DataArray:
     def _download() -> Path:
         filename = "fmri_betas.tar.gz"
         filepath = download_from_url(
-            URLS[filename], filepath=CACHE_PATH / "downloads" / filename, force=False
+            URLS[filename],
+            filepath=CACHE_PATH / "downloads" / filename,
+            force=False,
         )
-        filepath = untar(
-            filepath, remove_tar=False, extract_dir=CACHE_PATH / "fmri_betas"
+        return untar(
+            filepath,
+            remove_tar=False,
+            extract_dir=CACHE_PATH / "fmri_betas",
         )
-        return filepath
 
     def _package() -> xr.DataArray:
         betas = []
@@ -274,7 +287,7 @@ def load_betas(
                     index_col=0,
                 )
                 betas_session = load_nii(
-                    path_stem.with_name(f"{path_stem.name}_betas.nii.gz")
+                    path_stem.with_name(f"{path_stem.name}_betas.nii.gz"),
                 )
                 betas.append(
                     betas_session.assign_coords(
@@ -290,21 +303,23 @@ def load_betas(
                                 "presentation",
                                 session
                                 * np.ones(
-                                    betas_session.sizes["presentation"], dtype=np.uint8
+                                    betas_session.sizes["presentation"],
+                                    dtype=np.uint8,
                                 ),
                             ),
                             "run": (
                                 "presentation",
                                 run
                                 * np.ones(
-                                    betas_session.sizes["presentation"], dtype=np.uint8
+                                    betas_session.sizes["presentation"],
+                                    dtype=np.uint8,
                                 ),
                             ),
                         },
                     )
                     .isel({"neuroid": neuroid_filter})
                     .transpose("presentation", "neuroid")
-                    .astype(dtype=np.float32)
+                    .astype(dtype=np.float32),
                 )
 
         return xr.concat(betas, dim="presentation")
