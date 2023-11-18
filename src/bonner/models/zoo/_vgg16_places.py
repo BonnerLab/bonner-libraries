@@ -101,10 +101,7 @@ if __name__ == "__main__":
 
     classes = []
     with classes_filepath.open() as class_file:
-        classes = [
-            line.strip().split(" ")[0][3:]
-            for line in class_file:
-        ]
+        classes = [line.strip().split(" ")[0][3:] for line in class_file]
     classes = tuple(classes)
 
     model, preprocess_ = load("Places365")

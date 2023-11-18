@@ -14,7 +14,9 @@ def load(
     preprocess = None
     match weights:
         case "untrained":
-            assert seed is not None
+            if seed is None:
+                error = "seed cannot be None if case == 'untrained'"
+                raise ValueError(error)
             torch.manual_seed(seed)
             model = get_model(name=architecture.lower(), weights=None)
             preprocess = get_model_weights(architecture)["DEFAULT"].transforms()

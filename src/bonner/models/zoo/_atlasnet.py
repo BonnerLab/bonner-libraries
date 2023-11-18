@@ -11,10 +11,12 @@ from scipy.ndimage import gaussian_filter
 from torch import nn
 from torchvision import transforms
 
+DEFAULT_CURVATURES = np.logspace(-2, -0.1, 5)
+
 
 def create_curvature_filters(
     n_orientations: int = 16,
-    curvatures: np.ndarray = np.logspace(-2, -0.1, 5),
+    curvatures: np.ndarray = DEFAULT_CURVATURES,
     gaussian_sizes: Sequence[int] = (5,),
     filter_size: int = 9,
     frequencies: Sequence[float] = [1.2],
@@ -155,8 +157,7 @@ class AtlasNet(nn.Module):
         x = self.maxpool1(x)
         x = self.conv2(x)
         x = self.maxpool2(x)
-        x = self.flatten(x)
-        return x
+        return self.flatten(x)
 
 
 def preprocess(image: Image.Image) -> torch.Tensor:

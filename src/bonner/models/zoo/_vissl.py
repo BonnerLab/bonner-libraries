@@ -65,7 +65,7 @@ def load(
                         "trunk"
                     ]
                 case "DeepClusterV2-ImageNet1K":
-                    checkpoint = checkpoint
+                    pass
                 case (
                     "Instagram-ImageNet"
                     | "YFCC100M-ImageNet"
@@ -74,24 +74,24 @@ def load(
                 ):
                     checkpoint = checkpoint["model_state_dict"]
                 case _:
-                    raise ValueError(
-                        f"architecture {architecture} has no weights '{weights}'",
-                    )
+                    error = f"architecture {architecture} has no weights '{weights}'"
+                    raise ValueError(error)
         case _:
-            raise ValueError(f"architecture {architecture} not defined")
+            error = f"architecture {architecture} not defined"
+            raise ValueError(error)
 
     new_state_dict = {}
     match weights:
         case "DeepClusterV2-ImageNet1K":
-            for key in checkpoint.keys():
+            for key in checkpoint:
                 new_state_dict[key.replace("module.", "")] = checkpoint[key]
         case "MoCoV2-ImageNet1K":
-            for key in checkpoint.keys():
+            for key in checkpoint:
                 new_state_dict[
                     key.replace("moco_encoder.trunk._feature_blocks.", "")
                 ] = checkpoint[key]
         case _:
-            for key in checkpoint.keys():
+            for key in checkpoint:
                 new_state_dict[key.replace("_feature_blocks.", "")] = checkpoint[key]
     model = torchvision.models.resnet50()
     # if weights == "Colorization-ImageNet1K":

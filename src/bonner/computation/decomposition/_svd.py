@@ -7,7 +7,7 @@ def svd(
     *,
     truncated: bool,
     n_components: int,
-    random_state: int,
+    seed: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     # if x is on the CPU, use numpy.linalg.svd
     if x.get_device() == -1:
@@ -17,7 +17,7 @@ def svd(
         v_h = torch.from_numpy(v_h)
     # if x is on the GPU and truncated is True
     elif truncated:
-        torch.manual_seed(random_state)
+        torch.manual_seed(seed)
         u, s, v = torch.pca_lowrank(x, center=False, q=n_components)
         v_h = v.transpose(-2, -1)
         del v
