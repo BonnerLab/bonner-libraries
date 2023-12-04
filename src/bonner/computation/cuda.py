@@ -1,7 +1,7 @@
 import gc
 from collections.abc import Callable, Collection, Mapping
 from functools import wraps
-from typing import Any, ParamSpec, TypeVar
+from typing import Any, ParamSpec, Self, TypeVar
 
 import torch
 from loguru import logger
@@ -15,10 +15,10 @@ DEFAULT_DEVICES: list[torch.device | None] = [
 
 
 class Environment:
-    def __init__(self, environments: Collection[Mapping[str, Any]]) -> None:
+    def __init__(self: Self, environments: Collection[Mapping[str, Any]]) -> None:
         self.environments = environments
 
-    def __call__(self, func: Callable[P, R]) -> Callable[P, R]:
+    def __call__(self: Self, func: Callable[P, R]) -> Callable[P, R]:
         """Try running a function with various values of specified kwargs.
 
         Attempts to runs the function `func` with each set of kwargs specified by `environments`.

@@ -50,3 +50,44 @@ def concatenate_images(
                 current += image.size[1]
         concatenated_image.paste(image, location)
     return concatenated_image
+
+
+def concatenate_with_overlap(
+    left: Image.Image,
+    right: Image.Image,
+    /,
+    *,
+    extent: float = 0.6,
+) -> Image.Image:
+    concatenated_image = Image.new(
+        mode="RGBA",
+        size=(
+            left.width + int((1 - extent) * right.width),
+            left.height,
+        ),
+    )
+    concatenated_image.alpha_composite(
+        right,
+        (concatenated_image.width - right.width, 0),
+    )
+    concatenated_image.alpha_composite(left, (0, 0))
+    return concatenated_image
+
+
+def crop_fraction(
+    image: Image.Image,
+    *,
+    left: float,
+    right: float,
+    top: float,
+    bottom: float,
+) -> Image.Image:
+    height, width = image.size
+    return image.crop(
+        (
+            int(left * width),
+            int(top * height),
+            int(width - right * width),
+            int(height - bottom * height),
+        ),
+    )

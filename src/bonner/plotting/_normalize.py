@@ -46,6 +46,7 @@ def create_centered_diverging_cmap(
     fig, ax = plt.subplots()
     im = ax.imshow(x, cmap=cmap)
     """
+    # TODO validate that vmin and vmax work properly
     if vmin is None:
         vmin = data.min()
     if vmax is None:

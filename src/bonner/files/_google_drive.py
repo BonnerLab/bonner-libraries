@@ -9,7 +9,7 @@ def download(
     file_id: str,
     *,
     filepath: Path,
-    chunk_size: int = 32768,
+    chunk_size: int = 32_768,
     force: bool = True,
 ) -> Path:
     url = "https://docs.google.com/uc?export=download"

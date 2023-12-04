@@ -9,6 +9,7 @@ DEFAULT_RC = {
     "axes.formatter.use_mathtext": True,
     "pdf.fonttype": 42,
     "figure.figsize": (3, 3),
+    "savefig.dpi": 600,
     "savefig.bbox": "tight",
     "savefig.format": "svg",
     "axes.spines.top": False,

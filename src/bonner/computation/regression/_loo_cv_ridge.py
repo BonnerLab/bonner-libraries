@@ -1,7 +1,7 @@
 from collections.abc import Collection
+from typing import Self
 
 import torch
-
 from bonner.computation.regression._utilities import Regression
 
 
@@ -11,7 +11,7 @@ def columnwise_mean_square(x: torch.Tensor) -> torch.Tensor:
 
 class RidgeGCV(Regression):
     def __init__(
-        self,
+        self: Self,
         l2_penalties: Collection[float | int],
         fit_intercept: bool = True,
     ) -> None:
@@ -23,14 +23,14 @@ class RidgeGCV(Regression):
 
         self.loo_errors: torch.Tensor | None = None
 
-    def to(self, device: torch.device | str) -> None:
+    def to(self: Self, device: torch.device | str) -> None:
         if self.coefficients is not None:
             self.coefficients = self.coefficients.to(device)
         if self.intercept is not None:
             self.intercept = self.intercept.to(device)
 
     def fit(
-        self,
+        self: Self,
         x: torch.Tensor,
         y: torch.Tensor,
     ) -> None:
@@ -49,7 +49,7 @@ class RidgeGCV(Regression):
         if y.shape[-2] != n_samples:
             raise ValueError(
                 f"number of samples in x and y must be equal (x={n_samples},"
-                f" y={y.shape[-2]})"
+                f" y={y.shape[-2]})",
             )
 
         if self.fit_intercept:
@@ -63,17 +63,20 @@ class RidgeGCV(Regression):
 
         identity = torch.eye(n_samples)
 
-        self.loo_errors = torch.full(fill_value=torch.nan, size=(y.shape[-1], len(self.l2_penalties)))
-        
+        self.loo_errors = torch.full(
+            fill_value=torch.nan,
+            size=(y.shape[-1], len(self.l2_penalties)),
+        )
+
         for i_penalty, l2_penalty in enumerate(self.l2_penalties):
-            s_bar = torch.diag(-(s**2) / (l2_penalty * s**2 + l2_penalty ** 2))
+            s_bar = torch.diag(-(s**2) / (l2_penalty * s**2 + l2_penalty**2))
             a = u @ s_bar @ u.T + identity / l2_penalty
 
             self.loo_errors[:, i_penalty] = columnwise_mean_square(
-                a @ y / torch.diag(a)
+                a @ y / torch.diag(a),
             )
 
-        raise NotImplementedError()
+        raise NotImplementedError
         self.coefficients = vt.transpose(-2, -1) @ (d * (u.transpose(-2, -1) @ y))
 
         if self.fit_intercept:
@@ -81,5 +84,5 @@ class RidgeGCV(Regression):
         else:
             self.intercept = torch.zeros(1)
 
-    def predict(self, x: torch.Tensor) -> torch.Tensor:
+    def predict(self: Self, x: torch.Tensor) -> torch.Tensor:
         return x.to(self.coefficients.device) @ self.coefficients + self.intercept
