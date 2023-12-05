@@ -6,7 +6,9 @@ __all__ = (
     "add_colorbar",
     "plot_brain_map",
     "crop_fraction",
-    "concatenate_with_overlap",
+    "concatenate_images",
+    "fill_transparent_background",
+    "rescale_image",
 )
 
 from bonner.plotting._colorbar import add_colorbar
@@ -16,6 +18,7 @@ from bonner.plotting._normalize import create_centered_diverging_cmap
 from bonner.plotting._offsets import apply_offset
 from bonner.plotting._tiling import (
     concatenate_images,
-    concatenate_with_overlap,
     crop_fraction,
+    rescale_image,
 )
+from bonner.plotting._transparency import fill_transparent_background

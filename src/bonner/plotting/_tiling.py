@@ -1,16 +1,15 @@
+import functools
 from collections.abc import Sequence
-from pathlib import Path
 
 from PIL import Image
 
 
-def concatenate_images(
-    image_paths: Sequence[Path],
+def concatenate_multiple_images(
+    images: Sequence[Image.Image],
     *,
     direction: str,
     resize: bool = True,
 ) -> Image.Image:
-    images = [Image.open(image_path) for image_path in image_paths]
     sizes = [image.size for image in images]
 
     ws = [size[0] for size in sizes]
@@ -21,11 +20,21 @@ def concatenate_images(
 
     match direction:
         case "horizontal":
-            w = sum([int(w * h_max / h) for w, h in zip(ws, hs)]) if resize else sum(ws)
+            w = (
+                sum([int(w * h_max / h) for w, h in zip(ws, hs, strict=True)])
+                if resize
+                else sum(ws)
+            )
             shape = (w, h_max)
         case "vertical":
-            h = sum([int(h * w_max / w) for w, h in zip(ws, hs)]) if resize else sum(hs)
+            h = (
+                sum([int(h * w_max / w) for w, h in zip(ws, hs, strict=True)])
+                if resize
+                else sum(hs)
+            )
             shape = (w_max, h)
+        case _:
+            raise ValueError
 
     concatenated_image = Image.new("RGB", shape)
 
@@ -52,25 +61,71 @@ def concatenate_images(
     return concatenated_image
 
 
-def concatenate_with_overlap(
-    left: Image.Image,
-    right: Image.Image,
+def rescale_image(
+    image: Image.Image,
     /,
     *,
-    extent: float = 0.6,
+    size: tuple[int, int],
+    direction: str,
 ) -> Image.Image:
-    concatenated_image = Image.new(
-        mode="RGBA",
-        size=(
-            left.width + int((1 - extent) * right.width),
-            left.height,
-        ),
-    )
-    concatenated_image.alpha_composite(
-        right,
-        (concatenated_image.width - right.width, 0),
-    )
-    concatenated_image.alpha_composite(left, (0, 0))
+    w_reference, h_reference = size
+    w, h = image.size
+    match direction:
+        case "height":
+            return image.resize(
+                (int(w * h_reference / h), h_reference),
+            )
+        case "width":
+            return image.resize(
+                (w_reference, int(h * w_reference / w)),
+            )
+        case _:
+            raise ValueError
+
+
+def concatenate_images(
+    first: Image.Image,
+    second: Image.Image,
+    /,
+    *,
+    direction: str,
+    overlap: float = 0,
+    reverse_zorder: bool = False,
+) -> Image.Image:
+    match direction:
+        case "horizontal":
+            size = (
+                first.width + int((1 - overlap) * second.width),
+                first.height,
+            )
+            concatenated_image = Image.new(mode="RGBA", size=size)
+
+            paste_second_image = functools.partial(
+                concatenated_image.alpha_composite,
+                second,
+                (concatenated_image.width - second.width, 0),
+            )
+        case "vertical":
+            size = (
+                first.width,
+                first.height + int((1 - overlap) * second.height),
+            )
+            concatenated_image = Image.new(mode="RGBA", size=size)
+            paste_second_image = functools.partial(
+                concatenated_image.alpha_composite,
+                second,
+                (0, concatenated_image.height - second.height),
+            )
+        case _:
+            raise ValueError
+
+    if reverse_zorder:
+        concatenated_image.alpha_composite(first, (0, 0))
+        paste_second_image()
+    else:
+        paste_second_image()
+        concatenated_image.alpha_composite(first, (0, 0))
+
     return concatenated_image
 
 
