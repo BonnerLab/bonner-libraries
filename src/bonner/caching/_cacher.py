@@ -9,6 +9,7 @@ import nibabel as nib
 import numpy as np
 import xarray as xr
 from bonner.caching._handlers import get_handler
+from PIL import Image
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -103,7 +104,9 @@ class Cacher:
 
         self.mode = mode
         modes = {"normal", "readonly", "overwrite", "delete", "ignore"}
-        assert mode in modes, f"mode {mode} not supported (allowed modes: {modes})"
+        if mode not in modes:
+            error = f"mode {mode} not supported (allowed modes: {modes})"
+            raise ValueError(error)
 
         self.identifier = identifier
         self.helper = helper
@@ -126,18 +129,18 @@ class Cacher:
             match self.mode:
                 case "normal":
                     if self._get_path(identifier):
-                        result = self._load(identifier, **self.kwargs_load)
+                        result = self._load(identifier)
                     else:
                         result = func(*args, **kwargs)
-                        self._save(result, identifier=identifier, **self.kwargs_save)
+                        self._save(result, identifier=identifier)
                 case "readonly":
                     if self._get_path(identifier):
-                        result = self._load(identifier, **self.kwargs_load)
+                        result = self._load(identifier)
                     else:
                         result = func(*args, **kwargs)
                 case "overwrite":
                     result = func(*args, **kwargs)
-                    self._save(result, identifier=identifier, **self.kwargs_save)
+                    self._save(result, identifier=identifier)
                 case "delete":
                     if self._get_path(identifier):
                         self._delete(identifier)
@@ -168,10 +171,13 @@ class Cacher:
             elif isinstance(result, nib.nifti1.Nifti1Image):
                 filetype = "NIfTI"
                 suffix = ".nii.gz"
+            elif isinstance(result, Image.Image):
+                filetype = "PIL"
+                suffix = None
             else:
                 filetype = "pickle"
                 suffix = ".pkl"
-            if path.suffix != suffix:
+            if suffix is not None and path.suffix != suffix:
                 error = f"identifier must have suffix '{suffix}' if filetype is 'auto'"
                 raise ValueError(error)
         else:
@@ -191,6 +197,12 @@ class Cacher:
                     filetype = "netCDF4"
                 case ".pkl":
                     filetype = "pickle"
+                case ".nii" | ".nii.gz":
+                    filetype = "NIfTI"
+                case ".png" | ".jpg":
+                    filetype = "PIL"
+                case _:
+                    raise ValueError
         else:
             filetype = self.filetype
 

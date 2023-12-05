@@ -9,6 +9,7 @@ import numpy as np
 import numpy.typing as npt
 import xarray as xr
 from loguru import logger
+from PIL import Image
 from tqdm.dask import TqdmCallback
 
 
@@ -111,6 +112,17 @@ class Nifti1ImageHandler(Handler):
         return nib.load(path)
 
 
+class PillowImageHandler(Handler):
+    def __init__(self: Self) -> None:
+        super().__init__()
+
+    def save(self: Self, result: Image.Image, *, path: Path, **kwargs: Any) -> None:
+        result.save(path, **kwargs)
+
+    def load(self: Self, path: Path, **kwargs: Any) -> Image.Image:
+        return Image.open(path, **kwargs)
+
+
 def get_handler(filetype: str) -> Handler:
     match filetype:
         case "numpy":
@@ -121,6 +133,8 @@ def get_handler(filetype: str) -> Handler:
             return PickleHandler()
         case "NIfTI":
             return Nifti1ImageHandler()
+        case "PIL":
+            return PillowImageHandler()
         case _:
             error = f"Handler for filetype {filetype} not supported"
             raise ValueError(error)
