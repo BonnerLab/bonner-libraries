@@ -19,7 +19,7 @@ def add_colorbar(
     divider = make_axes_locatable(ax)
     cax = divider.append_axes(location, size=size, pad=pad)
     fig = ax.get_figure()
-    cb = fig.colorbar(mappable=mappable, cax=cax)
+    cb = fig.colorbar(mappable=mappable, cax=cax, location=location)
     cb.set_label(label, rotation=rotation)
     cb.outline.set_visible(outline)
     if not ticks:
