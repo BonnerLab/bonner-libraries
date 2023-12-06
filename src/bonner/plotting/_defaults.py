@@ -15,6 +15,8 @@ DEFAULT_RC = {
     "axes.spines.top": False,
     "axes.spines.right": False,
     "legend.edgecolor": "None",
+    "figure.titlesize": "medium",
+    "figure.labelsize": "medium",
     "legend.title_fontsize": "small",
     "legend.fontsize": "x-small",
     "lines.markeredgewidth": 0,
