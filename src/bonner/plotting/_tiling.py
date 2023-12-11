@@ -91,6 +91,7 @@ def concatenate_images(
     direction: str,
     overlap: float = 0,
     reverse_zorder: bool = False,
+    color: str | None = "white",
 ) -> Image.Image:
     match direction:
         case "horizontal":
@@ -98,26 +99,27 @@ def concatenate_images(
                 first.width + int((1 - overlap) * second.width),
                 first.height,
             )
-            concatenated_image = Image.new(mode="RGBA", size=size)
+            location = (size[0] - second.width, 0)
 
-            paste_second_image = functools.partial(
-                concatenated_image.alpha_composite,
-                second,
-                (concatenated_image.width - second.width, 0),
-            )
         case "vertical":
             size = (
                 first.width,
                 first.height + int((1 - overlap) * second.height),
             )
-            concatenated_image = Image.new(mode="RGBA", size=size)
-            paste_second_image = functools.partial(
-                concatenated_image.alpha_composite,
-                second,
-                (0, concatenated_image.height - second.height),
-            )
+            location = (0, size[1] - second.height)
         case _:
             raise ValueError
+
+    if color is not None:
+        concatenated_image = Image.new(mode="RGBA", size=size, color=color)
+    else:
+        concatenated_image = Image.new(mode="RGBA", size=size)
+
+    paste_second_image = functools.partial(
+        concatenated_image.alpha_composite,
+        second,
+        location,
+    )
 
     if reverse_zorder:
         concatenated_image.alpha_composite(first, (0, 0))
