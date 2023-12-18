@@ -9,7 +9,7 @@ from bonner.caching import cache
 
 class RandomProjection(Hook):
     def __init__(
-        self, *, out_channels: int, seed: int = 0, allow_expansion: bool = False
+        self, *, out_channels: int, seed: int = 11, allow_expansion: bool = False
     ) -> None:
         self.seed = seed
         self.out_channels = out_channels
