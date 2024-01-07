@@ -4,7 +4,7 @@ from pathlib import Path
 from loguru import logger
 
 
-def prepare_filepath(*, force: bool, filepath: Path) -> Path:
+def prepare_filepath(*, force: bool, filepath: Path | None) -> Path:
     # TODO(Raj): replace with tempfile.NamedTemporaryFile
     if filepath is None:
         filepath = Path("/tmp") / f"{uuid.uuid4()}"

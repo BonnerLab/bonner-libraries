@@ -242,7 +242,7 @@ def reshape_dataarray_to_brain(
     else:
         output_shape = brain_shape
 
-    output = np.full(output_shape, fill_value=np.nan)
+    output = np.full(output_shape, fill_value=np.nan, dtype=data.data.dtype)
     output[..., data["x"].data, data["y"].data, data["z"].data] = data.data
     return output
 

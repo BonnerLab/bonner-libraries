@@ -16,7 +16,6 @@ def download(
 ) -> Path:
     filepath = prepare_filepath(
         filepath=filepath,
-        url=url,
         force=force,
     )
     if filepath.exists():
