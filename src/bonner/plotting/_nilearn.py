@@ -35,6 +35,7 @@ def plot_brain_map(
 
     nilearn.plotting.plot_surf_stat_map(
         axes=ax,
+        hemi=hemisphere,
         stat_map=vol_to_surf(
             volume,
             fsaverage[f"pial_{hemisphere}"],

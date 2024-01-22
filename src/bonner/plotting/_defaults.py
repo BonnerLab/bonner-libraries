@@ -1,8 +1,4 @@
-from typing import Any
-
-import seaborn as sns
-
-DEFAULT_RC = {
+DEFAULT_MATPLOTLIBRC = {
     "font.family": ["serif"],
     "font.serif": ["cmr10"],
     "mathtext.fontset": "cm",
@@ -20,16 +16,13 @@ DEFAULT_RC = {
     "legend.title_fontsize": "small",
     "legend.fontsize": "x-small",
     "lines.markeredgewidth": 0,
+    "xtick.minor.visible": False,
+    "ytick.minor.visible": False,
+    "xtick.major.size": 3.5,
+    "xtick.major.width": 1,
+    "ytick.major.size": 3.5,
+    "ytick.major.width": 1,
+    "xtick.minor.size": 0,
+    "ytick.minor.size": 0,
+    "patch.linewidth": 0,
 }
-
-
-def set_plotting_defaults(
-    context: str = "paper",
-    style: str = "white",
-    rc: dict[str, Any] = DEFAULT_RC,
-) -> None:
-    sns.set_theme(
-        context=context,
-        style=style,
-        rc=rc,
-    )
