@@ -1,6 +1,6 @@
 DEFAULT_MATPLOTLIBRC = {
     "font.family": ["serif"],
-    "font.serif": ["cmr10"],
+    "font.serif": ["NewComputerModernMath"],
     "mathtext.fontset": "cm",
     "axes.formatter.use_mathtext": True,
     "pdf.fonttype": 42,
