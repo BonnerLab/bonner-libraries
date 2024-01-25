@@ -139,7 +139,7 @@ def crop_fraction(
     top: float,
     bottom: float,
 ) -> Image.Image:
-    height, width = image.size
+    width, height = image.size
     return image.crop(
         (
             int(left * width),
