@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "bonner-libraries"
 description = "Assorted Python libraries developed by the Bonner Lab"
 readme = "README.md"
-requires-python = ">=3.11, <3.12"
+requires-python = ">=3.12"
 license = { file = "LICENSE" }
 authors = [{ name = "Raj Magesh Gauthaman", email = "rgautha1@jh.edu" }]
 keywords = ["Bonner Lab"]
@@ -48,7 +48,7 @@ dynamic = ["version"]
 dev = ["ruff", "mypy", "types-requests", "sphinx"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["ALL"]
