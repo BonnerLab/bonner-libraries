@@ -66,6 +66,7 @@ def _interpolate(
         volume: 3D matrix (can be complex-valued)
         coordinates: (3, N) matrix coordinates to interpolate at
         interpolation_type: "nearest", "linear", or "cubic"
+
     """
     # input
     match interpolation_type:
@@ -127,6 +128,7 @@ def _transform(
     Returns:
     -------
         Transformed data
+
     """
     target_shape = transformation.shape[:3]
 
@@ -266,3 +268,51 @@ def convert_dataarray_to_nifti1image(
             interpolation_type=interpolation_type,
         ),
     )
+
+
+def load_surface_roi(
+    *,
+    subject: int,
+    hemisphere: str,
+    label: str,
+) -> Path:
+    """Load and format a surface ROI.
+
+    Args:
+    ----
+        subject: subject ID
+
+    """
+    filepath = (
+        Path("nsddata")
+        / "freesurfer"
+        / f"subj{subject + 1:02}"
+        / "label"
+        / f"{'l' if hemisphere == 'left' else 'r'}h.{label}.mgz"
+    )
+    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+    return CACHE_PATH / filepath
+
+
+def load_surface_mesh(
+    *,
+    subject: int,
+    hemisphere: str,
+    label: str,
+) -> Path:
+    """Load and format a surface mesh.
+
+    Args:
+    ----
+        subject: subject ID
+
+    """
+    filepath = (
+        Path("nsddata")
+        / "freesurfer"
+        / f"subj{subject + 1:02}"
+        / "surf"
+        / f"{'l' if hemisphere == 'left' else 'r'}h.{label}"
+    )
+    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+    return CACHE_PATH / filepath

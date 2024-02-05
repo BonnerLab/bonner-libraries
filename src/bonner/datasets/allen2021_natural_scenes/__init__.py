@@ -19,6 +19,8 @@ __all__ = [
     "convert_ndarray_to_nifti1image",
     "convert_dataarray_to_nifti1image",
     "reshape_dataarray_to_brain",
+    "load_surface_roi",
+    "load_surface_mesh",
 ]
 
 from bonner.datasets.allen2021_natural_scenes._data import (
@@ -43,6 +45,8 @@ from bonner.datasets.allen2021_natural_scenes._utilities import (
 from bonner.datasets.allen2021_natural_scenes._visualization import (
     convert_dataarray_to_nifti1image,
     convert_ndarray_to_nifti1image,
+    load_surface_mesh,
+    load_surface_roi,
     reshape_dataarray_to_brain,
     transform_volume_to_mni,
     transform_volume_to_native_surface,

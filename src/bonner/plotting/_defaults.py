@@ -1,3 +1,5 @@
+from bonner.plotting._fonts import install_newcomputermodern
+
 DEFAULT_MATPLOTLIBRC = {
     "font.family": ["serif"],
     "font.serif": ["NewComputerModernMath"],
@@ -26,3 +28,5 @@ DEFAULT_MATPLOTLIBRC = {
     "ytick.minor.size": 0,
     "patch.linewidth": 0,
 }
+
+install_newcomputermodern()
