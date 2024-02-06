@@ -47,6 +47,7 @@ def load_brain_mask(*, subject: int, resolution: str) -> xr.DataArray:
     Returns:
     -------
         Boolean brain mask
+
     """
     filepath = (
         Path("nsddata")
@@ -103,6 +104,7 @@ def load_betas(
     Returns:
     -------
         betas
+
     """
 
     def load_presentations(subject: int) -> xr.DataArray:
@@ -264,6 +266,7 @@ def load_ncsnr(
     Returns:
     -------
         noise-ceiling SNRs
+
     """
     filepath = (
         Path("nsddata_betas")
@@ -288,6 +291,7 @@ def load_structural_scans(*, subject: int, resolution: str) -> xr.DataArray:
     Returns:
     -------
         structural scans
+
     """
     scans = []
     sequences = np.array(("T1", "T2", "SWI", "TOF"))
@@ -321,6 +325,7 @@ def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
     Returns:
     -------
         ROI masks
+
     """
     rois = []
     for space, sources in ROI_SOURCES.items():
@@ -400,6 +405,7 @@ def load_receptive_fields(*, subject: int, resolution: str) -> xr.DataArray:
     Returns:
     -------
         pRF data
+
     """
     prf_data = []
     quantities = np.array(
@@ -442,6 +448,7 @@ def load_functional_contrasts(*, subject: int, resolution: str) -> xr.DataArray:
     Returns:
     -------
         functional contrasts
+
     """
     categories = {}
     for filename in ("domains", "categories"):
