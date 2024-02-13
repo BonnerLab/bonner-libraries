@@ -15,7 +15,7 @@ def add_colorbar(
     pad: float = 0.2,
     outline: bool = False,
     ticks: bool = False,
-) -> Colorbar:
+) -> tuple[Colorbar, Axes]:
     divider = make_axes_locatable(ax)
     cax = divider.append_axes(location, size=size, pad=pad)
     fig = ax.get_figure()
@@ -24,4 +24,4 @@ def add_colorbar(
     cb.outline.set_visible(outline)
     if not ticks:
         cax.tick_params(length=0)
-    return cb
+    return cb, cax
