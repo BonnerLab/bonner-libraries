@@ -45,6 +45,7 @@ def extract_features(
     Returns:
     -------
         dictionary where keys are node identifiers and values are xarray DataArrays containing the model's features. Each ``xarray.DataArray`` has a ``presentation`` dimension corresponding to the stimuli with a ``stimulus`` coordinate corresponding to the ``stimulus`` from ``datapipe``, and other dimensions that depend on the layer type and the hook.
+
     """
     device = _get_device(device)
     cache_dir = _create_cache_directory(
@@ -169,11 +170,11 @@ def _create_netcdf4_file(
             error = "features do not have the appropriate shape"
             raise ValueError(error)
 
-    for dimension, length in zip(dimensions, (None, *features.shape[1:])):
+    for dimension, length in zip(dimensions, (None, *features.shape[1:]), strict=False):
         file.createDimension(dimension, length)
         if dimension == "presentation":
             file.createVariable(dimension, np.int64, (dimension,))
-            file.createVariable("stimulus", str, (dimension,))
+            file.createVariable("stimulus", np.int64, (dimension,))
         else:
             variable = file.createVariable(dimension, np.int64, (dimension,))
             variable[:] = np.arange(length)

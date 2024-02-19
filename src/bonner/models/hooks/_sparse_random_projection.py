@@ -85,7 +85,7 @@ class SparseRandomProjection(Hook):
             seed=self.seed,
         )
 
-        if (n_features <= projection.shape[-1]) and not self.expand:
+        if (n_features <= projection.shape[-1]) and not self.allow_expansion:
             return features
 
         return try_devices(self._project)(features=features, projection=projection)
