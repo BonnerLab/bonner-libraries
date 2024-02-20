@@ -322,7 +322,31 @@ def load_betas(
                     .astype(dtype=np.float32),
                 )
 
-        return xr.concat(betas, dim="presentation")
+        betas = xr.concat(betas, dim="presentation")
+
+        # exclude catch trials labelled catchNNN_<something>
+        betas = betas.isel(
+            {
+                "presentation": [
+                    stimulus.split("_")[0][:5] != "catch"
+                    for stimulus in betas["stimulus"].data
+                ],
+            },
+        )
+
+        reps: dict[str, int] = {}
+        repetitions = np.empty(
+            betas.sizes["presentation"],
+            dtype=np.uint8,
+        )
+        for i_stimulus, stimulus in enumerate(betas["stimulus"].data):
+            if stimulus in reps:
+                reps[stimulus] += 1
+            else:
+                reps[stimulus] = 0
+            repetitions[i_stimulus] = reps[stimulus]
+
+        return betas.assign_coords({"repetition": ("presentation", repetitions)})
 
     try:
         return _package()
