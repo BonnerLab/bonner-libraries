@@ -1,7 +1,7 @@
 from bonner.plotting._fonts import install_newcomputermodern
 
 DEFAULT_MATPLOTLIBRC = {
-    "font.family": ["serif", "sans-serif"],
+    "font.family": ["sans-serif", "serif"],
     "font.serif": ["NewComputerModernMath"],
     "font.sans-serif": ["NewComputerModernSans10"],
     "font.size": 10,
