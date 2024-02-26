@@ -25,6 +25,7 @@ def compute_shared_stimuli(
     Returns:
     -------
         shared stimulus ids
+
     """
     try:
         return set.intersection(
@@ -58,6 +59,7 @@ def compute_noise_ceiling(
     Returns:
     -------
         noise ceilings for all voxels
+
     """
     groupby = stimuli.groupby("stimulus")
 
@@ -66,8 +68,9 @@ def compute_noise_ceiling(
     if counts is None:
         fraction = 1
     else:
+        reps = {1: 0, 2: 0, 3: 0}
         unique, counts = np.unique(counts, return_counts=True)
-        reps = dict(zip(unique, counts, strict=True))
+        reps = reps | dict(zip(unique, counts, strict=True))
         fraction = (reps[1] + reps[2] / 2 + reps[3] / 3) / (reps[1] + reps[2] + reps[3])
 
     ncsnr_squared = ncsnr**2
