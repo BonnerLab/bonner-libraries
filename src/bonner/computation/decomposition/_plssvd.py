@@ -9,23 +9,15 @@ class PLSSVD:
     def __init__(
         self: Self,
         *,
-        n_components: int | None = None,
-        seed: int = 0,
-        center: bool = True,
-        scale: bool = False,
-        truncated: bool = False,
+        randomized: bool,
     ) -> None:
-        self.n_components = n_components
+        self.randomized = randomized
+
         self.n_samples: int
-        self.seed = seed
-        self.center = center
-        self.scale = scale
-        self.truncated = truncated
+        self.n_components: int
 
         self.left_mean: torch.Tensor
         self.right_mean: torch.Tensor
-        self.left_std: torch.Tensor
-        self.right_std: torch.Tensor
         self.singular_values: torch.Tensor
         self.left_singular_vectors: torch.Tensor
         self.right_singular_vectors: torch.Tensor
@@ -35,8 +27,6 @@ class PLSSVD:
     def to(self: Self, device: torch.device) -> None:
         self.left_mean = self.left_mean.to(device)
         self.right_mean = self.right_mean.to(device)
-        self.left_std = self.left_std.to(device)
-        self.right_std = self.right_std.to(device)
         self.left_singular_vectors = self.left_singular_vectors.to(device)
         self.right_singular_vectors = self.right_singular_vectors.to(device)
         self.singular_values = self.singular_values.to(device)
@@ -59,13 +49,6 @@ class PLSSVD:
             raise ValueError(error)
         self.n_samples = x.shape[-2]
 
-        max_n_components = min(self.n_samples, x.shape[-1], y.shape[-1])
-        if self.n_components is None:
-            self.n_components = max_n_components
-        elif self.n_components > max_n_components:
-            error = f"n_components must be <= {max_n_components}"
-            raise ValueError(error)
-
         if x.dtype != y.dtype:
             error = "x and y must have the same dtype"
             raise ValueError(error)
@@ -77,28 +60,18 @@ class PLSSVD:
         x = torch.clone(x)
         y = torch.clone(y)
 
-        if self.center:
-            self.left_mean = x.mean(dim=-2, keepdim=True)
-            x -= self.left_mean
+        # center the data
+        self.left_mean = x.mean(dim=-2, keepdim=True)
+        x -= self.left_mean
 
-            self.right_mean = y.mean(dim=-2, keepdim=True)
-            y -= self.right_mean
-        else:
-            self.left_mean = torch.zeros(1, device=self.device)
-            self.right_mean = torch.zeros(1, device=self.device)
+        self.right_mean = y.mean(dim=-2, keepdim=True)
+        y -= self.right_mean
 
-        # scale data (divide each dimension by its standard deviation)
-        if self.scale:
-            self.left_std = x.std(dim=-2, keepdim=True)
-            self.left_std[self.left_std == 0] = 1
-            x /= self.left_std
-
-            self.right_std = y.std(dim=-2, keepdim=True)
-            self.right_std[self.right_std == 0] = 1
-            y /= self.right_std
-        else:
-            self.left_std = torch.ones(1, device=self.device)
-            self.right_std = torch.ones(1, device=self.device)
+        self.n_components = min(
+            x.shape[-2],
+            x.shape[-1],
+            y.shape[-1],
+        )
 
         return x, y
 
@@ -106,44 +79,52 @@ class PLSSVD:
         x, y = self._preprocess(x, y)
 
         if torch.equal(x, y):
-            _, s, v_h = svd(
+            _, s, v = svd(
                 x,
-                truncated=self.truncated,
+                randomized=self.randomized,
                 n_components=self.n_components,
-                seed=self.seed,
             )
-            u = v_h.transpose(-2, -1)
+            u = v
             s = s**2
         else:
-            u, s, v_h = svd(
+            u, s, v = svd(
                 x.transpose(-2, -1) @ y,
-                truncated=self.truncated,
+                randomized=self.randomized,
                 n_components=self.n_components,
-                seed=self.seed,
             )
 
-        self.left_singular_vectors = u[..., : self.n_components]
-        self.right_singular_vectors = v_h[..., : self.n_components, :].transpose(-2, -1)
-        self.singular_values = s[..., : self.n_components] / (self.n_samples - 1)
+        self.left_singular_vectors = u
+        self.right_singular_vectors = v
+        self.singular_values = s / (self.n_samples - 1)
 
-    def transform(self: Self, z: torch.Tensor, /, *, direction: str) -> torch.Tensor:
+    def transform(
+        self: Self,
+        z: torch.Tensor,
+        /,
+        *,
+        direction: str,
+        components: Sequence[int] | int | None = None,
+    ) -> torch.Tensor:
         match direction:
             case "left":
                 mean = self.left_mean
-                std = self.left_std
                 projection = self.left_singular_vectors
             case "right":
                 mean = self.right_mean
-                std = self.right_std
                 projection = self.right_singular_vectors
             case _:
                 error = "direction must be 'left' or 'right'"
                 raise ValueError(error)
 
+        if components is None:
+            components = self.n_components
+        if isinstance(components, int):
+            components = list(range(components))
+
         z = torch.clone(z)
         z = z.to(self.device)
-        z = (z - mean) / std
-        return z @ projection
+        z = z - mean
+        return z @ projection[..., components]
 
     def inverse_transform(
         self: Self,
@@ -165,12 +146,10 @@ class PLSSVD:
             case "left":
                 projection = self.left_singular_vectors
                 mean = self.left_mean
-                std = self.left_std
             case "right":
                 projection = self.right_singular_vectors
                 mean = self.right_mean
-                std = self.right_std
             case _:
                 error = "direction must be 'left' or 'right'"
                 raise ValueError(error)
-        return (z @ projection[..., :, components].transpose(-2, -1)) * std + mean
+        return (z @ projection[..., components].transpose(-2, -1)) + mean

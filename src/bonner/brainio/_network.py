@@ -25,6 +25,7 @@ class NetworkHandler(ABC):
         ----
             local_path: local path of the file
             remote_url: remote URL of the file
+
         """
         raise NotImplementedError
 
@@ -36,6 +37,7 @@ class NetworkHandler(ABC):
         ----
             local_path: local path of the file
             remote_url: remote URL of the file
+
         """
         raise NotImplementedError
 
@@ -58,6 +60,7 @@ class RsyncHandler(NetworkHandler):
         ----
             local_path: local path of the file
             remote_url: remote URL of the file (<server-name>:<remote-path>)
+
         """
         subprocess.run(
             [
@@ -87,6 +90,7 @@ class RsyncHandler(NetworkHandler):
         ----
             local_path: local path of the file
             remote_url: remote URL of the file (<server-name>:<remote-path>)
+
         """
         if not local_path.exists():
             subprocess.run(
@@ -105,6 +109,7 @@ class S3Handler(NetworkHandler):
         ----
             local_path: local path of the file
             remote_url: remote URL of the file
+
         """
         client = boto3.client("s3")
         client.upload_file(str(local_path), remote_url)
@@ -116,6 +121,7 @@ class S3Handler(NetworkHandler):
         ----
             local_path: local path of the file
             remote_url: remote URL of the file
+
         """
         parsed_url = urlparse(remote_url)
         split_path = parsed_url.path.lstrip("/").split("/")
@@ -166,6 +172,7 @@ class S3Handler(NetworkHandler):
             bucket_name: name of the S3 bucket
             relative_path: relative path of the file within the S3 bucket
             config: TODO config for Amazon S3
+
         """
         s3 = boto3.resource("s3", config=config)
         obj = s3.Object(bucket_name, relative_path)
@@ -186,6 +193,7 @@ def get_network_handler(location_type: str) -> NetworkHandler:
     Returns:
     -------
         network handler used to upload/download files
+
     """
     match location_type:
         case "local":
@@ -218,6 +226,7 @@ def fetch(
     Returns:
     -------
         local path to the fetched file
+
     """
     path = path_cache / Path(urlparse(location).path).name
     if (not path.exists()) or (not use_cached):
@@ -242,6 +251,7 @@ def send(
         path: local path to the file
         location_type: method to use to fetch files from the location (e.g. "rsync", "s3")
         location: remote URL of the file
+
     """
     handler = get_network_handler(location_type=location_type)
     handler.upload(

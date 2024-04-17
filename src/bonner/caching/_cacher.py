@@ -98,6 +98,7 @@ class Cacher:
         Returns:
         -------
             Any: The output of the function.
+
         """
         self.path = path
         self.path.mkdir(parents=True, exist_ok=True)

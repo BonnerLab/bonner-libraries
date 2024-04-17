@@ -24,6 +24,7 @@ def validate_catalog(path: Path) -> None:
     Args:
     ----
         path: path to the Catalog CSV file
+
     """
     column_headers_are_unique = pd.read_csv(
         path,
@@ -110,6 +111,7 @@ def validate_data_assembly(path: Path) -> None:
     Args:
     ----
         path: path to the Data Assembly netCDF-4 file
+
     """
     assembly = xr.open_dataset(path)
 
@@ -134,6 +136,7 @@ def validate_stimulus_set(*, path_csv: Path, path_zip: Path) -> None:
     ----
         path_csv: path to the Stimulus Set CSV file
         path_zip: path to the Stimulus Set ZIP file
+
     """
     assert (
         pd.read_csv(
@@ -184,6 +187,7 @@ def compute_sha1(path: Path) -> str:
     Returns:
     -------
         SHA1 hash of the file as a hexdigest
+
     """
     buffer_size = 64 * 2**10
     sha1 = hashlib.sha1()  # noqa: S324

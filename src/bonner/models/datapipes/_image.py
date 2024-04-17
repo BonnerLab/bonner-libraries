@@ -34,6 +34,7 @@ def create_image_datapipe(
     Returns:
     -------
         torch datapipe that produces batches of data in the form (image_tensor, image_id)
+
     """
     return (
         datapipe.to_iter_datapipe(indices=indices)

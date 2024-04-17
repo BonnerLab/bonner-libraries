@@ -123,8 +123,7 @@ def _extract_features(
         for batch, (input_data, stimuli) in enumerate(
             tqdm(datapipe, desc="batch", leave=False),
         ):
-            input_data = input_data.to(device)
-            features = extractor(input_data)
+            features = extractor(input_data.to(device))
             for node in features:
                 if node in hooks:
                     features[node] = hooks[node](features[node])
@@ -172,7 +171,7 @@ def _create_netcdf4_file(
 
     for dimension, length in zip(dimensions, (None, *features.shape[1:]), strict=False):
         file.createDimension(dimension, length)
-        if dimension == "presentation":
+        if length is None:  # i.e. the first dimension, dimension == "presentation"
             file.createVariable(dimension, np.int64, (dimension,))
             file.createVariable("stimulus", np.int64, (dimension,))
         else:

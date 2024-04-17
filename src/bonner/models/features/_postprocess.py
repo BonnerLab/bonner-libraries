@@ -11,6 +11,7 @@ def concatenate_features(features: dict[str, xr.DataArray]) -> xr.DataArray:
     Returns:
     -------
         single DataArray containing features from all nodes
+
     """
     for node, feature in features.items():
         feature["node"] = ("neuroid", [node] * feature.sizes["neuroid"])
@@ -28,6 +29,7 @@ def flatten_features(features: dict[str, xr.DataArray]) -> dict[str, xr.DataArra
     Returns:
     -------
         dictionary of flattened features from each node
+
     """
     for node in features:
         dims = list(set(features[node].dims) - {"presentation"})

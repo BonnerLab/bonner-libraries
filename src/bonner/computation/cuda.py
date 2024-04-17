@@ -9,7 +9,7 @@ from loguru import logger
 P = ParamSpec("P")
 R = TypeVar("R")
 
-DEFAULT_DEVICES: list[torch.device | None] = [
+DEFAULT_DEVICES: list[torch.device] = [
     torch.device(f"cuda:{gpu}") for gpu in range(torch.cuda.device_count())
 ] + [torch.device("cpu")]
 
@@ -51,6 +51,7 @@ class Environment:
         Returns:
         -------
             Wrapped function that can be called.
+
         """
 
         @wraps(func)
@@ -119,6 +120,7 @@ def try_devices(
     Returns:
     -------
         Wrapped function that can be called.
+
     """
     if not devices:  # handle case with empty Collection
         devices = DEFAULT_DEVICES

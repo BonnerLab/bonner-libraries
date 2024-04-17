@@ -31,6 +31,7 @@ class Catalog:
             identifier: identifier of the Catalog
             csv_file: path to the (potentially existing) Catalog CSV file
             cache_directory: directory to use as a local file cache
+
         """
         self.identifier = identifier
         """Identifier of the Catalog."""
@@ -80,6 +81,7 @@ class Catalog:
         Returns:
         -------
             paths to the Stimulus Set CSV file and ZIP archive, with keys "csv" and "zip" respectively
+
         """
         metadata = self.lookup(identifier=identifier, lookup_type="stimulus_set")
         if metadata.empty:
@@ -130,6 +132,7 @@ class Catalog:
         Returns:
         -------
             path to the Data Assembly netCDF-4 file
+
         """
         metadata = self.lookup(identifier=identifier, lookup_type="assembly")
         if metadata.empty:
@@ -178,6 +181,7 @@ class Catalog:
             class_csv: class of the Stimulus Set CSV file
             class_zip: class of the Stimulus Set ZIP archive
             force: whether to repackage the Stimulus Set if it already exists, defaults to False
+
         """
         metadata = self.lookup(identifier=identifier, lookup_type="stimulus_set")
         if not (metadata.empty or force):
@@ -232,6 +236,7 @@ class Catalog:
             location: remote URL of the Data Assembly
             class_: class of the Data Assembly
             force: whether to repackage the Data Assembly if it already exists, defaults to False
+
         """
         validate_data_assembly(path=path)
 
@@ -274,6 +279,7 @@ class Catalog:
         Args:
         ----
             path: path where the Catalog CSV file should be created
+
         """
         path.parent.mkdir(parents=True, exist_ok=True)
         catalog = pd.DataFrame(
@@ -306,6 +312,7 @@ class Catalog:
         Returns:
         -------
             metadata corresponding to the Data Assembly or Stimulus Set
+
         """
         catalog = pd.read_csv(self.csv_file)
         filter_ = (catalog["identifier"] == identifier) & (
@@ -319,6 +326,7 @@ class Catalog:
         Args:
         ----
             entry: a row to be appended to the Catalog CSV file, where keys correspond to column header names
+
         """
         catalog = pd.read_csv(self.csv_file)
         catalog = pd.concat([catalog, pd.DataFrame(entry, index=[len(catalog)])])
