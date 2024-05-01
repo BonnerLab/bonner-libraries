@@ -29,6 +29,8 @@ def plot_brain_map(
     mesh: str = "fsaverage",
     low: float = 0.25,
     high: float = 0.5,
+    radius: float = 3,
+    interpolation: str = "linear",
     **kwargs,
 ) -> None:
     fsaverage = fetch_surf_fsaverage(mesh=mesh)
@@ -39,6 +41,8 @@ def plot_brain_map(
         stat_map=vol_to_surf(
             volume,
             fsaverage[f"pial_{hemisphere}"],
+            radius=radius,
+            interpolation=interpolation,
         ),
         surf_mesh=load_surf_mesh(fsaverage[f"{surface_type}_{hemisphere}"]),
         threshold=np.finfo(np.float32).resolution,
