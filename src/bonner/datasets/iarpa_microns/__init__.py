@@ -20,3 +20,6 @@ def download() -> None:
 
 if __name__ == "__main__":
     download()
+
+    # Run the following command to extract the OCI container
+    # podman load --input functional_data_database_container_image_v8.tar

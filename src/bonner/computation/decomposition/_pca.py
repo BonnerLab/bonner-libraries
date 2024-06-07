@@ -11,14 +11,12 @@ class PCA:
         *,
         n_components: int | None = None,
         scale: bool = False,
-        truncated: bool = False,
-        seed: int = 0,
+        randomized: bool = False,
     ) -> None:
         self.n_components = n_components
         self.n_samples: int
         self.scale = scale
-        self.truncated = truncated
-        self.seed = seed
+        self.randomized = randomized
 
         self.mean: torch.Tensor
         self.std: torch.Tensor
@@ -63,14 +61,12 @@ class PCA:
 
     def fit(self: Self, x: torch.Tensor, /) -> None:
         x = self._preprocess(x)
-        _, s, v_h = svd(
+        _, s, self.eigenvectors = svd(
             x,
-            truncated=self.truncated,
+            randomized=self.randomized,
             n_components=self.n_components,
-            seed=self.seed,
         )
         del _
-        self.eigenvectors = v_h[..., : self.n_components, :].transpose(-2, -1)
         self.eigenvalues = (s[..., : self.n_components] ** 2) / (self.n_samples - 1)
 
     def transform(

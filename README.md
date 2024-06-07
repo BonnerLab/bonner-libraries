@@ -20,7 +20,6 @@
 
 `bonner-models` aims to collate all the tools used by the Bonner Lab to dissect artificial neural network models implemented in PyTorch. Currently, we have standardized the extraction of activations from PyTorch models, making use of the latest PyTorch features.
 
-
 ### BrainIO
 
 The BrainIO format, originally developed by the `Brain-Score team <https://github.com/brain-score>`_, aims to "standardize the exchange of data between experimental and computational neuroscientists" by providing a minimal `specification <https://github.com/brain-score/brainio/blob/main/docs/SPECIFICATION.md>`_ for the data and `tools <https://github.com/brain-score/brainio>`_ for working with that data.

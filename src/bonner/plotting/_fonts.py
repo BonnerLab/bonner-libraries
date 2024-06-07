@@ -1,5 +1,7 @@
 import os
+import platform
 import shutil
+import warnings
 from pathlib import Path
 
 import matplotlib as mpl
@@ -8,6 +10,12 @@ from matplotlib.font_manager import get_font, get_font_names
 
 
 def install_newcomputermodern() -> None:
+    if platform.system() != "Linux":
+        warnings.warn(
+            "NewComputerModernMath font can only be installed automatically on Linux",
+        )
+        return
+
     font_name = "NewComputerModernMath"
     if font_name not in get_font_names():
         shutil.rmtree(mpl.get_cachedir())
