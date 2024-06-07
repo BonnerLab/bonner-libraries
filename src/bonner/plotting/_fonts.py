@@ -18,7 +18,8 @@ def install_newcomputermodern() -> None:
 
     font_name = "NewComputerModernMath"
     if font_name not in get_font_names():
-        shutil.rmtree(mpl.get_cachedir())
+        if mpl.get_cachedir().exists():
+            shutil.rmtree(mpl.get_cachedir())
 
         data_home = Path(
             os.getenv("XDG_DATA_HOME", str(Path.home() / ".local" / "share")),
