@@ -2,7 +2,7 @@ from bonner.plotting._fonts import install_newcomputermodern
 from matplotlib.font_manager import get_font_names
 
 install_newcomputermodern()
-if "NewComputerModernMath" not in get_font_names():
+if "NewComputerModernMath" in get_font_names():
     kwargs = {
         "font.serif": ["NewComputerModernMath"],
         "font.sans-serif": ["NewComputerModernSans10"],
