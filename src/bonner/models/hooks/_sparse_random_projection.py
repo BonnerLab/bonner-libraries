@@ -41,13 +41,12 @@ def create_sparse_projection_matrix(
         np.unravel_index(indices=indices, shape=(n_features, n_components)),
     )
 
-    projection = torch.sparse_coo_tensor(
+    return torch.sparse_coo_tensor(
         indices=torch.from_numpy(locations),
         values=scale
         * (2 * rng.binomial(n=1, p=0.5, size=n_nonzero) - 1).astype(np.float32),
         size=(n_features, n_components),
     )
-    return projection
 
 
 class SparseRandomProjection(Hook):
