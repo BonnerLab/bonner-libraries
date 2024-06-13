@@ -12,7 +12,7 @@ BUCKET_NAME = "openneuro.org"
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 N_SUBJECTS = 50
 
-def _download_data():
+def download_data():
     """Download the data from the Grootswagers et al. (2022) THINGS EEG dataset."""
     s3_path = Path("ds003825 ds003825-download")
     download_from_s3(
