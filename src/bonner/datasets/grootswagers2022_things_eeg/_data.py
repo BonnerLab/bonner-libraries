@@ -1,4 +1,6 @@
 from pathlib import Path
+import logging
+logging.basicConfig(level=logging.INFO)
 
 import numpy as np
 import pandas as pd
@@ -14,11 +16,12 @@ N_SUBJECTS = 50
 
 def download_data():
     """Download the data from the Grootswagers et al. (2022) THINGS EEG dataset."""
-    s3_path = Path("ds003825 ds003825-download")
+    s3_path = Path("ds003825")
     download_from_s3(
         s3_path=s3_path,
         bucket=BUCKET_NAME,
         local_path=CACHE_PATH,
+        is_dir=True
     )
     
 def load_data():
