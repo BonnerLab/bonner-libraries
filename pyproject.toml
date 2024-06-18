@@ -28,8 +28,7 @@ dependencies = [
     "numpy",
     "pandas",
     "scipy",
-    "torch<2.3.0",  # FIXME https://github.com/pytorch/data/issues/1244
-    "torchvision",
+    "torch",
     "torchdata",
     "xarray",
     "netCDF4",
