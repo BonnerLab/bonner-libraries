@@ -72,7 +72,7 @@ class SGDLinearRegression(Regression):
             elif epoch_loss / best_loss > 1 - self._tol:
                 n_tol += 1
             else:
-                ntol = 0
+                n_tol = 0
                 if epoch_loss < best_loss:
                     best_loss = epoch_loss
                     
@@ -124,7 +124,6 @@ class SGDLinearRegression(Regression):
         with torch.no_grad():
             preds = self._linear(x)
         return preds
-        # return preds * self._y_std + self._y_mean
 
     def _initialize_from(self, x: torch.Tensor, y: torch.Tensor):
         if not self._initialized:
