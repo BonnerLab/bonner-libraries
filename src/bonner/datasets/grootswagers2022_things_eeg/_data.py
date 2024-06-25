@@ -2,6 +2,10 @@ from pathlib import Path
 import logging
 logging.basicConfig(level=logging.INFO)
 
+import warnings
+warnings.filterwarnings('ignore', category=RuntimeWarning, message='Estimated head radius')
+warnings.filterwarnings('ignore', category=RuntimeWarning, message='The data contains')
+
 import mne
 import pandas as pd
 import xarray as xr
@@ -18,6 +22,7 @@ DOWNSAMPLE_RATE = 250
 PRESENATION_DURATION = 50
 N_STIM_MAIN = 22248
 N_STIM_VALIDATION = 2400
+WEIRD_SUBJECTS = [6]
 
 
 

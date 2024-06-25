@@ -1,7 +1,7 @@
 __all__ = (
     "IDENTIFIER",
     "N_SUBJECTS",
-    
+    "WEIRD_SUBJECTS",
     "download_dataset",
     "load_preprocessed_data"
 )
@@ -9,6 +9,7 @@ __all__ = (
 from bonner.datasets.grootswagers2022_things_eeg._data import (
     IDENTIFIER,
     N_SUBJECTS,
+    WEIRD_SUBJECTS,
     download_dataset,
     load_preprocessed_data,
 )
