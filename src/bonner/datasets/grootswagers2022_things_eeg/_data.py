@@ -67,7 +67,7 @@ def load_preprocessed_data(
     onset_ms = events[events[:, 2] == onset_idx, 0]
     if downsample_freq != DOWNSAMPLE_RATE:
         onset_ms = (onset_ms - 1) * (DOWNSAMPLE_RATE // downsample_freq) + 1
-    onset_ms = (onset_ms - 1) * 4 - 3
+    onset_ms = onset_ms * 4 - 3
     df = pd.concat([
         event_csv,
         pd.DataFrame({
