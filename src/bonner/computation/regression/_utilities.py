@@ -29,8 +29,13 @@ def create_stratified_splits(
     n_folds: int,
     shuffle: bool,
     seed: int,
+    balance_first_column_only: bool = True,
 ) -> list[np.ndarray]:
+    if not balance_first_column_only:
+        assert y.ndim == 1, "y must be a 1D array if balance_first_column_only is False"
     rng = np.random.default_rng(seed=seed)
+    if y.ndim > 1:
+        y = y[:, 0]
     
     class_indices = defaultdict(list)
     for idx, label in enumerate(y):
@@ -46,10 +51,7 @@ def create_stratified_splits(
         for fold, split in zip(folds, split_indices):
             fold.extend(split)
     
-    stratified_splits = [np.array(fold) for fold in folds]
-    
-    return stratified_splits
-
+    return [np.array(fold) for fold in folds]
 
 
 def regression(

@@ -59,7 +59,7 @@ def load_preprocessed_data(
     )
     x.filter(l_freq=l_freq, h_freq=h_freq, verbose=False)
     if downsample_freq != DOWNSAMPLE_RATE:
-        assert downsample_freq <= DOWNSAMPLE_RATE
+        assert downsample_freq < DOWNSAMPLE_RATE
         x = x.resample(sfreq=downsample_freq, verbose=False)
         
     events, e_dict = mne.events_from_annotations(x, verbose=False)
