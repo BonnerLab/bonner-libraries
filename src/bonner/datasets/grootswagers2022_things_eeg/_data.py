@@ -83,6 +83,7 @@ def load_preprocessed_data(
         verbose=False
     )
     data = xr.DataArray(
+        # TODO: multiple values by 1e6?
         data=epochs.get_data(),
         dims=("presentation", "neuroid", "time"),
         coords={
