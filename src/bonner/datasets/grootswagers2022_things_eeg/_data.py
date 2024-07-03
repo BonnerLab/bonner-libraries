@@ -7,6 +7,7 @@ warnings.filterwarnings('ignore', category=RuntimeWarning, message='Estimated he
 warnings.filterwarnings('ignore', category=RuntimeWarning, message='The data contains')
 
 import mne
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -45,8 +46,10 @@ def load_preprocessed_data(
     tmin: float = -0.1,
     tmax: float = 1.0,
     is_validation: bool = False,
+    window_size: (int | float) = None,
+    window_step: (int | float) = None,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
-    download_dataset()
+    # download_dataset()
     event_csv = pd.read_csv(CACHE_PATH / f"sub-{subject:02d}" / "eeg" / f"sub-{subject:02d}_task-rsvp_events.csv")
     if is_validation:
         if len(event_csv) != N_STIM_MAIN + N_STIM_VALIDATION:
@@ -83,7 +86,7 @@ def load_preprocessed_data(
         verbose=False
     )
     data = xr.DataArray(
-        # TODO: multiple values by 1e6?
+        # TODO: multiply values by 1e6?
         data=epochs.get_data(),
         dims=("presentation", "neuroid", "time"),
         coords={
@@ -92,11 +95,22 @@ def load_preprocessed_data(
             "time": epochs.times,
         }
     )
+       
+    if window_size is not None:
+        assert window_step is not None
+        dim_length = x.sizes["time"]
+        if isinstance(window_size, float):
+            window_size = int(window_size * dim_length)
+        if isinstance(window_step, float):
+            window_step = int(window_step * dim_length)
+        indices = np.arange(0, dim_length, window_step)
+        windows = xr.concat([x.isel({"time": slice(i, i + window_size)}) for i in indices], dim='window')
+        data =  windows.mean(dim="time").rename({'window': "time"})
     
     if is_validation:
         return data[N_STIM_MAIN:], df[N_STIM_MAIN:]
     else:
-        return data[:N_STIM_MAIN], df[:N_STIM_MAIN]
+        return data[:N_STIM_MAIN], df[:N_STIM_MAIN]    
 
 
 def load_stimuli():
