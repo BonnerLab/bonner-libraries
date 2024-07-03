@@ -98,14 +98,21 @@ def load_preprocessed_data(
        
     if window_size is not None:
         assert window_step is not None
-        dim_length = x.sizes["time"]
+        dim_length = data.sizes["time"]
         if isinstance(window_size, float):
             window_size = int(window_size * dim_length)
         if isinstance(window_step, float):
             window_step = int(window_step * dim_length)
         indices = np.arange(0, dim_length, window_step)
-        windows = xr.concat([x.isel({"time": slice(i, i + window_size)}) for i in indices], dim='window')
-        data =  windows.mean(dim="time").rename({'window': "time"})
+        data = [
+            (data
+                .isel({"time": slice(i, i + window_size)})
+                .mean(dim="time")
+                .assign_coords({"time": data.time.values[i]})
+            )
+            for i in indices
+        ]
+        data = xr.concat(data, dim="time").transpose("presentation", "neuroid", "time")
     
     if is_validation:
         return data[N_STIM_MAIN:], df[N_STIM_MAIN:]
