@@ -41,8 +41,8 @@ def download_dataset():
 def load_preprocessed_data(
     subject: int,
     downsample_freq: int = 250,
-    l_freq: float = 0.1,
-    h_freq: float = 100,
+    l_freq: float = None,
+    h_freq: float = None,
     tmin: float = -0.1,
     tmax: float = 1.0,
     is_validation: bool = False,
@@ -60,7 +60,8 @@ def load_preprocessed_data(
         CACHE_PATH / "derivatives" / "eeglab" / f"sub-{subject:02d}_task-rsvp_continuous.set",
         preload=True, verbose=False,
     )
-    x.filter(l_freq=l_freq, h_freq=h_freq, verbose=False)
+    if l_freq is not None or h_freq is not None:
+        x.filter(l_freq=l_freq, h_freq=h_freq, verbose=False)
     if downsample_freq != DOWNSAMPLE_RATE:
         assert downsample_freq < DOWNSAMPLE_RATE
         x = x.resample(sfreq=downsample_freq, verbose=False)
