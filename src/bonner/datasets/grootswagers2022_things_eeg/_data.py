@@ -48,6 +48,8 @@ def load_preprocessed_data(
     is_validation: bool = False,
     window_size: (int | float) = None,
     window_step: (int | float) = None,
+    baseline: set[float, float] = None,
+    scale: (str | float) = None
 ) -> tuple[xr.DataArray, pd.DataFrame]:
     # download_dataset()
     event_csv = pd.read_csv(CACHE_PATH / f"sub-{subject:02d}" / "eeg" / f"sub-{subject:02d}_task-rsvp_events.csv")
@@ -60,6 +62,7 @@ def load_preprocessed_data(
         CACHE_PATH / "derivatives" / "eeglab" / f"sub-{subject:02d}_task-rsvp_continuous.set",
         preload=True, verbose=False,
     )
+    
     if l_freq is not None or h_freq is not None:
         x.filter(l_freq=l_freq, h_freq=h_freq, verbose=False)
     if downsample_freq != DOWNSAMPLE_RATE:
@@ -68,6 +71,7 @@ def load_preprocessed_data(
         
     events, e_dict = mne.events_from_annotations(x, verbose=False)
     onset_idx = e_dict["E  1"]
+    
     onset_ms = events[events[:, 2] == onset_idx, 0]
     if downsample_freq != DOWNSAMPLE_RATE:
         onset_ms = (onset_ms - 1) * (DOWNSAMPLE_RATE // downsample_freq) + 1
@@ -84,11 +88,22 @@ def load_preprocessed_data(
         x, events,
         event_id=onset_idx,
         tmin=tmin, tmax=tmax,
-        verbose=False
+        baseline=baseline,
+        verbose=False,
     )
+    data = epochs.get_data()
+    if scale is not None:
+        if isinstance(scale, str):
+            match scale:
+                case "original":
+                    data = data * 1e6
+                case "std":
+                    data = data / data.std()
+        else:
+            data = data / scale
+    
     data = xr.DataArray(
-        # TODO: multiply values by 1e6?
-        data=epochs.get_data(),
+        data=data,
         dims=("presentation", "neuroid", "time"),
         coords={
             "presentation": df["stimname"],
