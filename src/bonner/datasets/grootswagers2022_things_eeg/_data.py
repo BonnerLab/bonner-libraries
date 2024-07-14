@@ -63,8 +63,10 @@ def load_preprocessed_data(
         preload=True, verbose=False,
     )
     
-    if l_freq is not None or h_freq is not None:
-        x.filter(l_freq=l_freq, h_freq=h_freq, verbose=False)
+    if l_freq is not None:
+        x.filter(l_freq=l_freq, h_freq=None, verbose=False)
+    if h_freq is not None:
+        x.filter(l_freq=None, h_freq=h_freq, verbose=False)
     if downsample_freq != DOWNSAMPLE_RATE:
         assert downsample_freq < DOWNSAMPLE_RATE
         x = x.resample(sfreq=downsample_freq, verbose=False)
