@@ -26,7 +26,7 @@ def download(
     """
     s3 = boto3.client("s3")
     
-    if dir:
+    if is_dir:
         # Download all files in the directory
         if local_path is None:
             local_path = Path(s3_path)
