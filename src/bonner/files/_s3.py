@@ -21,6 +21,7 @@ def download(
         bucket: S3 bucket name
         local_path: local path of file
         use_cached: use existing file or re-download, defaults to True
+
     """
     if local_path is None:
         local_path = s3_path
