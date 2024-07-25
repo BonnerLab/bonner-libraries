@@ -99,7 +99,7 @@ def convert_ndarray_to_nifti1image(
 
     affine = np.diag([resolution] * 3 + [1])
     if origin is None:
-        origin = (([1, 1, 1] + np.asarray(data.shape)) / 2) - 1
+        origin = ((np.asarray([1, 1, 1]) + np.asarray(data.shape)) / 2) - 1
     affine[0, -1] = -origin[0] * resolution
     affine[1, -1] = -origin[1] * resolution
     affine[2, -1] = -origin[2] * resolution
