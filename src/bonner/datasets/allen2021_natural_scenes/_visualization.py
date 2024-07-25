@@ -9,10 +9,10 @@ import xarray as xr
 from bonner.datasets.allen2021_natural_scenes import load_brain_mask
 from bonner.datasets.allen2021_natural_scenes._utilities import BUCKET_NAME, CACHE_PATH
 from bonner.files import download_from_s3
-from bonner.plotting._nilearn import _normalize_curv_map
+from bonner.plotting._nilearn import normalize_curv_map
 from matplotlib.axes import Axes
 from nilearn.datasets import fetch_surf_fsaverage
-from nilearn.plotting import plot_surf_stat_map
+from nilearn.plotting import plot_surf_roi, plot_surf_stat_map
 from nilearn.surface import load_surf_data, load_surf_mesh, vol_to_surf
 from scipy.ndimage import map_coordinates
 
@@ -159,7 +159,7 @@ def transform_data_to_mni(
     order: int = 0,
 ) -> xr.DataArray:
     brain_shape = load_brain_mask(subject=subject, resolution="1pt8mm").shape
-    volume = reshape_dataarray_to_brain(data, brain_shape=brain_shape)
+    volume = reshape_dataarray_to_brain(data.copy(), brain_shape=brain_shape)
 
     coordinates = load_transformation(
         subject=subject,
@@ -194,7 +194,7 @@ def transform_data_to_surface(
     order: int,
 ) -> dict[str, dict[str, np.ndarray]]:
     brain_shape = load_brain_mask(subject=subject, resolution="1pt8mm").shape
-    volume = reshape_dataarray_to_brain(data, brain_shape=brain_shape)
+    volume = reshape_dataarray_to_brain(data.copy(), brain_shape=brain_shape)
 
     surface: dict[str, dict[str, np.ndarray]] = {}
     for hemisphere in ("left", "right"):
@@ -228,7 +228,7 @@ def plot_brain_map(
     *,
     ax: Axes,
     subject: int,
-    space: Literal["surface", "MNI"] = "native",
+    space: Literal["surface", "MNI"] = "surface",
     hemisphere: Literal["left", "right"] = "left",
     surface_type: Literal["pial", "inflated"] = "inflated",
     view: str | tuple[float, float] = "lateral",
@@ -236,6 +236,7 @@ def plot_brain_map(
     interpolation: Literal["nearest", "linear", "cubic"] = "nearest",
     layer: Literal["layerB1", "layerB2", "layerB3", "average"] = "average",
     fsaverage_mesh: Literal["fsaverage"] = "fsaverage",
+    threshold: float = 1e-3,
     **kwargs,
 ) -> None:
     match interpolation:
@@ -251,7 +252,7 @@ def plot_brain_map(
     match space:
         case "surface":
             stat_map = transform_data_to_surface(
-                data,
+                data.copy(),
                 subject=subject,
                 order=order,
             )[hemisphere][layer]
@@ -270,7 +271,7 @@ def plot_brain_map(
             )
         case "MNI":
             mni = transform_data_to_mni(
-                data,
+                data.copy(),
                 subject=subject,
                 order=order,
             )
@@ -299,9 +300,9 @@ def plot_brain_map(
         stat_map=stat_map,
         surf_mesh=surf_mesh,
         hemi=hemisphere,
-        threshold=np.finfo(np.float32).resolution,
+        threshold=threshold,
         colorbar=False,
-        bg_map=_normalize_curv_map(
+        bg_map=normalize_curv_map(
             curv_map,
             low=0.25,
             high=0.5,
@@ -310,6 +311,39 @@ def plot_brain_map(
         view=view,
         cmap=cmap,
         **kwargs,
+    )
+
+
+def plot_rois(
+    roi_map: np.ndarray,
+    *,
+    subject: int,
+    ax: Axes,
+    hemisphere: Literal["left", "right"] = "left",
+    surface_type: Literal["inflated", "pial"] = "inflated",
+    view: Literal["lateral", "medial", "ventral"] | tuple[int, int] = "lateral",
+    cmap: str = "rocket",
+) -> None:
+    _ = plot_surf_roi(
+        axes=ax,
+        roi_map=roi_map,
+        surf_mesh=load_surface_mesh(
+            subject=subject,
+            hemisphere=hemisphere,
+            label=surface_type,
+        ),
+        hemi=hemisphere,
+        threshold=np.finfo(np.float32).resolution,
+        colorbar=False,
+        bg_map=normalize_curv_map(
+            load_surf_data(
+                load_surface_mesh(subject=subject, hemisphere=hemisphere, label="curv"),
+            ),
+        ),
+        engine="matplotlib",
+        view=view,
+        cmap=cmap,
+        avg_method="median",
     )
 
 
