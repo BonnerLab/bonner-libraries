@@ -5,7 +5,7 @@ import pandas as pd
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import download_from_url, unzip
 from PIL import Image
-from torchdata.datapipes.map import MapDataPipe
+from torch.utils.data import MapDataPipe
 
 IDENTIFIER = "hebart2019.things"
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER

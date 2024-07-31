@@ -4,8 +4,7 @@ import numpy as np
 import numpy.typing as npt
 import torch
 from PIL import Image
-from torchdata.datapipes.iter import IterableWrapper, IterDataPipe
-from torchdata.datapipes.map import MapDataPipe
+from torch.utils.data import IterDataPipe, MapDataPipe
 
 
 def collate_fn(
@@ -23,6 +22,7 @@ def create_image_datapipe(
     batch_size: int,
     indices: list[Hashable] | None = None,
 ) -> IterDataPipe:
+    # FIXME(Raj) deprecation of torchdata: https://github.com/pytorch/data/issues/1196
     """Create a PyTorch datapipe for loading images and preprocessing them.
 
     Args:
