@@ -87,14 +87,17 @@ def load_preprocessed_data(
         download_dataset(preprocess_type="preprocessed")
         data = np.load(CACHE_PATH / "preprocessed" / f"sub-{subject:02d}" / f"preprocessed_eeg_{TYPE_DICT[data_type]}.npy", allow_pickle=True).item()
         metadata = load_metadata(data_type=data_type)
-        object = ["_".join(metadata.iloc[i, METADATA_COLUMNS[1]].split("_")[1:]) for i in range(len(metadata))]
+        object = ["_".join(metadata.loc[i, METADATA_COLUMNS[1]].split("_")[1:]) for i in range(len(metadata))]
+        # temporary fix for time digit fix
+        times = np.round(data["times"], 2)
+        
         data = xr.DataArray(
             data["preprocessed_eeg_data"],
             dims=("object", "presentation", "neuroid", "time"),
             coords={
                 "object": object,
                 "neuroid": data["ch_names"],
-                "time": data["times"],
+                "time": times,
             },
         )
         data = data.assign_coords({column: ("object", metadata[column]) for column in METADATA_COLUMNS})
