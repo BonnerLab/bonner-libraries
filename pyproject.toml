@@ -39,6 +39,7 @@ dependencies = [
     "matplotlib",
     "timm",
     "zenodo-get",
+    "osfclient",
     #    "robustbench @ git+https://github.com/RobustBench/robustbench.git@master",
     #    "clip @ git+https://github.com/openai/CLIP.git",
 ]
