@@ -134,10 +134,10 @@ def concatenate_images(
 def crop_fraction(
     image: Image.Image,
     *,
-    left: float,
-    right: float,
-    top: float,
-    bottom: float,
+    left: float = 0,
+    right: float = 0,
+    top: float = 0,
+    bottom: float = 0,
 ) -> Image.Image:
     width, height = image.size
     return image.crop(
