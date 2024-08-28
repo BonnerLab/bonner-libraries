@@ -114,7 +114,7 @@ def spearman_r(
     y: torch.Tensor | None = None,
     *,
     return_diagonal: bool = True,
-    correction: bool = 1,
+    correction: int = 1,
     copy: bool = True,
 ) -> torch.Tensor:
     rank_x = x.argsort(dim=0).argsort(dim=0).float()
