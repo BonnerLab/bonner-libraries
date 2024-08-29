@@ -15,6 +15,15 @@ if "NewComputerModernMath" in get_font_names():
     DEFAULT_FONTS |= {
         "font.serif": ["NewComputerModernMath"],
         "font.sans-serif": ["NewComputerModernSans10"],
+        "mathtext.fontset": "custom",
+        "mathtext.sf": "NewComputerModernSans10",
+        "mathtext.it": "NewComputerModernMath",
+        "mathtext.rm": "NewComputerModernMath",
+        "mathtext.tt": "NewComputerModernMath",
+        "mathtext.bf": "NewComputerModernMath",
+        "mathtext.bfit": "NewComputerModernMath",
+        "mathtext.cal": "NewComputerModernMath",
+        "mathtext.fallback": "cm",
     }
 
 DEFAULT_SIZES = {
