@@ -6,15 +6,16 @@ from typing import Literal
 import nibabel as nib
 import numpy as np
 import xarray as xr
-from bonner.datasets.allen2021_natural_scenes import load_brain_mask
-from bonner.datasets.allen2021_natural_scenes._utilities import BUCKET_NAME, CACHE_PATH
-from bonner.files import download_from_s3
-from bonner.plotting._nilearn import normalize_curv_map
 from matplotlib.axes import Axes
 from nilearn.datasets import fetch_surf_fsaverage
 from nilearn.plotting import plot_surf_roi, plot_surf_stat_map
 from nilearn.surface import load_surf_data, load_surf_mesh, vol_to_surf
 from scipy.ndimage import map_coordinates
+
+from bonner.datasets.allen2021_natural_scenes import load_brain_mask
+from bonner.datasets.allen2021_natural_scenes._utilities import BUCKET_NAME, CACHE_PATH
+from bonner.files import download_from_s3
+from bonner.plotting._nilearn import normalize_curv_map
 
 MNI_SHAPE = (182, 218, 182)
 MNI_ORIGIN = np.asarray([183 - 91, 127, 73]) - 1
@@ -231,7 +232,7 @@ def plot_brain_map(
     space: Literal["surface", "MNI"] = "surface",
     hemisphere: Literal["left", "right"] = "left",
     surface_type: Literal["pial", "inflated"] = "inflated",
-    view: str | tuple[float, float] = "lateral",
+    view: str | tuple[float, float] = (0, 200),
     cmap: str = "cold_hot",
     interpolation: Literal["nearest", "linear", "cubic"] = "nearest",
     layer: Literal["layerB1", "layerB2", "layerB3", "average"] = "average",
