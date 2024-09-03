@@ -104,3 +104,6 @@ class LinearRegression(Regression):
 
     def predict(self: Self, x: torch.Tensor) -> torch.Tensor:
         return x.to(self.coefficients.device) @ self.coefficients + self.intercept
+
+    def weights(self: Self) -> torch.Tensor:
+        return self.coefficients
