@@ -25,6 +25,7 @@ class SGDLinearRegression(Regression):
         num_epoch_tol: int = 10,
         batch_size: int = 1000,
         seed: int = 11,
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ) -> None:
         self._adaptive = adaptive
         self._lr0 = lr
@@ -38,7 +39,7 @@ class SGDLinearRegression(Regression):
         self._num_epoch_tol = num_epoch_tol
         self._batch_size = batch_size
         self._seed = seed
-        self._device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self._device = device
         self._loss_func = nn.MSELoss(reduction="sum")
         self._linear = None
         self._optimizer = None
