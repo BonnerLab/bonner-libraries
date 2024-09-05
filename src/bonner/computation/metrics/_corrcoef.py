@@ -96,6 +96,7 @@ def pearson_r(
     Returns:
     -------
         Pearson correlation coefficients (*, n_features_x, n_features_y)
+
     """
     return _helper(
         x,
@@ -113,14 +114,17 @@ def spearman_r(
     y: torch.Tensor | None = None,
     *,
     return_diagonal: bool = True,
-    correction: bool = 1,
+    correction: int = 1,
     copy: bool = True,
 ) -> torch.Tensor:
     rank_x = x.argsort(dim=0).argsort(dim=0).float()
-    rank_y = y.argsort(dim=0).argsort(dim=0).float()
+
+    if y is not None:
+        rank_y = y.argsort(dim=0).argsort(dim=0).float()
+
     return _helper(
-        x=rank_x,
-        y=rank_y,
+        rank_x,
+        rank_y,
         center=True,
         scale=True,
         correction=correction,
@@ -153,6 +157,7 @@ def covariance(
     Returns:
     -------
         covariance matrix (*, n_features_x, n_features_y)
+
     """
     return _helper(
         x,

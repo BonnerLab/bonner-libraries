@@ -8,8 +8,9 @@ from typing import Any, ParamSpec, Self, TypeVar
 import nibabel as nib
 import numpy as np
 import xarray as xr
-from bonner.caching._handlers import get_handler
 from PIL import Image
+
+from bonner.caching._handlers import get_handler
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -218,8 +219,7 @@ class Cacher:
         path = self.path / identifier
         if path.exists():
             return path
-        else:
-            return None
+        return None
 
     def _get_args(  # type: ignore  # arguments can be Any
         self: Self,

@@ -16,7 +16,7 @@ from bonner.datasets.allen2021_natural_scenes._utilities import (
 )
 from bonner.files import download_from_s3, download_from_url, unzip
 from PIL import Image
-from torchdata.datapipes.map import MapDataPipe
+from torch.utils.data import MapDataPipe
 from tqdm import tqdm
 
 N_STIMULI = 73000

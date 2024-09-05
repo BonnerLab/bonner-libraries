@@ -23,14 +23,15 @@ def download(
         local_path: local path of file or directory
         use_cached: use existing file or re-download, defaults to True
         dir: download all files in the directory if True, defaults to False
+
     """
     s3 = boto3.client("s3")
-    
+
     if is_dir:
         # Download all files in the directory
         if local_path is None:
             local_path = Path(s3_path)
-        
+
         paginator = s3.get_paginator("list_objects_v2")
         response_iterator = paginator.paginate(Bucket=bucket, Prefix=str(s3_path))
 
@@ -38,10 +39,14 @@ def download(
             if "Contents" in page:
                 for obj in page["Contents"]:
                     s3_file_path = obj["Key"]
-                    local_file_path = local_path / Path(s3_file_path).relative_to(s3_path)
-                    
+                    local_file_path = local_path / Path(s3_file_path).relative_to(
+                        s3_path
+                    )
+
                     if (not use_cached) or (not local_file_path.exists()):
-                        logger.debug(f"Downloading {s3_file_path} from S3 bucket {bucket} to {local_file_path}")
+                        logger.debug(
+                            f"Downloading {s3_file_path} from S3 bucket {bucket} to {local_file_path}"
+                        )
                         local_file_path.parent.mkdir(exist_ok=True, parents=True)
                         with local_file_path.open("wb") as f:
                             s3.download_fileobj(bucket, s3_file_path, f)
@@ -56,7 +61,9 @@ def download(
         if local_path is None:
             local_path = s3_path
         if (not use_cached) or (not local_path.exists()):
-            logger.debug(f"Downloading {s3_path} from S3 bucket {bucket} to {local_path}")
+            logger.debug(
+                f"Downloading {s3_path} from S3 bucket {bucket} to {local_path}"
+            )
             local_path.parent.mkdir(exist_ok=True, parents=True)
             with local_path.open("wb") as f:
                 s3.download_fileobj(bucket, str(s3_path), f)
@@ -66,4 +73,3 @@ def download(
                 f" {local_path} instead of downloading {s3_path} from S3 bucket"
                 f" {bucket}",
             )
-

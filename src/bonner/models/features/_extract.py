@@ -6,7 +6,7 @@ import torch
 import xarray as xr
 from bonner.models.hooks import Hook
 from bonner.models.utilities import BONNER_MODELS_HOME
-from torchdata.datapipes.iter import IterDataPipe
+from torch.utils.data import IterDataPipe
 from torchvision.models.feature_extraction import create_feature_extractor
 from tqdm.auto import tqdm
 

@@ -22,7 +22,7 @@
 
 ### BrainIO
 
-The BrainIO format, originally developed by the `Brain-Score team <https://github.com/brain-score>`_, aims to "standardize the exchange of data between experimental and computational neuroscientists" by providing a minimal `specification <https://github.com/brain-score/brainio/blob/main/docs/SPECIFICATION.md>`_ for the data and `tools <https://github.com/brain-score/brainio>`_ for working with that data.
+The BrainIO format, originally developed by the [Brain-Score team](https://github.com/brain-score), aims to "standardize the exchange of data between experimental and computational neuroscientists" by providing a minimal [specification](https://github.com/brain-score/brainio/blob/main/docs/SPECIFICATION.md) for the data and [tools](https://github.com/brain-score/brainio) for working with that data.
 
 However, the reference implementation has some pain points, especially related to the handling of large netCDF-4 files that make it unsuitable for working with large-scale fMRI data. Additionally, though the specification has evolved, the tools have not yet kept pace and occasionally assume unspecified structure in the data.
 
