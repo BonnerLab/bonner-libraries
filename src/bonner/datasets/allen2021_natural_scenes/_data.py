@@ -4,6 +4,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from tqdm.auto import tqdm
+
 from bonner.datasets._utilities import nii
 from bonner.datasets.allen2021_natural_scenes._stimuli import load_nsd_metadata
 from bonner.datasets.allen2021_natural_scenes._utilities import (
@@ -11,7 +13,6 @@ from bonner.datasets.allen2021_natural_scenes._utilities import (
     CACHE_PATH,
 )
 from bonner.files import download_from_s3
-from tqdm.auto import tqdm
 
 RESOLUTION = "1pt8mm"
 PREPROCESSING = "fithrf_GLMdenoise_RR"
@@ -351,7 +352,7 @@ def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
             mapping = (
                 pd.read_csv(
                     CACHE_PATH / filepath,
-                    delim_whitespace=True,
+                    sep=r"\s+",
                     names=("label", "roi"),
                 )
                 .set_index("roi")
