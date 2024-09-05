@@ -2,6 +2,7 @@ import logging
 from typing import Self
 
 import torch
+
 from bonner.computation.regression._utilities import Regression
 
 
@@ -57,6 +58,7 @@ class PLSRegression(Regression):
         y: torch.Tensor,
     ) -> None:
         x = torch.clone(x).to(self.device)
+        # TODO check why x and y are not necessarily on same device
         y = torch.clone(y).to(x.device)
 
         x = x.unsqueeze(dim=-1) if x.ndim == 1 else x
