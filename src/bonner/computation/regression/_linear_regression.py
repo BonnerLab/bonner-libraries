@@ -14,7 +14,8 @@ class LinearRegression(Regression):
         l2_penalty: float | torch.Tensor | None = None,
         rcond: float | None = None,
         driver: str | None = None,
-        allow_ols_on_cuda: bool = False,
+        allow_ols_on_cuda: bool = True,
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ) -> None:
         self.coefficients: torch.Tensor | None = None
         self.intercept: torch.Tensor | None = None
@@ -24,6 +25,7 @@ class LinearRegression(Regression):
         self.rcond = rcond
         self.driver = driver
         self.allow_ols_on_cuda = allow_ols_on_cuda
+        self.device = device
 
     def to(self: Self, device: torch.device | str) -> None:
         if self.coefficients is not None:
@@ -36,7 +38,7 @@ class LinearRegression(Regression):
         x: torch.Tensor,
         y: torch.Tensor,
     ) -> None:
-        x = torch.clone(x)
+        x = torch.clone(x).to(self.device)
         y = torch.clone(y).to(x.device)
 
         x = x.unsqueeze(dim=-1) if x.ndim == 1 else x
@@ -104,3 +106,6 @@ class LinearRegression(Regression):
 
     def predict(self: Self, x: torch.Tensor) -> torch.Tensor:
         return x.to(self.coefficients.device) @ self.coefficients + self.intercept
+
+    def weights(self: Self) -> torch.Tensor:
+        return self.coefficients

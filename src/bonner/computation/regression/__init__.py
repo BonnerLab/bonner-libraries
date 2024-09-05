@@ -6,6 +6,7 @@ __all__ = [
     "regression",
     "regression_cv",
     "create_splits",
+    "create_stratified_splits",
 ]
 
 from bonner.computation.regression._definition import Regression
@@ -14,6 +15,7 @@ from bonner.computation.regression._pls_regression import PLSRegression
 from bonner.computation.regression._sgd_linear_regression import SGDLinearRegression
 from bonner.computation.regression._utilities import (
     create_splits,
+    create_stratified_splits,
     regression,
     regression_cv,
 )

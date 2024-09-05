@@ -1,8 +1,10 @@
 from collections.abc import Collection
+from collections import defaultdict
 
 import numpy as np
 import torch
 from bonner.computation.regression._definition import Regression
+
 
 
 def create_splits(
@@ -19,6 +21,37 @@ def create_splits(
         indices = np.arange(n)
 
     return np.array_split(indices, n_folds)
+
+
+def create_stratified_splits(
+    y: np.ndarray,
+    *,
+    n_folds: int,
+    shuffle: bool,
+    seed: int,
+    balance_first_column_only: bool = True,
+) -> list[np.ndarray]:
+    if not balance_first_column_only:
+        assert y.ndim == 1, "y must be a 1D array if balance_first_column_only is False"
+    rng = np.random.default_rng(seed=seed)
+    if y.ndim > 1:
+        y = y[:, 0]
+    
+    class_indices = defaultdict(list)
+    for idx, label in enumerate(y):
+        class_indices[label].append(idx)
+    
+    if shuffle:
+        for label in class_indices:
+            rng.shuffle(class_indices[label])
+    
+    folds = [[] for _ in range(n_folds)]
+    for label, indices in class_indices.items():
+        split_indices = np.array_split(indices, n_folds)
+        for fold, split in zip(folds, split_indices):
+            fold.extend(split)
+    
+    return [np.array(fold) for fold in folds]
 
 
 def regression(
@@ -65,15 +98,12 @@ def regression_cv(
     y_true, y_predicted = [], []
 
     splits = create_splits(n=y.shape[-2], n_folds=n_folds, shuffle=shuffle, seed=seed)
-    # for indices_test in tqdm(splits, desc="split", leave=False):
     for indices_test in splits:
         y_true_, y_predicted_ = regression(
             model=model,
             x=x,
             y=y,
             indices_test=indices_test,
-            # # TODO: needs change back
-            # train_score=True,
         )
         y_true.append(y_true_)
         y_predicted.append(y_predicted_)

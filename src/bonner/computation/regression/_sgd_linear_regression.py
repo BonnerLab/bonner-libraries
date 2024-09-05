@@ -25,6 +25,7 @@ class SGDLinearRegression(Regression):
         num_epoch_tol: int = 10,
         batch_size: int = 1000,
         seed: int = 11,
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ) -> None:
         self._adaptive = adaptive
         self._lr0 = lr
@@ -38,7 +39,7 @@ class SGDLinearRegression(Regression):
         self._num_epoch_tol = num_epoch_tol
         self._batch_size = batch_size
         self._seed = seed
-        self._device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self._device = device
         self._loss_func = nn.MSELoss(reduction="sum")
         self._linear = None
         self._optimizer = None
@@ -74,7 +75,7 @@ class SGDLinearRegression(Regression):
             elif epoch_loss / best_loss > 1 - self._tol:
                 n_tol += 1
             else:
-                ntol = 0
+                n_tol = 0
                 if epoch_loss < best_loss:
                     best_loss = epoch_loss
 
@@ -126,8 +127,11 @@ class SGDLinearRegression(Regression):
         with torch.no_grad():
             preds = self._linear(x)
         return preds
-        # return preds * self._y_std + self._y_mean
 
+    def weights(self: Self) -> torch.Tensor:
+        assert self._linear is not None
+        return self._linear.weight
+    
     def _initialize_from(self: Self, x: torch.Tensor, y: torch.Tensor) -> None:
         if not self._initialized:
             self._lr = self._lr0

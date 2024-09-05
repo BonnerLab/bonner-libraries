@@ -43,18 +43,20 @@ class PLSRegression(Regression):
         scale: bool = True,
         max_iter: int = 500,
         tol: float = 1e-06,
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ) -> None:
         self.n_components = n_components
         self.scale = scale
         self.max_iter = max_iter
         self.tol = tol
+        self.device = device
 
     def fit(
         self: Self,
         x: torch.Tensor,
         y: torch.Tensor,
     ) -> None:
-        x = torch.clone(x)
+        x = torch.clone(x).to(self.device)
         y = torch.clone(y).to(x.device)
 
         x = x.unsqueeze(dim=-1) if x.ndim == 1 else x
@@ -144,3 +146,6 @@ class PLSRegression(Regression):
 
     def predict(self: Self, x: torch.Tensor) -> torch.Tensor:
         return x.to(self.coefficients.device) @ self.coefficients + self.intercept
+
+    def weights(self) -> torch.Tensor:
+        return self.coefficients
