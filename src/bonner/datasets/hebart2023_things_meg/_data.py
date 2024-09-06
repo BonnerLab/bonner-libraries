@@ -23,11 +23,12 @@ FILE_ID_DICT = {
     "raw": 36827316,
 }
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
+N_SUBJECTS = 4
 
 
 def _download_figshare_file(article_id, file_id, save_path, use_cached=True):
-    # if use_cached and os.path.exists(save_path):
-    #     return
+    if use_cached and os.path.exists(save_path):
+        return
     
     article_url = f"https://api.figshare.com/v2/articles/{article_id}"
     
@@ -74,7 +75,6 @@ def download_dataset(preprocess_type: str = "preprocessed"):
     )
     
     
-
 def load_preprocessed_data(
     subject: int,
     downsample_freq: int = 200,
@@ -106,11 +106,11 @@ def load_preprocessed_data(
             for i in metadata.image_path
         ]
         object = [
-            i.split('_')[0]
+            '_'.join(i.split('_')[:-1])
             for i in img_files
         ]
         data = xr.DataArray(
-            data["preprocessed_eeg_data"],
+            data,
             dims=("object", "neuroid", "time"),
             coords={
                 "object": object,
