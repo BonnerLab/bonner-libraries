@@ -11,6 +11,7 @@ def _helper(
     correction: int = 1,
     return_diagonal: bool = True,
     copy: bool = True,
+    replace_with_ranks: bool = False,
 ) -> torch.Tensor:
     if copy:
         x = torch.clone(x)
@@ -23,6 +24,9 @@ def _helper(
     dim_sample_x, dim_feature_x = x.ndim - 2, x.ndim - 1
     n_samples_x = x.shape[dim_sample_x]
     n_features_x = x.shape[dim_feature_x]
+
+    if replace_with_ranks:
+        x = x.argsort(dim=dim_sample_x).argsort(dim=dim_sample_x).float()
 
     if y is not None:
         if copy:
@@ -49,6 +53,8 @@ def _helper(
                     f" (x={n_features_x}, y={n_features_y})"
                 )
                 raise ValueError(error)
+        if replace_with_ranks:
+            y = y.argsort(dim=dim_sample_y).argsort(dim=dim_sample_y).float()
     else:
         y = x
         dim_sample_y = dim_sample_x
@@ -117,19 +123,15 @@ def spearman_r(
     correction: int = 1,
     copy: bool = True,
 ) -> torch.Tensor:
-    rank_x = x.argsort(dim=0).argsort(dim=0).float()
-
-    if y is not None:
-        rank_y = y.argsort(dim=0).argsort(dim=0).float()
-
     return _helper(
-        rank_x,
-        rank_y,
+        x,
+        y,
         center=True,
         scale=True,
         correction=correction,
         return_diagonal=return_diagonal,
         copy=copy,
+        replace_with_ranks=True,
     )
 
 
