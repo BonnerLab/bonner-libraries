@@ -22,8 +22,16 @@ FILE_ID_DICT = {
     "preprocessed": 39472855,
     "raw": 36827316,
 }
+ROI_DICT = {
+    "occipital": ["MLO", "MRO"],
+    "temporal": ["MLT", "MRT"],
+    "parietal": ["MLP", "MRP"],
+    "frontal": ["MLF", "MRF"],
+    "central": ["MLC", "MRC"],
+}
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 N_SUBJECTS = 4
+
 
 
 def _download_figshare_file(article_id, file_id, save_path, use_cached=True):
@@ -78,7 +86,7 @@ def download_dataset(preprocess_type: str = "preprocessed"):
 def load_preprocessed_data(
     subject: int,
     downsample_freq: int = 200,
-    data_type: str = "exp",
+    data_type: str = "test",
     l_freq: float = None,
     h_freq: float = None,
     tmin: float = -0.1,
@@ -87,7 +95,7 @@ def load_preprocessed_data(
     window_step: (int | float) = None,
     baseline: set[float, float] = None,
     scale: (str | float) = None
-) -> tuple[xr.DataArray, pd.DataFrame]:
+) -> xr.DataArray:
     if downsample_freq == 200:
         download_dataset(preprocess_type="preprocessed")
         x = mne.read_epochs(CACHE_PATH / "preprocessed" / "LOCAL/ocontier/thingsmri/openneuro/THINGS-data/THINGS-MEG/ds004212/derivatives/preprocessed" / 
@@ -124,4 +132,15 @@ def load_preprocessed_data(
         download_dataset(preprocess_type="raw")
         # TODO: implement method using raw-type data
         return None
+    
+
+def roi_index(
+    rois: (str | list[str]),
+    X: xr.DataArray = load_preprocessed_data(subject=1),
+) -> xr.DataArray:
+    if isinstance(rois, str):
+        rois = [rois]
+    rois = np.concatenate([ROI_DICT[r] for r in rois])
+    return [s[:3] in rois for s in X.neuroid.values]
+    
     
