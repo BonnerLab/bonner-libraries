@@ -1,6 +1,9 @@
 __all__ = (
     "concatenate_images",
     "DEFAULT_MATPLOTLIBRC",
+    "DEFAULT_SIZES",
+    "DEFAULT_FONTS",
+    "DEFAULT_FIGURE_OPTIONS",
     "apply_offset",
     "create_centered_diverging_cmap",
     "add_colorbar",
@@ -12,7 +15,12 @@ __all__ = (
 )
 
 from bonner.plotting._colorbar import add_colorbar
-from bonner.plotting._defaults import DEFAULT_MATPLOTLIBRC
+from bonner.plotting._defaults import (
+    DEFAULT_FIGURE_OPTIONS,
+    DEFAULT_FONTS,
+    DEFAULT_MATPLOTLIBRC,
+    DEFAULT_SIZES,
+)
 from bonner.plotting._nilearn import normalize_curv_map
 from bonner.plotting._normalize import create_centered_diverging_cmap
 from bonner.plotting._offsets import apply_offset
