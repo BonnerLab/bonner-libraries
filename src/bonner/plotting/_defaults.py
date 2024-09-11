@@ -47,7 +47,7 @@ DEFAULT_FIGURE_OPTIONS = {
     "savefig.pad_inches": 0,
     "savefig.format": "svg",
     "savefig.transparent": True,
-    "figure.facecolor": "None",
+    "figure.facecolor": "white",
     "axes.facecolor": "None",
     "axes.spines.top": False,
     "axes.spines.right": False,
