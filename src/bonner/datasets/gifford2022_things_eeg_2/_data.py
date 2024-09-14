@@ -81,7 +81,9 @@ def load_preprocessed_data(
     window_size: (int | float) = None,
     window_step: (int | float) = None,
     baseline: set[float, float] = None,
-    scale: (str | float) = None
+    scale: (str | float) = None,
+    # TODO: not having a rois parameter as only preprocessed is implemented
+    **kwargs,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
     if downsample_freq == 100:
         download_dataset(preprocess_type="preprocessed")

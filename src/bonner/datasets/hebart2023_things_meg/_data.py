@@ -94,7 +94,8 @@ def load_preprocessed_data(
     window_size: (int | float) = None,
     window_step: (int | float) = None,
     baseline: set[float, float] = None,
-    scale: (str | float) = None
+    scale: (str | float) = None,
+    rois: (str | list[str]) = None,
 ) -> xr.DataArray:
     if downsample_freq == 200:
         download_dataset(preprocess_type="preprocessed")
@@ -127,6 +128,9 @@ def load_preprocessed_data(
             },
         )
         data = data.assign_coords({"img_files": ("object", img_files)})
+        
+        if rois is not None:
+            data = data.sel(neuroid=roi_index(rois, data))
         return data
     else:
         download_dataset(preprocess_type="raw")
