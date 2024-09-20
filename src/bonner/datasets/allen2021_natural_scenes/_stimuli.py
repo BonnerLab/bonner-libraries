@@ -6,6 +6,10 @@ from typing import Self
 import numpy as np
 import pandas as pd
 import xarray as xr
+from PIL import Image
+from torch.utils.data import MapDataPipe
+from tqdm import tqdm
+
 from bonner.caching import cache
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.datasets.allen2021_natural_scenes._utilities import (
@@ -15,9 +19,6 @@ from bonner.datasets.allen2021_natural_scenes._utilities import (
     N_SUBJECTS,
 )
 from bonner.files import download_from_s3, download_from_url, unzip
-from PIL import Image
-from torch.utils.data import MapDataPipe
-from tqdm import tqdm
 
 N_STIMULI = 73000
 N_OBJECT_CATEGORIES = 91
@@ -46,7 +47,11 @@ def get_coco_to_nsd_mapping() -> dict[int, int]:
     nsd = load_nsd_metadata()
     return {
         coco_id: nsd_id
-        for nsd_id, coco_id in zip(nsd["nsdId"].data, nsd["cocoId"].data, strict=True)
+        for nsd_id, coco_id in zip(
+            int(nsd["nsdId"].to_numpy()),
+            int(nsd["cocoId"].to_numpy()),
+            strict=True,
+        )
     }
 
 
@@ -101,12 +106,12 @@ def load_annotations() -> xr.DataArray:
         dims=("stimulus", "category"),
         coords={
             "stimulus": np.arange(len(n_instances), dtype=np.uint32),
-            "category": categories["name"].data.astype(str),
+            "category": categories["name"].to_numpy().astype(str),
             "supercategory": (
                 "category",
-                categories["supercategory"].data.astype(str),
+                categories["supercategory"].to_numpy().astype(str),
             ),
-            "type": ("category", categories["annotation_type"].data.astype(str)),
+            "type": ("category", categories["annotation_type"].to_numpy().astype(str)),
         },
     )
 
@@ -197,6 +202,8 @@ def load_stimuli() -> xr.DataArray:
                 ),
             },
         )
+        .transpose("stimulus", "channel", "height", "width")
+        .rename("stimuli")
     )
 
 
@@ -208,7 +215,11 @@ class StimulusSet(MapDataPipe):
         self.captions = load_captions()
 
     def __getitem__(self: Self, stimulus: int) -> Image.Image:
-        return Image.fromarray(self.stimuli.sel(stimulus=stimulus).values)
+        return Image.fromarray(
+            self.stimuli.sel(stimulus=stimulus)
+            .transpose("height", "width", "channel")
+            .to_numpy(),
+        )
 
     def __len__(self: Self) -> int:
         return self.stimuli.sizes["stimulus"]
