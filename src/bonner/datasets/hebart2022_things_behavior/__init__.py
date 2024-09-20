@@ -1,6 +1,6 @@
 __all__ = (
     "IDENTIFIER",
-    "load_embeddings"
+    "load_embeddings",
 )
 
 from bonner.datasets.hebart2022_things_behavior._data import (
