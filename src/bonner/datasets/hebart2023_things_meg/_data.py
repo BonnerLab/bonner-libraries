@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from tqdm import tqdm
+from joblib import Parallel, delayed
 
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import untar
@@ -33,6 +34,7 @@ ROI_DICT = {
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 N_SUBJECTS = 4
 N_SESSIONS = 12
+N_JOBS = 6
 FREQ = 1200
 TRIGGER_AMPLITUDE = 64
 TRIGGER_CHANNEL = "UPPT001"
@@ -97,14 +99,13 @@ def setup_paths(meg_dir, session):
             event_paths.append(os.path.join(f'{meg_dir}/ses-{str(session).zfill(2)}/meg/', file))
     run_paths.sort()
     event_paths.sort()
-
     return run_paths, event_paths
 
 def read_raw(curr_path,session,run,participant):
     raw = mne.io.read_raw_ctf(curr_path, preload=True, verbose=False)
     # signal dropout in one run -- replacing values with median
     if participant == '1' and session == 11 and run == 4:  
-        n_samples_exclude   = int(0.2/(1/raw.info['sfreq']))
+        n_samples_exclude = int(0.2/(1/raw.info['sfreq']))
         raw._data[:,np.argmin(np.abs(raw.times-13.4)):np.argmin(np.abs(raw.times-13.4))+n_samples_exclude] = np.repeat(np.median(raw._data,axis=1)[np.newaxis,...], n_samples_exclude, axis=0).T
     elif participant == '2' and session == 10 and run == 2: 
         n_samples_exclude = int(0.2/(1/raw.info['sfreq']))
@@ -120,37 +121,42 @@ def read_events(event_paths,run,raw):
     event_file.fillna(999999,inplace=True)
     events = mne.find_events(raw, stim_channel=TRIGGER_CHANNEL,initial_event=True, verbose=False)
     events = events[events[:,2]==TRIGGER_AMPLITUDE]
-    events[:,0] = event_file['onset'] * 1000
+    # not useful at all...
+    # events[:,0] = event_file['onset'] * 1000
     return events, event_file
 
 def concat_epochs(raw, events, event_file, epochs, tmin, tmax):
     if epochs:
-        epochs_1 = mne.Epochs(raw, events, tmin = tmin, tmax = tmax, picks = 'mag', baseline=None, verbose=False)
+        epochs_1 = mne.Epochs(raw, events, tmin=tmin, tmax=tmax, picks='mag', baseline=None, verbose=False, preload=True,)
         epochs_1.info['dev_head_t'] = epochs.info['dev_head_t']
-        epochs_1.metadata = event_file
+        epochs_1.metadata = event_file[["file_path", "trial_type"]]
         epochs = mne.concatenate_epochs([epochs, epochs_1,], verbose=False)
     else:
-        epochs = mne.Epochs(raw, events, tmin = tmin, tmax = tmax, picks = 'mag', baseline=None, verbose=False)
-        epochs.metadata = event_file
+        epochs = mne.Epochs(raw, events, tmin=tmin, tmax=tmax, picks='mag', baseline=None, verbose=False, preload=True,)
+        epochs.metadata = event_file[["file_path", "trial_type"]]
     return epochs
 
 def baseline_correction(epochs, baseline):
-    baselined_epochs = mne.baseline.rescale(data=epochs.get_data(), times=epochs.times, baseline=baseline, mode='zscore', copy=False, verbose=False)
+    baselined_epochs = mne.baseline.rescale(data=epochs.get_data(copy=False), times=epochs.times, baseline=baseline, mode='zscore', copy=False, verbose=False)
     epochs = mne.EpochsArray(baselined_epochs, epochs.info, epochs.events, epochs.tmin, event_id=epochs.event_id, verbose=False)
     return epochs
     
-def run_preprocessing(meg_dir,session,participant, l_freq, h_freq, tmin, tmax, baseline,):
+def run_preprocessing(meg_dir,session,participant, l_freq, h_freq, tmin, tmax, baseline, downsample_freq,):
     epochs = []
     run_paths, event_paths = setup_paths(meg_dir, session)
     for run, curr_path in enumerate(run_paths):
-        raw = read_raw(curr_path,session,run, participant)
-        events, event_file = read_events(event_paths,run,raw)
-        raw.filter(l_freq=l_freq,h_freq=h_freq, verbose=False)
+        raw = read_raw(curr_path, session, run, participant)
+        events, event_file = read_events(event_paths, run, raw)
+        raw.filter(l_freq=l_freq, h_freq=h_freq, verbose=False)
         epochs = concat_epochs(raw, events, event_file, epochs, tmin, tmax)
         del raw
         epochs.drop_bad()
+    metadata = epochs.metadata
     if baseline:
         epochs = baseline_correction(epochs, baseline)
+    if downsample_freq < FREQ:
+        epochs = epochs.resample(sfreq=downsample_freq)
+    epochs.metadata = metadata
     return epochs
 ######################
     
@@ -165,48 +171,41 @@ def load_preprocessed_data(
     tmax: float = 1.3,
     baseline: set[float, float] = None,
     rois: (str | list[str]) = None,
+    **kwargs
 ) -> xr.DataArray:
     if not from_raw:
         download_dataset(preprocess_type="preprocessed")
         data = mne.read_epochs(CACHE_PATH / "preprocessed" / "LOCAL/ocontier/thingsmri/openneuro/THINGS-data/THINGS-MEG/ds004212/derivatives/preprocessed" / 
         f"preprocessed_P{subject:01d}-epo.fif", preload=True, verbose=False)
         path_column = "image_path"
+        metadata = data.metadata
+        neuroid = data.ch_names
+        times = data.times
+        data = data.get_data(copy=False)
+        epoch_idx = metadata.trial_type == data_type
+        metadata = metadata.loc[epoch_idx]
+        data = data[epoch_idx]
     else:
         raw_path = CACHE_PATH / "raw" / "THINGS-MEG"
         download_dataset(preprocess_type="raw")
         meg_dir = raw_path / f"sub-BIGMEG{subject}/"
         
-        data = []
-        for session in tqdm(range(1, N_SESSIONS+1), desc="session"):
-            epoch = run_preprocessing(meg_dir, session, subject, l_freq, h_freq, tmin, tmax, baseline,)
-            if data:
-                epoch.info['dev_head_t'] = data.info['dev_head_t']
-                data = mne.concatenate_epochs([data, epoch], verbose=False)
-            else:
-                data = epoch
-            del epoch
+        data = Parallel(n_jobs=N_JOBS, backend="multiprocessing")(delayed(run_preprocessing)(meg_dir, session, subject, l_freq, h_freq, tmin, tmax, baseline, downsample_freq,) for session in range(1,N_SESSIONS+1))
+        for epochs in data:
+            epochs.info['dev_head_t'] = data[0].info['dev_head_t']
+        data = mne.concatenate_epochs(epochs_list=data, add_offset=True)
+        metadata = data.metadata
+        neuroid = data.ch_names
+        times = data.times
+        data = data.get_data(copy=False)
         
-        # x = [
-        #     run_preprocessing(meg_dir, session, subject, l_freq, h_freq, tmin, tmax, baseline,)
-        #     for session in tqdm(range(1, N_SESSIONS+1), desc="session")
-        # ]
-        # for epochs in x:
-        #     epochs.info['dev_head_t'] = x[0].info['dev_head_t']
-        # x = mne.concatenate_epochs(epochs_list=x, add_offset=True, verbose=False)
-        
-        if downsample_freq < FREQ:
-            data = data.resample(sfreq=downsample_freq)
+        epoch_idx = metadata.trial_type == data_type
+        metadata = metadata.loc[epoch_idx]
+        data = data[epoch_idx]
         path_column = "file_path"
 
-    metadata = data.metadata
-    neuroid = data.ch_names
-    times = data.times
-    data = data.get_data()
-    epoch_idx = metadata.trial_type == data_type
-    metadata = metadata.loc[epoch_idx]
-    data = data[epoch_idx]
     # temporary fix for time digit fix
-    # times = np.round(x.times, 3)
+    times = np.round(times, 3)
     
     img_files = [
         i.split('/')[-1]
