@@ -7,23 +7,30 @@ import mne
 import numpy as np
 import pandas as pd
 import xarray as xr
+from tqdm import tqdm
+from sklearn.utils import shuffle
 
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import unzip
 from osfclient.api import OSF
+import requests
 
 IDENTIFIER = "gifford2022.things_eeg_2"
 PROJECT_ID_DICT = {
     "preprocessed": "anp5v",
     "images": "y63gw",
 }
+ARTICLE_ID_DICT = {
+    "raw": 18470912,
+}
 METADATA_COLUMNS = ["img_files", "img_concepts", "img_concepts_THINGS"]
 TYPE_DICT = {"train": "training", "test": "test"}
-
-
-
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 N_SUBJECTS = 10
+N_SESSIONS = 4
+FREQ = 1000
+L_FREQ, H_FREQ = 0.1, 100
+SEED = 11
 
 
 def _download_osf_project(project_id, save_path, use_cached=True):
@@ -42,6 +49,37 @@ def _download_osf_project(project_id, save_path, use_cached=True):
             if file_path.endswith('.zip'):
                 file_path = unzip(Path(file_path), extract_dir=save_path)
 
+def _download_figshare_article(article_id, save_path, use_cached=True):
+    if use_cached and os.path.exists(save_path):
+        return
+    
+    article_url = f"https://api.figshare.com/v2/articles/{article_id}"
+    
+    # Get the article metadata
+    response = requests.get(article_url)
+    response.raise_for_status()
+    article_data = response.json()
+    
+    # Find the file in the article metadata
+    file_url = None
+    file_name = None
+    for file_info in article_data['files']:
+        file_url = file_info['download_url']
+        file_name = Path(CACHE_PATH / file_info['name'])
+        
+        os.makedirs(file_name.parent, exist_ok=True)
+        
+        # Download the file
+        file_response = requests.get(file_url, stream=True)
+        file_response.raise_for_status()
+
+        # Save the file to the specified location
+        with open(file_name, 'wb') as file:
+            for chunk in file_response.iter_content(chunk_size=8192):
+                file.write(chunk)
+                
+        if str(file_name).endswith('.zip'):
+            unzip(CACHE_PATH / file_name, extract_dir=save_path)
 
 def download_dataset(preprocess_type: str = "preprocessed"):
     match preprocess_type:
@@ -51,12 +89,14 @@ def download_dataset(preprocess_type: str = "preprocessed"):
                 save_path=CACHE_PATH / preprocess_type
             )
         case "raw":
-            pass
+            _download_figshare_article(
+                article_id=ARTICLE_ID_DICT[preprocess_type],
+                save_path=CACHE_PATH / preprocess_type
+            )
         case "source":
             pass
         case _:
             raise ValueError(f"Invalid data type: {preprocess_type}")
- 
  
 def load_metadata(data_type: str = "train",) -> pd.DataFrame:
     _download_osf_project(
@@ -69,45 +109,130 @@ def load_metadata(data_type: str = "train",) -> pd.DataFrame:
         column: metadata[f"{data_type}_{column}"]
         for column in METADATA_COLUMNS
     })
+
+def baseline_correction(epochs, baseline):
+    baselined_epochs = mne.baseline.rescale(data=epochs.get_data(copy=False), times=epochs.times, baseline=baseline, mode='zscore', copy=False, verbose=False)
+    epochs = mne.EpochsArray(baselined_epochs, epochs.info, epochs.events, epochs.tmin, event_id=epochs.event_id, verbose=False)
+    return epochs
+   
+### adapted from things eeg 2 ###
+def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline,):
+    epoched_data = []
+    img_conditions = []
+    for session in tqdm(range(1, N_SESSIONS+1), desc="session"):
+        raw_path = CACHE_PATH / "raw" / f"sub-{subject:02d}" / f"ses-{session:02d}" / f"raw_eeg_{TYPE_DICT[data_type]}.npy"
+        
+        eeg_data = np.load(raw_path, allow_pickle=True).item()
+        ch_names = eeg_data['ch_names']
+        sfreq = eeg_data['sfreq']
+        ch_types = eeg_data['ch_types']
+        eeg_data = eeg_data['raw_eeg_data']
+        # Convert to MNE raw format
+        info = mne.create_info(ch_names, sfreq, ch_types)
+        raw = mne.io.RawArray(eeg_data, info, verbose=False)
+        del eeg_data
+        
+        if l_freq > L_FREQ:
+            raw.filter(l_freq=l_freq, h_freq=None, verbose=False)
+        if h_freq < H_FREQ:
+            raw.filter(l_freq=None, h_freq=h_freq, verbose=False)
+
+        ### Get events, drop unused channels and reject target trials ###
+        events = mne.find_events(raw, stim_channel='stim', verbose=False)
+        # Select only occipital (O) and posterior (P) channels
+        chan_idx = np.asarray(mne.pick_channels_regexp(raw.info['ch_names'], '^O *|^P *'))
+        new_chans = [raw.info['ch_names'][c] for c in chan_idx]
+        raw.pick_channels(new_chans)
+        # Reject the target trials (event 99999)
+        idx_target = np.where(events[:,2] == 99999)[0]
+        events = np.delete(events, idx_target, 0)
+
+        ### Epoching, baseline correction and resampling ###
+        epochs = mne.Epochs(raw, events, tmin=tmin, tmax=tmax, baseline=None, preload=True, verbose=False)
+        if baseline:
+            epochs = baseline_correction(epochs, baseline)
+        del raw
+        # Resampling
+        if downsample_freq < FREQ:
+            epochs.resample(downsample_freq, verbose=False)
+        ch_names = epochs.info['ch_names']
+        
+        times = epochs.times
+
+        ### Sort the data ###
+        data = epochs.get_data()
+        events = epochs.events[:,2]
+        img_cond = np.unique(events)
+        del epochs
+        # Select only a maximum number of EEG repetitions
+        if data_type == 'test':
+            max_rep = 20
+        else:
+            max_rep = 2
+        # Sorted data matrix of shape:
+        # Image conditions × EEG repetitions × EEG channels × EEG time points
+        sorted_data = np.zeros((len(img_cond),max_rep,data.shape[1],
+            data.shape[2]))
+        for i in range(len(img_cond)):
+            # Find the indices of the selected image condition
+            idx = np.where(events == img_cond[i])[0]
+            # Randomly select only the max number of EEG repetitions
+            idx = shuffle(idx, random_state=SEED, n_samples=max_rep)
+            sorted_data[i] = data[idx]
+        del data
+        epoched_data.append(sorted_data)
+        img_conditions.append(img_cond)
+        del sorted_data
+    
+    epoched_data = np.concatenate(epoched_data, axis=1)
+    idx = shuffle(np.arange(0, epoched_data.shape[1]), random_state=SEED)
+    epoched_data = epoched_data[:,idx]
+    return {
+        'preprocessed_eeg_data': epoched_data,
+        'ch_names': ch_names,
+        'times': times
+    } 
+    
     
 def load_preprocessed_data(
     subject: int,
-    downsample_freq: int = 100,
     data_type: str = "train",
-    l_freq: float = None,
-    h_freq: float = None,
-    tmin: float = -0.2,
+    from_raw: bool = False,
+    downsample_freq: int = 100,
+    l_freq: float = 0.1,
+    h_freq: float = 100,
+    tmin: float = -.2,
     tmax: float = .8,
-    window_size: (int | float) = None,
-    window_step: (int | float) = None,
     baseline: set[float, float] = None,
-    scale: (str | float) = None,
-    # TODO: not having a rois parameter as only preprocessed is implemented
+    # TODO: not having a rois parameter as now fixed to occipital and posterior
     **kwargs,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
-    if downsample_freq == 100:
+    if not from_raw:
         download_dataset(preprocess_type="preprocessed")
-        data = np.load(CACHE_PATH / "preprocessed" / f"sub-{subject:02d}" / f"preprocessed_eeg_{TYPE_DICT[data_type]}.npy", allow_pickle=True).item()
-        metadata = load_metadata(data_type=data_type)
-        object = ["_".join(metadata.loc[i, METADATA_COLUMNS[1]].split("_")[1:]) for i in range(len(metadata))]
-        # temporary fix for time digit fix
-        times = np.round(data["times"], 2)
-        
-        data = xr.DataArray(
-            data["preprocessed_eeg_data"],
-            dims=("object", "presentation", "neuroid", "time"),
-            coords={
-                "object": object,
-                "neuroid": data["ch_names"],
-                "time": times,
-            },
-        )
-        data = data.assign_coords({column: ("object", metadata[column]) for column in METADATA_COLUMNS})
-        return data
+        x = np.load(CACHE_PATH / "preprocessed" / f"sub-{subject:02d}" / f"preprocessed_eeg_{TYPE_DICT[data_type]}.npy", allow_pickle=True).item()
     else:
         download_dataset(preprocess_type="raw")
-        # TODO: implement method using raw-type data
-        return None
+        x = run_preprocessing(
+            subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline,
+        )
+    
+    metadata = load_metadata(data_type=data_type)
+    object = ["_".join(metadata.loc[i, METADATA_COLUMNS[1]].split("_")[1:]) for i in range(len(metadata))]
+    # temporary fix for time digit fix
+    times = np.round(x["times"], 2)
+    
+    data = xr.DataArray(
+        x["preprocessed_eeg_data"],
+        dims=("object", "presentation", "neuroid", "time"),
+        coords={
+            "object": object,
+            "neuroid": x["ch_names"],
+            "time": times,
+        },
+    )
+    data = data.assign_coords({column: ("object", metadata[column]) for column in METADATA_COLUMNS})
+    return data
+   
 
 
 def load_stimuli():
