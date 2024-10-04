@@ -30,6 +30,7 @@ DEFAULT_SIZES = {
     "font.size": 10,
     "figure.figsize": (3, 3),
     "axes.labelsize": "medium",
+    "axes.titlesize": "medium",
     "figure.titlesize": "medium",
     "figure.labelsize": "medium",
     "legend.title_fontsize": "small",
