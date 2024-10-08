@@ -238,6 +238,8 @@ def plot_brain_map(
     layer: Literal["layerB1", "layerB2", "layerB3", "average"] = "average",
     fsaverage_mesh: Literal["fsaverage"] = "fsaverage",
     threshold: float = 1e-3,
+    low: float = 0.25,
+    high: float = 0.5,
     **kwargs,
 ) -> None:
     match interpolation:
@@ -305,8 +307,8 @@ def plot_brain_map(
         colorbar=False,
         bg_map=normalize_curv_map(
             curv_map,
-            low=0.25,
-            high=0.5,
+            low=low,
+            high=high,
         ),
         engine="matplotlib",
         view=view,
