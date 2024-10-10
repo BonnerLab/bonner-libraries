@@ -171,6 +171,7 @@ def load_preprocessed_data(
     tmax: float = 1.3,
     baseline: set[float, float] = None,
     rois: (str | list[str]) = None,
+    return_epochs: bool = False,
     **kwargs
 ) -> xr.DataArray:
     if not from_raw:
@@ -178,13 +179,6 @@ def load_preprocessed_data(
         data = mne.read_epochs(CACHE_PATH / "preprocessed" / "LOCAL/ocontier/thingsmri/openneuro/THINGS-data/THINGS-MEG/ds004212/derivatives/preprocessed" / 
         f"preprocessed_P{subject:01d}-epo.fif", preload=True, verbose=False)
         path_column = "image_path"
-        metadata = data.metadata
-        neuroid = data.ch_names
-        times = data.times
-        data = data.get_data(copy=False)
-        epoch_idx = metadata.trial_type == data_type
-        metadata = metadata.loc[epoch_idx]
-        data = data[epoch_idx]
     else:
         raw_path = CACHE_PATH / "raw" / "THINGS-MEG"
         download_dataset(preprocess_type="raw")
@@ -194,16 +188,29 @@ def load_preprocessed_data(
         for epochs in data:
             epochs.info['dev_head_t'] = data[0].info['dev_head_t']
         data = mne.concatenate_epochs(epochs_list=data, add_offset=True)
-        metadata = data.metadata
-        neuroid = data.ch_names
-        times = data.times
-        data = data.get_data(copy=False)
         
-        epoch_idx = metadata.trial_type == data_type
-        metadata = metadata.loc[epoch_idx]
-        data = data[epoch_idx]
         path_column = "file_path"
 
+    if rois is not None:
+        if isinstance(rois, str):
+            rois = [rois]
+        rois = np.concatenate([ROI_DICT[r] for r in rois])
+        channels = np.array(data.ch_names)
+        channels = channels[np.array([ch[:3] in rois for ch in channels])]
+        data = data.pick(channels)
+    
+    if return_epochs:
+        return data
+    
+    metadata = data.metadata
+    neuroid = data.ch_names
+    times = data.times
+    data = data.get_data(copy=False)
+    
+    epoch_idx = metadata.trial_type == data_type
+    metadata = metadata.loc[epoch_idx]
+    data = data[epoch_idx]
+    
     # temporary fix for time digit fix
     times = np.round(times, 3)
     
@@ -225,18 +232,6 @@ def load_preprocessed_data(
         },
     )
     data = data.assign_coords({"img_files": ("object", img_files)})
-    
-    if rois is not None:
-        data = data.sel(neuroid=roi_index(rois, data))
     return data
-
-def roi_index(
-    rois: (str | list[str]),
-    X: xr.DataArray = load_preprocessed_data(subject=1),
-) -> xr.DataArray:
-    if isinstance(rois, str):
-        rois = [rois]
-    rois = np.concatenate([ROI_DICT[r] for r in rois])
-    return [s[:3] in rois for s in X.neuroid.values]
     
     
