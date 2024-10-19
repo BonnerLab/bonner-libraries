@@ -172,12 +172,19 @@ def load_preprocessed_data(
     baseline: set[float, float] = None,
     rois: (str | list[str]) = None,
     return_epochs: bool = False,
+    tfr_n_bin: int = None,
+    band_stop_n_bin: int = None,
+    average: bool = False,
     **kwargs
 ) -> xr.DataArray:
     if not from_raw:
         download_dataset(preprocess_type="preprocessed")
         data = mne.read_epochs(CACHE_PATH / "preprocessed" / "LOCAL/ocontier/thingsmri/openneuro/THINGS-data/THINGS-MEG/ds004212/derivatives/preprocessed" / 
         f"preprocessed_P{subject:01d}-epo.fif", preload=True, verbose=False)
+        metadata = data.metadata
+        if downsample_freq < FREQ:
+            data = data.resample(sfreq=downsample_freq)
+        data.metadata = metadata
         path_column = "image_path"
     else:
         raw_path = CACHE_PATH / "raw" / "THINGS-MEG"
@@ -188,7 +195,6 @@ def load_preprocessed_data(
         for epochs in data:
             epochs.info['dev_head_t'] = data[0].info['dev_head_t']
         data = mne.concatenate_epochs(epochs_list=data, add_offset=True)
-        
         path_column = "file_path"
 
     if rois is not None:
@@ -198,17 +204,54 @@ def load_preprocessed_data(
         channels = np.array(data.ch_names)
         channels = channels[np.array([ch[:3] in rois for ch in channels])]
         data = data.pick(channels)
+        
+    if tfr_n_bin is not None:
+        freqs = np.logspace(np.log10(4), np.log10(h_freq), tfr_n_bin)
+        data = data.compute_tfr(
+            method="morlet",
+            freqs=freqs,
+            n_cycles=freqs / 2.0,
+            n_jobs=N_JOBS,
+            average=average,
+        )
+    elif band_stop_n_bin is not None:
+        freqs = np.logspace(np.log10(4), np.log10(h_freq), band_stop_n_bin)
+        log_freqs = np.log10(freqs)
+        bin_width = (log_freqs[1] - log_freqs[0]) / 2
+        log_bin_boundaries = np.concatenate([
+            [log_freqs[0] - bin_width],
+            (log_freqs[:-1] + log_freqs[1:]) / 2,
+            [log_freqs[-1] + bin_width]
+        ])
+        bin_boundaries = 10**log_bin_boundaries
+        band_stop_data = []
+        for i in tqdm(range(len(freqs)), desc="freq"):
+            temp = mne.filter.filter_data(
+                data=data.get_data(copy=False),
+                sfreq=data.info['sfreq'],
+                l_freq=bin_boundaries[i+1],
+                h_freq=bin_boundaries[i],
+                n_jobs=-1,
+                verbose=False,
+                method="iir",
+            )
+            band_stop_data.append(temp)
     
     if return_epochs:
+        #  until needed: in the case of band_stop_n_bin is no None, still return the original data
         return data
     
     metadata = data.metadata
     neuroid = data.ch_names
     times = data.times
-    data = data.get_data(copy=False)
-    
     epoch_idx = metadata.trial_type == data_type
     metadata = metadata.loc[epoch_idx]
+    
+    if band_stop_n_bin is None:
+        data = data.get_data(copy=False) if tfr_n_bin is None else data.get_data()
+    else:
+        data = np.stack(band_stop_data, axis=2)
+        del band_stop_data
     data = data[epoch_idx]
     
     # temporary fix for time digit fix
@@ -222,15 +265,28 @@ def load_preprocessed_data(
         '_'.join(i.split('_')[:-1])
         for i in img_files
     ]
-    data = xr.DataArray(
-        data,
-        dims=("object", "neuroid", "time"),
-        coords={
-            "object": object,
-            "neuroid": neuroid,
-            "time": times,
-        },
-    )
+    if tfr_n_bin is None and band_stop_n_bin is None:
+        data = xr.DataArray(
+            data,
+            dims=("object", "neuroid", "time"),
+            coords={
+                "object": object,
+                "neuroid": neuroid,
+                "time": times,
+            },
+        )
+    else:
+        data = xr.DataArray(
+            data,
+            dims=("object", "neuroid", "freq", "time"),
+            coords={
+                "object": object,
+                "neuroid": neuroid,
+                "freq": freqs,
+                "time": times,
+            },
+        )
+    
     data = data.assign_coords({"img_files": ("object", img_files)})
     return data
     
