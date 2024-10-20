@@ -5,8 +5,9 @@ import warnings
 from pathlib import Path
 
 import matplotlib as mpl
-from bonner.files import download_from_url, unzip
 from matplotlib.font_manager import get_font, get_font_names
+
+from bonner.files import download_from_url, unzip
 
 
 def install_newcomputermodern() -> None:
