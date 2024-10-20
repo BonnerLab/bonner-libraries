@@ -174,6 +174,7 @@ def load_preprocessed_data(
     return_epochs: bool = False,
     tfr_n_bin: int = None,
     band_stop_n_bin: int = None,
+    band_stop: list[float, float] = None,
     average: bool = False,
     **kwargs
 ) -> xr.DataArray:
@@ -181,10 +182,8 @@ def load_preprocessed_data(
         download_dataset(preprocess_type="preprocessed")
         data = mne.read_epochs(CACHE_PATH / "preprocessed" / "LOCAL/ocontier/thingsmri/openneuro/THINGS-data/THINGS-MEG/ds004212/derivatives/preprocessed" / 
         f"preprocessed_P{subject:01d}-epo.fif", preload=True, verbose=False)
-        metadata = data.metadata
         if downsample_freq < FREQ:
             data = data.resample(sfreq=downsample_freq)
-        data.metadata = metadata
         path_column = "image_path"
     else:
         raw_path = CACHE_PATH / "raw" / "THINGS-MEG"
@@ -196,6 +195,15 @@ def load_preprocessed_data(
             epochs.info['dev_head_t'] = data[0].info['dev_head_t']
         data = mne.concatenate_epochs(epochs_list=data, add_offset=True)
         path_column = "file_path"
+        
+    if band_stop is not None:
+        data = data.filter(
+            l_freq=band_stop[1],
+            h_freq=band_stop[0], 
+            n_jobs=-1,
+            verbose=False,
+            method="iir",
+        )
 
     if rois is not None:
         if isinstance(rois, str):
