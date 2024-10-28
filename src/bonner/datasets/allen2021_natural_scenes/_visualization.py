@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Literal
 
+import gpytoolbox
 import nibabel as nib
 import numpy as np
 import xarray as xr
@@ -237,9 +238,10 @@ def plot_brain_map(
     interpolation: Literal["nearest", "linear", "cubic"] = "nearest",
     layer: Literal["layerB1", "layerB2", "layerB3", "average"] = "average",
     fsaverage_mesh: Literal["fsaverage"] = "fsaverage",
-    threshold: float = 1e-3,
+    threshold: float | None = None,
     low: float = 0.25,
     high: float = 0.5,
+    decimate: float = 1,
     **kwargs,
 ) -> None:
     match interpolation:
@@ -267,10 +269,12 @@ def plot_brain_map(
                     label="curv",
                 ),
             )
-            surf_mesh = load_surface_mesh(
-                subject=subject,
-                hemisphere=hemisphere,
-                label=surface_type,
+            surf_mesh = load_surf_mesh(
+                load_surface_mesh(
+                    subject=subject,
+                    hemisphere=hemisphere,
+                    label=surface_type,
+                ),
             )
         case "MNI":
             mni = transform_data_to_mni(
@@ -298,10 +302,24 @@ def plot_brain_map(
         case _:
             raise ValueError
 
+    coordinates, faces = surf_mesh.coordinates, surf_mesh.faces
+
+    if decimate < 1:
+        coordinates, faces, _, coordinate_filter = gpytoolbox.decimate(
+            coordinates,
+            faces,
+        )
+        coordinate_filter = np.isin(
+            np.arange(len(surf_mesh.coordinates)),
+            coordinate_filter,
+        )
+        stat_map = stat_map[coordinate_filter]
+        curv_map = curv_map[coordinate_filter]
+
     _ = plot_surf_stat_map(
         axes=ax,
         stat_map=stat_map,
-        surf_mesh=surf_mesh,
+        surf_mesh=[coordinates, faces],
         hemi=hemisphere,
         threshold=threshold,
         colorbar=False,
@@ -315,6 +333,8 @@ def plot_brain_map(
         cmap=cmap,
         **kwargs,
     )
+    ax.set_xlim(coordinates[:, 0].min(), coordinates[:, 0].max())
+    ax.set_ylim(coordinates[:, 1].min(), coordinates[:, 1].max())
 
 
 def plot_rois(
