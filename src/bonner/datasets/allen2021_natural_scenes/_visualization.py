@@ -109,7 +109,7 @@ def convert_ndarray_to_nifti1image(
     return nib.nifti1.Nifti1Image(data, affine, header)
 
 
-def _postprocess_surface_transform(
+def postprocess_surface_transform(
     coordinates: np.ndarray,
 ) -> tuple[np.ndarray, xr.DataArray]:
     coordinates = np.squeeze(coordinates).transpose()  # flatten 3D to 1D
@@ -121,7 +121,7 @@ def _postprocess_surface_transform(
     return coordinates, good_voxels
 
 
-def _postprocess_mni_transform(
+def postprocess_mni_transform(
     coordinates: np.ndarray,
     *,
     volume: np.ndarray,
@@ -170,7 +170,7 @@ def transform_data_to_mni(
         suffix=".nii.gz",
     )
     shape = coordinates.shape[:-1]
-    coordinates, good_voxels = _postprocess_mni_transform(
+    coordinates, good_voxels = postprocess_mni_transform(
         coordinates,
         volume=volume,
     )
@@ -208,7 +208,7 @@ def transform_data_to_surface(
                 target_space=layer,
                 suffix=".mgz",
             )
-            coordinates, good_voxels = _postprocess_surface_transform(coordinates)
+            coordinates, good_voxels = postprocess_surface_transform(coordinates)
 
             surface[hemisphere][layer] = map_coordinates(
                 np.nan_to_num(volume.astype(np.float64), nan=0),

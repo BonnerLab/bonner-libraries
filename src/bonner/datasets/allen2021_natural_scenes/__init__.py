@@ -21,6 +21,9 @@ __all__ = [
     "load_surface_roi",
     "load_surface_mesh",
     "plot_brain_map",
+    "load_transformation",
+    "postprocess_mni_transform",
+    "postprocess_surface_transform",
 ]
 
 from bonner.datasets.allen2021_natural_scenes._data import (
@@ -46,7 +49,10 @@ from bonner.datasets.allen2021_natural_scenes._visualization import (
     convert_ndarray_to_nifti1image,
     load_surface_mesh,
     load_surface_roi,
+    load_transformation,
     plot_brain_map,
+    postprocess_mni_transform,
+    postprocess_surface_transform,
     reshape_dataarray_to_brain,
     transform_data_to_mni,
     transform_data_to_surface,
