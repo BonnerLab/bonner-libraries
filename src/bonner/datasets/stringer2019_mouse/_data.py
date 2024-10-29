@@ -3,11 +3,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from PIL import Image
+from scipy.io import loadmat
+
 from bonner.datasets.stringer2019_mouse._utilities import CACHE_PATH
 from bonner.files import download_from_url
 from bonner.files._figshare import get_url_dict
-from PIL import Image
-from scipy.io import loadmat
 
 FIGSHARE_ARTICLE_ID = 6845348
 

@@ -1,6 +1,7 @@
 import xarray as xr
-from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from scipy.sparse.linalg import eigsh
+
+from bonner.datasets._utilities import BONNER_DATASETS_HOME
 
 IDENTIFIER = "stringer2019.mouse"
 SESSIONS = (
