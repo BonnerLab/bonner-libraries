@@ -11,8 +11,7 @@ def derange(
 ) -> np.ndarray[int]:
     rng = np.random.default_rng(seed=seed)
 
-    if batch_size > n_derangements:
-        batch_size = n_derangements
+    batch_size = min(batch_size, n_derangements)
 
     derangements = np.zeros((0, n), dtype=np.uint64)
     while len(derangements) < n_derangements:
@@ -33,7 +32,7 @@ def permutation_test(
     samples: np.ndarray,
     null_distribution: np.ndarray,
     tail: str = "both",
-) -> npt.NDArray[np.float_]:
+) -> npt.NDArray[np.float64]:
     n = len(null_distribution)
     match tail:
         case "left":

@@ -43,17 +43,17 @@ class NetworkHandler(ABC):
 
 
 class LocalHandler(NetworkHandler):
-    def upload(self: Self, local_path: Path, remote_url: str) -> None:
+    def upload(self: Self, *, local_path: Path, remote_url: str) -> None:
         shutil.copy(local_path, Path(urlparse(remote_url).path))
 
-    def download(self: Self, local_path: Path, remote_url: str | None) -> None:
+    def download(self: Self, *, local_path: Path, remote_url: str | None) -> None:
         shutil.copy(Path(urlparse(remote_url).path), local_path)
 
 
 class RsyncHandler(NetworkHandler):
     """Uses Rsync to upload and download files to/from a networked server."""
 
-    def upload(self: Self, local_path: Path, remote_url: str) -> None:
+    def upload(self: Self, *, local_path: Path, remote_url: str) -> None:
         """Upload a file to the remote using Rsync.
 
         Args:
@@ -83,7 +83,7 @@ class RsyncHandler(NetworkHandler):
             check=True,
         )
 
-    def download(self: Self, local_path: Path, remote_url: str) -> None:
+    def download(self: Self, *, local_path: Path, remote_url: str) -> None:
         """Download a file from the remote using Rsync.
 
         Args:
@@ -102,7 +102,7 @@ class RsyncHandler(NetworkHandler):
 class S3Handler(NetworkHandler):
     """Upload and download files to/from Amazon S3."""
 
-    def upload(self: Self, local_path: Path, remote_url: str) -> None:
+    def upload(self: Self, *, local_path: Path, remote_url: str) -> None:
         """Upload a file to an S3 bucket.
 
         Args:
@@ -114,7 +114,7 @@ class S3Handler(NetworkHandler):
         client = boto3.client("s3")
         client.upload_file(str(local_path), remote_url)
 
-    def download(self: Self, local_path: Path, remote_url: str) -> None:
+    def download(self: Self, *, local_path: Path, remote_url: str) -> None:
         """Download a file from an S3 bucket.
 
         Args:

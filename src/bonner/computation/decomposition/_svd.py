@@ -47,6 +47,9 @@ def _svd_flip(
             )
         case 2:
             signs = torch.sign(u[..., max_abs_cols, range(u.shape[-1])])
+        case _:
+            error = "`u` must be 2- or 3-dimensional"
+            raise ValueError(error)
 
     u *= signs.unsqueeze(-2)
     v_h *= signs.unsqueeze(-1)

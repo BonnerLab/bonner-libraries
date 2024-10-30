@@ -14,6 +14,7 @@ def install_newcomputermodern() -> None:
     if platform.system() != "Linux":
         warnings.warn(
             "NewComputerModernMath font can only be installed automatically on Linux",
+            stacklevel=2,
         )
         return
 

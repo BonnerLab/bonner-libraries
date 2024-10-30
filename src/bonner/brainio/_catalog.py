@@ -4,6 +4,8 @@ from typing import Self
 
 import pandas as pd
 import xarray as xr
+from loguru import logger
+
 from bonner.brainio._network import fetch, send
 from bonner.brainio._utilities import (
     BONNER_BRAINIO_HOME,
@@ -12,7 +14,6 @@ from bonner.brainio._utilities import (
     validate_data_assembly,
     validate_stimulus_set,
 )
-from loguru import logger
 
 
 class Catalog:

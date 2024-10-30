@@ -7,13 +7,10 @@ def linear_kernel(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     return x @ y.transpose(-2, -1)
 
 
-def hsic(k: torch.Tensor, l: torch.Tensor) -> torch.Tensor:
-    n = k.shape[0]
+def hsic(k_x: torch.Tensor, k_y: torch.Tensor) -> torch.Tensor:
+    n = k_x.shape[0]
     h = torch.eye(n) - torch.ones((n, n)) / n
-
-    kh = torch.linalg.matmul(k, h)
-    lh = torch.linalg.matmul(l, h)
-    return torch.trace(kh @ lh) / ((n - 1) ** 2)
+    return torch.trace((k_x @ h) @ (k_y @ h)) / ((n - 1) ** 2)
 
 
 def cka(
@@ -21,6 +18,5 @@ def cka(
     y: torch.Tensor,
     kernel: Callable = linear_kernel,
 ) -> torch.Tensor:
-    k = kernel(x, x)
-    l = kernel(y, y)
-    return hsic(k, l) / torch.sqrt(hsic(k, k) * hsic(l, l))
+    k_x, k_y = kernel(x, x), kernel(y, y)
+    return hsic(k_x, k_y) / torch.sqrt(hsic(k_x, k_x) * hsic(k_y, k_y))

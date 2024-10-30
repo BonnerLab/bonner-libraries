@@ -1,3 +1,3 @@
-__all__ = ["Catalog"]
+__all__ = ("Catalog",)
 
 from bonner.brainio._catalog import Catalog

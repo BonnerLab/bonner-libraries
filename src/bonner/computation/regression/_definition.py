@@ -12,7 +12,7 @@ class Regression(ABC):
     @abstractmethod
     def predict(self: Self, x: torch.Tensor) -> torch.Tensor:
         pass
-    
+
     @abstractmethod
     def weights(self: Self) -> torch.Tensor:
         pass

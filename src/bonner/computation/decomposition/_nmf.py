@@ -1,5 +1,5 @@
 import pickle
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Self
 
@@ -22,16 +22,15 @@ class AsgMuNmf(Dataset):
     def __len__(self: Self) -> int:
         return self.n_samples
 
-    def __getitem__(self: Self, idx):
+    def __getitem__(self: Self, idx: int):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         return idx
 
-    def collate_samples(self: Self, indices):
-        indices = np.array(indices, dtype=np.int64)
-        rows = torch.from_numpy(self.data[indices, :].toarray())
-        indices = torch.from_numpy(indices).long()
-        return rows, indices
+    def collate_samples(self: Self, indices: Sequence[int]):
+        indices_ = np.array(indices, dtype=np.int64)
+        rows = torch.from_numpy(self.data[indices_, :].toarray())
+        return rows, torch.from_numpy(indices_).long()
 
     def fit_transform(
         self: Self,

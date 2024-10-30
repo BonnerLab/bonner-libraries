@@ -53,54 +53,63 @@ def validate_catalog(path: Path) -> None:
             raise ValueError(error)
 
     for column in catalog.columns:
-        assert re.match(r"^[a-z0-9_]+$", column), (
-            f"The column header '{column}' of the Catalog CSV file {path} MUST contain"
-            " only lowercase alphabets, digits, and underscores"
-        )
+        if not re.match(r"^[a-z0-9_]+$", column):
+            error = (
+                f"The column header '{column}' of the Catalog CSV file {path} MUST contain"
+                " only lowercase alphabets, digits, and underscores"
+            )
+            raise ValueError(error)
 
     if catalog.empty:
         return
 
     for column in ("identifier", "stimulus_set_identifier"):
-        assert catalog.dtypes[column] == "O", (
-            f"The column '{column}' of the Catalog CSV file {path} MUST have string"
-            " entries"
-        )
+        if catalog.dtypes[column] != "O":
+            error = (
+                f"The column '{column}' of the Catalog CSV file {path} MUST have string"
+                " entries"
+            )
+            raise ValueError(error)
 
     for sha1 in catalog["sha1"]:
-        assert (
-            re.match(r"^[a-fA-F0-9]+$", sha1) and len(sha1) == 40
-        ), f"The SHA1 hash {sha1} in the Catalog CSV file {path} is invalid"
+        if not (re.match(r"^[a-fA-F0-9]+$", sha1) and len(sha1) == 40):
+            error = f"The SHA1 hash {sha1} in the Catalog CSV file {path} is invalid"
+            raise ValueError(error)
 
-    assert (
+    if not (
         catalog.loc[catalog["lookup_type"] == "assembly"]
         .groupby("identifier")
         .count()["sha1"]
         == 1
-    ).all(), (
-        "Each Data Assembly MUST have exactly 1 corresponding row in the Catalog CSV"
-        f" file {path}"
-    )
-    assert (
+    ).all():
+        error = (
+            "Each Data Assembly MUST have exactly 1 corresponding row in the Catalog CSV"
+            f" file {path}"
+        )
+        raise ValueError(error)
+
+    if not (
         catalog.loc[catalog["lookup_type"] == "stimulus_set"]
         .groupby("identifier")
         .count()["sha1"]
         == 2
-    ).all(), (
-        "Each Stimulus Set MUST have exactly 2 corresponding rows in the Catalog CSV"
-        f" file {path}"
-    )
+    ).all():
+        error = (
+            "Each Stimulus Set MUST have exactly 2 corresponding rows in the Catalog CSV"
+            f" file {path}"
+        )
+        raise ValueError(error)
 
-    assert (
-        catalog["sha1"].is_unique
-    ), f"The 'sha1' column of the Catalog CSV file {path} MUST contain unique entries"
+    if not catalog["sha1"].is_unique:
+        error = f"The 'sha1' column of the Catalog CSV file {path} MUST contain unique entries"
+        raise ValueError(error)
 
-    assert set(catalog["lookup_type"].unique()).issubset(
-        {"assembly", "stimulus_set"},
-    ), (
-        f"The values of the 'lookup_type' column of the Catalog CSV file {path} MUST be"
-        " either 'assembly' or 'stimulus_set'"
-    )
+    if not set(catalog["lookup_type"].unique()).issubset({"assembly", "stimulus_set"}):
+        error = (
+            f"The values of the 'lookup_type' column of the Catalog CSV file {path} MUST be"
+            " either 'assembly' or 'stimulus_set'"
+        )
+        raise ValueError(error)
 
 
 def validate_data_assembly(path: Path) -> None:
@@ -116,15 +125,19 @@ def validate_data_assembly(path: Path) -> None:
     assembly = xr.open_dataset(path)
 
     for required_attribute in ("identifier", "stimulus_set_identifier"):
-        assert required_attribute in assembly.attrs, (
-            f"'{required_attribute}' MUST be a global attribute of the Data Assembly"
-            f" netCDF-4 file {path}"
-        )
+        if required_attribute not in assembly.attrs:
+            error = (
+                f"'{required_attribute}' MUST be a global attribute of the Data Assembly"
+                f" netCDF-4 file {path}"
+            )
+            raise ValueError(error)
 
-        assert isinstance(assembly.attrs[required_attribute], str), (
-            f"The '{required_attribute} global attribute of the Data Assembly netCDF-4"
-            f" file {path} MUST be a string"
-        )
+        if not isinstance(assembly.attrs[required_attribute], str):
+            error = (
+                f"The '{required_attribute} global attribute of the Data Assembly netCDF-4"
+                f" file {path} MUST be a string"
+            )
+            raise TypeError(error)
 
 
 def validate_stimulus_set(*, path_csv: Path, path_zip: Path) -> None:
@@ -138,43 +151,57 @@ def validate_stimulus_set(*, path_csv: Path, path_zip: Path) -> None:
         path_zip: path to the Stimulus Set ZIP file
 
     """
-    assert (
+    if not (
         pd.read_csv(
             path_csv,
             nrows=1,
         ).columns.is_unique
-    ), f"The column headers of the Stimulus Set CSV file {path_csv} MUST be unique"
+    ):
+        error = (
+            f"The column headers of the Stimulus Set CSV file {path_csv} MUST be unique"
+        )
+        raise ValueError(error)
 
     file_csv = pd.read_csv(path_csv)
     for column in ("stimulus_id", "filename"):
-        assert (
-            column in file_csv.columns
-        ), f"'{column}' MUST be a column of the Stimulus Set CSV file {path_csv}"
+        if column not in file_csv.columns:
+            error = (
+                f"'{column}' MUST be a column of the Stimulus Set CSV file {path_csv}"
+            )
+            raise ValueError(error)
 
-        assert file_csv[column].is_unique, (
-            f"The '{column}' column of the Stimulus Set CSV file {path_csv} MUST"
-            " contain unique entries"
-        )
+        if not file_csv[column].is_unique:
+            error = (
+                f"The '{column}' column of the Stimulus Set CSV file {path_csv} MUST"
+                " contain unique entries"
+            )
+            raise ValueError(error)
 
     for column in file_csv.columns:
-        assert re.match(r"^[a-z0-9_]+$", column), (
-            f"The column header '{column}' of the Stimulus Set CSV file {path_csv} MUST"
-            " contain only lowercase alphabets, digits, and underscores"
-        )
+        if not re.match(r"^[a-z0-9_]+$", column):
+            error = (
+                f"The column header '{column}' of the Stimulus Set CSV file {path_csv} MUST"
+                " contain only lowercase alphabets, digits, and underscores"
+            )
+            raise ValueError(error)
 
     for stimulus_id in file_csv["stimulus_id"]:
-        assert re.match(r"^[a-zA-z0-9]+$", stimulus_id), (
-            f"The {stimulus_id} entry in the 'stimulus_id' column of the Stimulus Set"
-            f" CSV file {path_csv} MUST be alphanumeric"
-        )
+        if not re.match(r"^[a-zA-z0-9]+$", stimulus_id):
+            error = (
+                f"The {stimulus_id} entry in the 'stimulus_id' column of the Stimulus Set"
+                f" CSV file {path_csv} MUST be alphanumeric"
+            )
+            raise ValueError(error)
 
     with zipfile.ZipFile(path_zip, mode="r") as f:
-        assert set(file_csv["filename"]).issubset(
+        if not set(file_csv["filename"]).issubset(
             {zipinfo.filename for zipinfo in f.infolist()},
-        ), (
-            "All the filepaths in the 'filename' column of the Stimulus Set CSV file"
-            f" {path_csv} MUST be present in the Stimulus Set ZIP archive {path_zip}"
-        )
+        ):
+            error = (
+                "All the filepaths in the 'filename' column of the Stimulus Set CSV file"
+                f" {path_csv} MUST be present in the Stimulus Set ZIP archive {path_zip}"
+            )
+            raise ValueError(error)
 
 
 def compute_sha1(path: Path) -> str:

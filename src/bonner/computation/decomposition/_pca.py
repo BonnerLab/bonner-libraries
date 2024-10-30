@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from typing import Self
 
 import torch
+
 from bonner.computation.decomposition._svd import svd
 
 

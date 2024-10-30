@@ -1,10 +1,10 @@
-from collections.abc import Collection
 from collections import defaultdict
+from collections.abc import Collection
 
 import numpy as np
 import torch
-from bonner.computation.regression._definition import Regression
 
+from bonner.computation.regression._definition import Regression
 
 
 def create_splits(
@@ -36,21 +36,21 @@ def create_stratified_splits(
     rng = np.random.default_rng(seed=seed)
     if y.ndim > 1:
         y = y[:, 0]
-    
+
     class_indices = defaultdict(list)
     for idx, label in enumerate(y):
         class_indices[label].append(idx)
-    
+
     if shuffle:
         for label in class_indices:
             rng.shuffle(class_indices[label])
-    
+
     folds = [[] for _ in range(n_folds)]
     for label, indices in class_indices.items():
         split_indices = np.array_split(indices, n_folds)
-        for fold, split in zip(folds, split_indices):
+        for fold, split in zip(folds, split_indices, strict=False):
             fold.extend(split)
-    
+
     return [np.array(fold) for fold in folds]
 
 
