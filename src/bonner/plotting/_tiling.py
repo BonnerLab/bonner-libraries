@@ -1,5 +1,6 @@
 import functools
 from collections.abc import Sequence
+from typing import Literal
 
 from PIL import Image
 
@@ -88,7 +89,7 @@ def concatenate_images(
     second: Image.Image,
     /,
     *,
-    direction: str,
+    direction: Literal["horizontal", "vertical"],
     overlap: float = 0,
     reverse_zorder: bool = False,
     color: str | None = "white",
