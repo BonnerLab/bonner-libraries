@@ -25,7 +25,7 @@ MNI_RESOLUTION = 1
 
 def normalize_hemisphere(
     hemisphere: Literal["left", "right", "lh", "rh", "l", "r"],
-) -> str:
+) -> Literal["lh", "rh"]:
     match hemisphere.lower():
         case "left" | "l" | "lh":
             return "lh"
@@ -233,7 +233,7 @@ def plot_brain_map(
     space: Literal["surface", "MNI"] = "surface",
     hemisphere: Literal["left", "right"] = "left",
     surface_type: Literal["pial", "inflated"] = "inflated",
-    view: str | tuple[float, float] = (0, 200),
+    view: str | tuple[float, float] = "lateral",
     cmap: str = "cold_hot",
     interpolation: Literal["nearest", "linear", "cubic"] = "nearest",
     layer: Literal["layerB1", "layerB2", "layerB3", "average"] = "average",
@@ -242,6 +242,7 @@ def plot_brain_map(
     low: float = 0.25,
     high: float = 0.5,
     decimate: float = 1,
+    adjust_limits: bool = False,
     **kwargs,
 ) -> None:
     match interpolation:
@@ -333,8 +334,9 @@ def plot_brain_map(
         cmap=cmap,
         **kwargs,
     )
-    ax.set_xlim(coordinates[:, 0].min(), coordinates[:, 0].max())
-    ax.set_ylim(coordinates[:, 1].min(), coordinates[:, 1].max())
+    if adjust_limits:
+        ax.set_xlim(coordinates[:, 0].min(), coordinates[:, 0].max())
+        ax.set_ylim(coordinates[:, 1].min(), coordinates[:, 1].max())
 
 
 def plot_rois(
