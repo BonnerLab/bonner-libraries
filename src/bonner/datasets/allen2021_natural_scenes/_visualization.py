@@ -348,6 +348,7 @@ def plot_rois(
     surface_type: Literal["inflated", "pial"] = "inflated",
     view: Literal["lateral", "medial", "ventral"] | tuple[int, int] = "lateral",
     cmap: str = "rocket",
+    **kwargs,
 ) -> None:
     _ = plot_surf_roi(
         axes=ax,
@@ -364,6 +365,7 @@ def plot_rois(
             load_surf_data(
                 load_surface_mesh(subject=subject, hemisphere=hemisphere, label="curv"),
             ),
+            **kwargs,
         ),
         engine="matplotlib",
         view=view,
