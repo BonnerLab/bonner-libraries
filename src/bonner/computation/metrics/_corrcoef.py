@@ -168,3 +168,37 @@ def covariance(
         return_diagonal=return_diagonal,
         copy=copy,
     )
+    
+
+def cosine_similarity(
+    x: torch.Tensor,
+    y: torch.Tensor | None = None,
+    /,
+    *,
+    return_diagonal: bool = True,
+    copy: bool = True,
+) -> torch.Tensor:
+    """Compute cosine similarity.
+
+    x and y optionally take a batch dimension (either x or y, or both; in the former case, the pairwise cosine similarities are broadcasted along the batch dimension). If x and y are both specified, pairwise similarities between the columns of x and those of y are computed.
+
+    Args:
+    ----
+        x: a tensor of shape (*, n_samples, n_features) or (n_samples,)
+        y: an optional tensor of shape (*, n_samples, n_features) or (n_samples,), defaults to None
+        return_diagonal: when both x and y are specified and have corresponding features (i.e. equal n_features), returns only the (*, n_features) diagonal of the (*, n_features, n_features) pairwise similarity matrix, defaults to True
+        copy: whether to copy x and y (otherwise, values may be mutated)
+
+    Returns:
+    -------
+        Cosine similarity matrix (*, n_features_x, n_features_y)
+
+    """
+    return _helper(
+        x,
+        y,
+        center=False,
+        scale=True,
+        return_diagonal=return_diagonal,
+        copy=copy,
+    )

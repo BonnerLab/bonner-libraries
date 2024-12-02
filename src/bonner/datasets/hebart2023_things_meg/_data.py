@@ -176,6 +176,7 @@ def load_preprocessed_data(
     band_stop_n_bin: int = None,
     band_stop: list[float, float] = None,
     average: bool = False,
+    zscore: bool = False,
     **kwargs
 ) -> xr.DataArray:
     if not from_raw:
@@ -273,6 +274,12 @@ def load_preprocessed_data(
         '_'.join(i.split('_')[:-1])
         for i in img_files
     ]
+    
+    if zscore:
+        mean = np.mean(data, axis=0, keepdims=True)
+        std = np.std(data, axis=0, keepdims=True)
+        data = (data - mean) / std
+    
     if tfr_n_bin is None and band_stop_n_bin is None:
         data = xr.DataArray(
             data,

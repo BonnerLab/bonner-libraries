@@ -9,6 +9,7 @@ import pandas as pd
 import xarray as xr
 from tqdm import tqdm
 from sklearn.utils import shuffle
+from collections import Counter
 
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import unzip
@@ -31,6 +32,7 @@ N_SESSIONS = 4
 FREQ = 1000
 L_FREQ, H_FREQ = 0.1, 100
 SEED = 11
+N_JOBS = 6
 
 
 def _download_osf_project(project_id, save_path, use_cached=True):
@@ -116,10 +118,11 @@ def baseline_correction(epochs, baseline):
     return epochs
    
 ### adapted from things eeg 2 ###
-def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline,):
+def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline, tfr_n_bin, band_stop_n_bin, band_stop,):
     epoched_data = []
     img_conditions = []
-    for session in tqdm(range(1, N_SESSIONS+1), desc="session"):
+    events_list = []
+    for session in range(1, N_SESSIONS+1):
         raw_path = CACHE_PATH / "raw" / f"sub-{subject:02d}" / f"ses-{session:02d}" / f"raw_eeg_{TYPE_DICT[data_type]}.npy"
         
         eeg_data = np.load(raw_path, allow_pickle=True).item()
@@ -142,7 +145,7 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
         # Select only occipital (O) and posterior (P) channels
         chan_idx = np.asarray(mne.pick_channels_regexp(raw.info['ch_names'], '^O *|^P *'))
         new_chans = [raw.info['ch_names'][c] for c in chan_idx]
-        raw.pick_channels(new_chans)
+        raw.pick(new_chans)
         # Reject the target trials (event 99999)
         idx_target = np.where(events[:,2] == 99999)[0]
         events = np.delete(events, idx_target, 0)
@@ -155,12 +158,61 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
         # Resampling
         if downsample_freq < FREQ:
             epochs.resample(downsample_freq, verbose=False)
-        ch_names = epochs.info['ch_names']
         
+        if band_stop is not None:
+            epochs = epochs.filter(
+                l_freq=band_stop[1],
+                h_freq=band_stop[0], 
+                n_jobs=-1,
+                verbose=False,
+                method="iir",
+            )
+            
+        if tfr_n_bin is not None:
+            freqs = np.logspace(np.log10(4), np.log10(h_freq), tfr_n_bin)
+            epochs = epochs.compute_tfr(
+                method="morlet",
+                freqs=freqs,
+                n_cycles=freqs / 2.0,
+                n_jobs=N_JOBS,
+                verbose=False,
+            )
+            data = epochs.get_data()
+        elif band_stop_n_bin is not None:
+            freqs = np.logspace(np.log10(4), np.log10(h_freq), band_stop_n_bin)
+            log_freqs = np.log10(freqs)
+            bin_width = (log_freqs[1] - log_freqs[0]) / 2
+            log_bin_boundaries = np.concatenate([
+                [log_freqs[0] - bin_width],
+                (log_freqs[:-1] + log_freqs[1:]) / 2,
+                [log_freqs[-1] + bin_width]
+            ])
+            bin_boundaries = 10**log_bin_boundaries
+            data = []
+            for i in tqdm(range(len(freqs)), desc="freq"):
+                temp = mne.filter.filter_data(
+                    data=epochs.get_data(copy=False),
+                    sfreq=epochs.info['sfreq'],
+                    l_freq=bin_boundaries[i+1],
+                    h_freq=bin_boundaries[i],
+                    n_jobs=-1,
+                    verbose=False,
+                    method="iir",
+                )
+                data.append(temp)
+            data = np.stack(data, axis=2)
+        else:
+            data = epochs.get_data(copy=False)
+        
+        ch_names = epochs.info['ch_names']
         times = epochs.times
 
+        # epoched_data.append(data)
+        # events = epochs.events[:,2]
+        # events_list.append(events)
+        # img_cond = np.unique(events)
+        # img_conditions.append(img_cond)
         ### Sort the data ###
-        data = epochs.get_data()
         events = epochs.events[:,2]
         img_cond = np.unique(events)
         del epochs
@@ -171,8 +223,7 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
             max_rep = 2
         # Sorted data matrix of shape:
         # Image conditions × EEG repetitions × EEG channels × EEG time points
-        sorted_data = np.zeros((len(img_cond),max_rep,data.shape[1],
-            data.shape[2]))
+        sorted_data = np.zeros((len(img_cond),max_rep,*data.shape[1:]))
         for i in range(len(img_cond)):
             # Find the indices of the selected image condition
             idx = np.where(events == img_cond[i])[0]
@@ -184,14 +235,21 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
         img_conditions.append(img_cond)
         del sorted_data
     
+    # return epoched_data, events_list, img_conditions
+    
     epoched_data = np.concatenate(epoched_data, axis=1)
-    idx = shuffle(np.arange(0, epoched_data.shape[1]), random_state=SEED)
-    epoched_data = epoched_data[:,idx]
+    # idx = shuffle(np.arange(0, epoched_data.shape[1]), random_state=SEED)
+    # epoched_data = epoched_data[:,idx]
+    
+    mean = np.mean(epoched_data, axis=(0, 1), keepdims=True)
+    std = np.std(epoched_data, axis=(0, 1), keepdims=True)
+    epoched_data = (epoched_data - mean) / std
+    
     return {
         'preprocessed_eeg_data': epoched_data,
         'ch_names': ch_names,
         'times': times
-    } 
+    }
     
     
 def load_preprocessed_data(
@@ -200,20 +258,26 @@ def load_preprocessed_data(
     from_raw: bool = False,
     downsample_freq: int = 100,
     l_freq: float = 0.1,
-    h_freq: float = 100,
+    h_freq: float = 50,
     tmin: float = -.2,
     tmax: float = .8,
     baseline: set[float, float] = None,
-    # TODO: not having a rois parameter as now fixed to occipital and posterior
+    # TODO: not having a rois parameter as now fixed to occipital and parietal
+    tfr_n_bin: int = None,
+    band_stop_n_bin: int = None,
+    band_stop: list[float, float] = None,
     **kwargs,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
+    if tfr_n_bin is not None or band_stop_n_bin is not None or band_stop is not None:
+        assert from_raw
+    
     if not from_raw:
         download_dataset(preprocess_type="preprocessed")
         x = np.load(CACHE_PATH / "preprocessed" / f"sub-{subject:02d}" / f"preprocessed_eeg_{TYPE_DICT[data_type]}.npy", allow_pickle=True).item()
     else:
         download_dataset(preprocess_type="raw")
         x = run_preprocessing(
-            subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline,
+            subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline, tfr_n_bin, band_stop_n_bin, band_stop,
         )
     
     metadata = load_metadata(data_type=data_type)
@@ -221,15 +285,27 @@ def load_preprocessed_data(
     # temporary fix for time digit fix
     times = np.round(x["times"], 2)
     
-    data = xr.DataArray(
-        x["preprocessed_eeg_data"],
-        dims=("object", "presentation", "neuroid", "time"),
-        coords={
-            "object": object,
-            "neuroid": x["ch_names"],
-            "time": times,
-        },
-    )
+    if tfr_n_bin is None and band_stop_n_bin is None:
+        data = xr.DataArray(
+            x["preprocessed_eeg_data"],
+            dims=("object", "presentation", "neuroid", "time"),
+            coords={
+                "object": object,
+                "neuroid": x["ch_names"],
+                "time": times,
+            },
+        )
+    else:
+        data = xr.DataArray(
+            x["preprocessed_eeg_data"],
+            dims=("object", "presentation", "neuroid", "freq", "time"),
+            coords={
+                "object": object,
+                "neuroid": x["ch_names"],
+                "time": times,
+                "freq": np.logspace(np.log10(4), np.log10(h_freq), tfr_n_bin) if tfr_n_bin is not None else np.logspace(np.log10(4), np.log10(h_freq), band_stop_n_bin),
+            },
+        )
     data = data.assign_coords({column: ("object", metadata[column]) for column in METADATA_COLUMNS})
     return data
    
