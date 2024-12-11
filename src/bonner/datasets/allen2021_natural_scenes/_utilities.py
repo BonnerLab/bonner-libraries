@@ -2,6 +2,7 @@ from collections.abc import Collection, Mapping
 
 import numpy as np
 import xarray as xr
+
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 
 IDENTIFIER = "allen2021.natural_scenes"
