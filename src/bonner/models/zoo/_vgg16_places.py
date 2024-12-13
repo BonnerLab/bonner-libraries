@@ -5,9 +5,10 @@ import numpy as np
 import torch
 import torchvision
 import xarray as xr
+from PIL import Image
+
 from bonner.files import download_from_url
 from bonner.models.utilities import BONNER_MODELS_HOME
-from PIL import Image
 
 # https://github.com/GKalliatakis/Keras-VGG16-places365/issues/5
 # https://github.com/antorsae/landmark-recognition-challenge/blob/master/extra/vgg16_places365.py
@@ -93,7 +94,7 @@ def preprocess(image: Image.Image) -> torch.Tensor:
 
 
 if __name__ == "__main__":
-    TEST_IMAGE_URL = "http://places2.csail.mit.edu/imgs/demo/6.jpg"
+    TEST_IMAGE_URL = "http://places2.csail.mit.edu/imgs/IMG_0404.jpeg"
     CLASSES_URL = "https://raw.githubusercontent.com/csailvision/places365/master/categories_places365.txt"
 
     image_filepath = download_from_url(TEST_IMAGE_URL)
