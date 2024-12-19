@@ -306,6 +306,9 @@ def plot_brain_map(
     coordinates, faces = surf_mesh.coordinates, surf_mesh.faces
 
     if decimate < 1:
+        # FIXME(gpytoolbox)
+        error = "gpytoolbox needs to update to numpy>=2.0 (see https://github.com/sgsellan/gpytoolbox/pull/132)"
+        raise NotImplementedError(error)
         coordinates, faces, _, coordinate_filter = gpytoolbox.decimate(
             coordinates,
             faces,
