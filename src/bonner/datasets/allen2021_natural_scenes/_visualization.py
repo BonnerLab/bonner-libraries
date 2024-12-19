@@ -3,7 +3,8 @@
 from pathlib import Path
 from typing import Literal
 
-import gpytoolbox
+# FIXME(gpytoolbox)
+# import gpytoolbox
 import nibabel as nib
 import numpy as np
 import xarray as xr
