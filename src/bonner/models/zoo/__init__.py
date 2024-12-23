@@ -8,6 +8,7 @@ __all__ = [
     "load_vgg16_robust",
     "load_model_zoo_model",
     "load_timm_model",
+    "load_ipcl_model",
 ]
 
 from bonner.models.zoo._pytorch import load as load_pytorch_model
@@ -19,3 +20,4 @@ from bonner.models.zoo._vgg16_places import load as load_vgg16_places
 from bonner.models.zoo._vgg16_robust import load as load_vgg16_robust
 from bonner.models.zoo._model_zoo import load as load_model_zoo_model
 from bonner.models.zoo._timm import load as load_timm_model
+from bonner.models.zoo._ipcl import load as load_ipcl_model
