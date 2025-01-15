@@ -118,7 +118,7 @@ def baseline_correction(epochs, baseline):
     return epochs
    
 ### adapted from things eeg 2 ###
-def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline, tfr_n_bin, band_stop_n_bin, band_stop,):
+def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline, tfr_n_bin, band_stop_n_bin, band_stop, rois):
     epoched_data = []
     img_conditions = []
     events_list = []
@@ -142,10 +142,14 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
 
         ### Get events, drop unused channels and reject target trials ###
         events = mne.find_events(raw, stim_channel='stim', verbose=False)
-        # Select only occipital (O) and posterior (P) channels
-        chan_idx = np.asarray(mne.pick_channels_regexp(raw.info['ch_names'], '^O *|^P *'))
-        new_chans = [raw.info['ch_names'][c] for c in chan_idx]
-        raw.pick(new_chans)
+        match rois:
+            case "op":
+                # Select only occipital (O) and posterior (P) channels
+                chan_idx = np.asarray(mne.pick_channels_regexp(raw.info['ch_names'], '^O *|^P *'))
+                new_chans = [raw.info['ch_names'][c] for c in chan_idx]
+                raw.pick(new_chans)
+            case "all":
+                pass
         # Reject the target trials (event 99999)
         idx_target = np.where(events[:,2] == 99999)[0]
         events = np.delete(events, idx_target, 0)
@@ -262,10 +266,10 @@ def load_preprocessed_data(
     tmin: float = -.2,
     tmax: float = .8,
     baseline: set[float, float] = None,
-    # TODO: not having a rois parameter as now fixed to occipital and parietal
     tfr_n_bin: int = None,
     band_stop_n_bin: int = None,
     band_stop: list[float, float] = None,
+    rois: str = "op",
     **kwargs,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
     if tfr_n_bin is not None or band_stop_n_bin is not None or band_stop is not None:
@@ -277,7 +281,7 @@ def load_preprocessed_data(
     else:
         download_dataset(preprocess_type="raw")
         x = run_preprocessing(
-            subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline, tfr_n_bin, band_stop_n_bin, band_stop,
+            subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline, tfr_n_bin, band_stop_n_bin, band_stop, rois,
         )
     
     metadata = load_metadata(data_type=data_type)
