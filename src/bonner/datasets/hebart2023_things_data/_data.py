@@ -6,9 +6,10 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 import xarray as xr
+from tqdm.auto import tqdm
+
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import download_from_url, untar, unzip
-from tqdm.auto import tqdm
 
 IDENTIFIER = "hebart2023.things-data"
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
