@@ -31,8 +31,8 @@ def download_annotations(*, force: bool = False) -> Path:
         "stuff_annotations": "http://images.cocodataset.org/annotations/stuff_annotations_trainval2017.zip",
     }
 
+    directory = BONNER_DATASETS_HOME / "coco"
     for label, url in urls.items():
-        directory = BONNER_DATASETS_HOME / "coco"
         filepath = download_from_url(
             url,
             filepath=directory / f"{label}_trainval2017.zip",

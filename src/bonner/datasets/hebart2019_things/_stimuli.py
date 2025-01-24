@@ -1,15 +1,17 @@
-import shutil
 from typing import Self
 
 import pandas as pd
-from bonner.datasets._utilities import BONNER_DATASETS_HOME
-from bonner.files import download_from_url, unzip
 from PIL import Image
 from torch.utils.data import MapDataPipe
+
+from bonner.datasets._utilities import BONNER_DATASETS_HOME
+from bonner.files import download_from_url, unzip
 
 IDENTIFIER = "hebart2019.things"
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 URL = "https://files.osf.io/v1/resources/jum2f/providers/osfstorage/?zip="
+
+PASSWORD = "things4all"
 
 
 def get_password() -> bytes:
@@ -22,22 +24,13 @@ def download_stimuli(*, force: bool = False) -> None:
     path = CACHE_PATH / "download" / "things.zip"
     download_from_url(URL, filepath=path, force=force)
 
-    password = get_password()
-
-    unzip(path, extract_dir=CACHE_PATH, password=password, remove_zip=False)
-    path = CACHE_PATH / "THINGS" / "Images"
-    for suffix in ("A-C", "D-K", "L-Q", "R-S", "T-Z"):
-        unzip(
-            path / f"object_images_{suffix}.zip",
-            extract_dir=CACHE_PATH / "images",
-            remove_zip=False,
-            password=password,
-        )
-    weird_directory = CACHE_PATH / "images" / "object_images_L-Q"
-    for old_path in weird_directory.rglob("*.jpg"):
-        new_path = CACHE_PATH / "images" / old_path.relative_to(weird_directory)
-        if not new_path.exists():
-            shutil.copy(old_path, new_path)
+    unzip(path, extract_dir=CACHE_PATH, password=PASSWORD, remove_zip=False)
+    unzip(
+        CACHE_PATH / "_image_database_things.zip",
+        extract_dir=CACHE_PATH / "images",
+        remove_zip=False,
+        password=PASSWORD.encode(),
+    )
 
 
 def load_metadata() -> pd.DataFrame:
