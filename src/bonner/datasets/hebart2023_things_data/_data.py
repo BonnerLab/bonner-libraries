@@ -1,3 +1,4 @@
+import contextlib
 import itertools
 from collections.abc import Sequence
 from pathlib import Path
@@ -90,7 +91,7 @@ def load_functional_rois(subject: int) -> xr.DataArray:
                     / f"{localizer_type}_parcels"
                     / f"sub-{subject+1:02}_{hemisphere}{roi}.nii.gz"
                 )
-                try:
+                with contextlib.suppress(Exception):
                     masks.append(
                         load_nii(path)
                         .astype(bool)
@@ -103,8 +104,6 @@ def load_functional_rois(subject: int) -> xr.DataArray:
                             },
                         ),
                     )
-                except:
-                    pass
         return xr.concat(masks, dim="roi")
 
     try:
@@ -183,7 +182,7 @@ def load_rois(subject: int) -> xr.DataArray:
                 },
             ),
         )
-    return xr.concat(rois + [functional_rois], dim="roi").set_index(
+    return xr.concat([*rois, functional_rois], dim="roi").set_index(
         {"roi": ["hemisphere", "localizer", "label"]},
     )
 

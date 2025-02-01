@@ -35,7 +35,7 @@ def download_stimuli(*, force: bool = False) -> None:
 
 def load_metadata() -> pd.DataFrame:
     metadata = pd.read_csv(
-        CACHE_PATH / "THINGS" / "Metadata" / "Image-specific" / "image_paths.csv",
+        CACHE_PATH / "01_image-level" / "image-paths.csv",
         sep=",",
         header=None,
         index_col=None,
@@ -44,7 +44,7 @@ def load_metadata() -> pd.DataFrame:
     metadata["stimulus"] = [
         (CACHE_PATH / filename).stem for filename in metadata["filename"]
     ]
-    return metadata.set_index("stimulus")
+    return metadata.set_index("stimulus").drop(columns="filename")
 
 
 class StimulusSet(MapDataPipe):
@@ -54,8 +54,11 @@ class StimulusSet(MapDataPipe):
         self.metadata = load_metadata()
         self.root = CACHE_PATH
 
-    def __getitem__(self: Self, index: str) -> Image.Image:
-        return Image.open(self.root / self.metadata.loc[index, ["filename"]].item())
+    def __getitem__(self: Self, idx: str) -> Image.Image:
+        idx.split("_")[0]
+        return Image.open(
+            self.root / "images" / "object_images" / idx.split("_")[0] / f"{idx}.jpg",
+        )
 
     def __len__(self: Self) -> int:
         return len(self.metadata.index)
