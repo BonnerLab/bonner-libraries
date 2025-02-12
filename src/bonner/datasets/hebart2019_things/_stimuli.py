@@ -57,7 +57,11 @@ class StimulusSet(MapDataPipe):
     def __getitem__(self: Self, idx: str) -> Image.Image:
         idx.split("_")[0]
         return Image.open(
-            self.root / "images" / "object_images" / idx.split("_")[0] / f"{idx}.jpg",
+            self.root
+            / "images"
+            / "object_images"
+            / "_".join(idx.split("_")[:-1])
+            / f"{idx}.jpg",
         )
 
     def __len__(self: Self) -> int:
