@@ -40,12 +40,12 @@ def download(
                 for obj in page["Contents"]:
                     s3_file_path = obj["Key"]
                     local_file_path = local_path / Path(s3_file_path).relative_to(
-                        s3_path
+                        s3_path,
                     )
 
                     if (not use_cached) or (not local_file_path.exists()):
                         logger.debug(
-                            f"Downloading {s3_file_path} from S3 bucket {bucket} to {local_file_path}"
+                            f"Downloading {s3_file_path} from S3 bucket {bucket} to {local_file_path}",
                         )
                         local_file_path.parent.mkdir(exist_ok=True, parents=True)
                         with local_file_path.open("wb") as f:
@@ -62,7 +62,7 @@ def download(
             local_path = s3_path
         if (not use_cached) or (not local_path.exists()):
             logger.debug(
-                f"Downloading {s3_path} from S3 bucket {bucket} to {local_path}"
+                f"Downloading {s3_path} from S3 bucket {bucket} to {local_path}",
             )
             local_path.parent.mkdir(exist_ok=True, parents=True)
             with local_path.open("wb") as f:

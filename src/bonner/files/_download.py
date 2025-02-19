@@ -1,8 +1,9 @@
 from pathlib import Path
 
 import requests
-from bonner.files._utilities import prepare_filepath
 from loguru import logger
+
+from bonner.files._utilities import prepare_filepath
 
 
 def download(

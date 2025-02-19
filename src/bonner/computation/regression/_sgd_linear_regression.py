@@ -131,7 +131,7 @@ class SGDLinearRegression(Regression):
     def weights(self: Self) -> torch.Tensor:
         assert self._linear is not None
         return self._linear.weight
-    
+
     def _initialize_from(self: Self, x: torch.Tensor, y: torch.Tensor) -> None:
         if not self._initialized:
             self._lr = self._lr0
