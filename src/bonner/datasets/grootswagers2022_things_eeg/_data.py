@@ -7,12 +7,15 @@ warnings.filterwarnings('ignore', category=RuntimeWarning, message='Estimated he
 warnings.filterwarnings('ignore', category=RuntimeWarning, message='The data contains')
 
 import mne
+import os
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import download_from_s3
+from bonner.files import unzip
+from osfclient.api import OSF
 
 IDENTIFIER = "grootswagers2022.things_eeg"
 BUCKET_NAME = "openneuro.org"
@@ -24,6 +27,9 @@ PRESENATION_DURATION = 50
 N_STIM_MAIN = 22248
 N_STIM_VALIDATION = 2400
 EXCLUDED_SUBJECTS = [1, 6, 18, 23]
+PROJECT_ID_DICT = {
+    "codes": "e485y",
+}
 
 
 
@@ -36,7 +42,35 @@ def download_dataset():
         local_path=CACHE_PATH,
         is_dir=True
     )
-
+    
+def _download_osf_project(project_id, save_path, use_cached=True):
+    osf = OSF()
+    project = osf.project(project_id)
+    storage = project.storage('osfstorage')
+    
+    if (not use_cached) or (not save_path.exists()):
+        os.makedirs(save_path, exist_ok=True)
+        for file in storage.files:
+            file_path = os.path.join(save_path, file.path.lstrip('/'))
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, 'wb') as local_file:
+                file.write_to(local_file)
+            
+            if file_path.endswith('.zip'):
+                file_path = unzip(Path(file_path), extract_dir=save_path)
+                
+def load_metadata(data_type: str = "validation"):
+    _download_osf_project(
+        project_id=PROJECT_ID_DICT["codes"],
+        save_path=CACHE_PATH / "codes"
+    )
+    match data_type:
+        case "validation":
+            img_files = pd.read_csv(CACHE_PATH / "codes" / "test_images.csv", header=None,)[0].values
+            return pd.DataFrame({
+                "img_files": img_files,
+                "object": [s.split("/")[0] for s in img_files],
+            })
 
 def load_preprocessed_data(
     subject: int,
@@ -49,9 +83,9 @@ def load_preprocessed_data(
     window_size: (int | float) = None,
     window_step: (int | float) = None,
     baseline: set[float, float] = None,
-    scale: (str | float) = None
+    scale: (str | float) = "default",
 ) -> tuple[xr.DataArray, pd.DataFrame]:
-    # download_dataset()
+    download_dataset()
     event_csv = pd.read_csv(CACHE_PATH / f"sub-{subject:02d}" / "eeg" / f"sub-{subject:02d}_task-rsvp_events.csv")
     if is_validation:
         if len(event_csv) != N_STIM_MAIN + N_STIM_VALIDATION:
@@ -97,7 +131,7 @@ def load_preprocessed_data(
     if scale is not None:
         if isinstance(scale, str):
             match scale:
-                case "original":
+                case "default":
                     data = data * 1e6
                 case "std":
                     data = data / data.std()

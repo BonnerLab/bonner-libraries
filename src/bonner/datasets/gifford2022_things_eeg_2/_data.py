@@ -10,6 +10,13 @@ import xarray as xr
 from tqdm import tqdm
 from sklearn.utils import shuffle
 from collections import Counter
+from PIL import Image
+import torch
+from torch.utils.data import MapDataPipe
+from torchvision.datasets import ImageFolder
+from torchvision.transforms import ToTensor
+from torch.utils.data import DataLoader
+from torchvision.transforms import ToPILImage
 
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import unzip
@@ -33,6 +40,7 @@ FREQ = 1000
 L_FREQ, H_FREQ = 0.1, 100
 SEED = 11
 N_JOBS = 6
+
 
 
 def _download_osf_project(project_id, save_path, use_cached=True):
@@ -101,22 +109,73 @@ def download_dataset(preprocess_type: str = "preprocessed"):
             raise ValueError(f"Invalid data type: {preprocess_type}")
  
 def load_metadata(data_type: str = "train",) -> pd.DataFrame:
-    _download_osf_project(
-        project_id=PROJECT_ID_DICT["images"],
-        save_path=CACHE_PATH / "images"
-    )
+    # TEMP: OSF connection error
+    # _download_osf_project(
+    #     project_id=PROJECT_ID_DICT["images"],
+    #     save_path=CACHE_PATH / "images"
+    # )
     
     metadata = np.load(CACHE_PATH / "images" / "image_metadata.npy", allow_pickle=True).item()
-    return pd.DataFrame.from_dict({
+    df =  pd.DataFrame.from_dict({
         column: metadata[f"{data_type}_{column}"]
         for column in METADATA_COLUMNS
     })
+    df["object"] = ['_'.join(s.split('_')[1:]) for s in df[METADATA_COLUMNS[1]].to_list()]
+    return df
+    
+def load_stimuli(data_type: str = "train", batch_size: int = 32) -> xr.DataArray:
+    # TEMP: OSF connection error
+    # _download_osf_project(
+    #     project_id=PROJECT_ID_DICT["images"],
+    #     save_path=CACHE_PATH / "images"
+    # )
+    
+    stimuli_folder = CACHE_PATH / "images" / f"{TYPE_DICT[data_type]}_images"
+    
+    dataset = ImageFolder(
+        root=stimuli_folder,
+        transform=ToTensor() 
+    )
+    
+    # Load data into batches
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    
+    all_images = []
+    all_labels = []
+    class_names = dataset.classes 
+    for images, _ in dataloader:
+        all_images.append(images)
+    
+    all_images = torch.cat(all_images, dim=0).permute(0, 2, 3, 1)  # Shape: (N, H, W, C)
+    
+    return xr.DataArray(
+        all_images.numpy(),
+        dims=["stimulus", "height", "width", "channel",],
+        coords={"stimulus": load_metadata(data_type)["img_files"].to_list()}
+    )
+    
+class StimulusSet(MapDataPipe):
+    def __init__(self, data_type: str) -> None:
+        self.identifier = f"IDENTIFIER.{data_type}"
+        self.metadata = load_metadata(data_type)
+        self.stimuli = load_stimuli(data_type)
+        # .transpose(
+        #     "stimulus", "channel", "height", "width"
+        # )
+        
+    def __getitem__(self, idx: int):
+        stimulus = self.metadata.loc[idx, "img_files"]
+        # return torch.tensor(self.stimuli.sel(stimulus=stimulus).values)
+        return ToPILImage()(self.stimuli.sel(stimulus=stimulus).values)
+
+    def __len__(self) -> int:
+        return self.stimuli.sizes["stimulus"]
 
 def baseline_correction(epochs, baseline):
     baselined_epochs = mne.baseline.rescale(data=epochs.get_data(copy=False), times=epochs.times, baseline=baseline, mode='zscore', copy=False, verbose=False)
     epochs = mne.EpochsArray(baselined_epochs, epochs.info, epochs.events, epochs.tmin, event_id=epochs.event_id, verbose=False)
     return epochs
-   
+
 ### adapted from things eeg 2 ###
 def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline, tfr_n_bin, band_stop_n_bin, band_stop, rois):
     epoched_data = []
@@ -142,10 +201,15 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
 
         ### Get events, drop unused channels and reject target trials ###
         events = mne.find_events(raw, stim_channel='stim', verbose=False)
+        
         match rois:
             case "op":
                 # Select only occipital (O) and posterior (P) channels
                 chan_idx = np.asarray(mne.pick_channels_regexp(raw.info['ch_names'], '^O *|^P *'))
+                new_chans = [raw.info['ch_names'][c] for c in chan_idx]
+                raw.pick(new_chans)
+            case "f":
+                chan_idx = np.asarray(mne.pick_channels_regexp(raw.info['ch_names'], '^F *'))
                 new_chans = [raw.info['ch_names'][c] for c in chan_idx]
                 raw.pick(new_chans)
             case "all":
@@ -211,13 +275,9 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
         ch_names = epochs.info['ch_names']
         times = epochs.times
 
-        # epoched_data.append(data)
-        # events = epochs.events[:,2]
-        # events_list.append(events)
-        # img_cond = np.unique(events)
-        # img_conditions.append(img_cond)
         ### Sort the data ###
         events = epochs.events[:,2]
+        events_list.append(events)
         img_cond = np.unique(events)
         del epochs
         # Select only a maximum number of EEG repetitions
@@ -239,11 +299,7 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
         img_conditions.append(img_cond)
         del sorted_data
     
-    # return epoched_data, events_list, img_conditions
-    
     epoched_data = np.concatenate(epoched_data, axis=1)
-    # idx = shuffle(np.arange(0, epoched_data.shape[1]), random_state=SEED)
-    # epoched_data = epoched_data[:,idx]
     
     mean = np.mean(epoched_data, axis=(0, 1), keepdims=True)
     std = np.std(epoched_data, axis=(0, 1), keepdims=True)
@@ -252,7 +308,10 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
     return {
         'preprocessed_eeg_data': epoched_data,
         'ch_names': ch_names,
-        'times': times
+        'times': times,
+        # not useful as now the data is already shuffled
+        'events_list': events_list,
+        'img_conditions': img_conditions,
     }
     
     
@@ -312,8 +371,26 @@ def load_preprocessed_data(
         )
     data = data.assign_coords({column: ("object", metadata[column]) for column in METADATA_COLUMNS})
     return data
-   
 
-
-def load_stimuli():
-    pass
+def load_events_list(subject, data_type, exclude_target):
+    events_list = []
+    for session in range(1, N_SESSIONS+1):
+        raw_path = CACHE_PATH / "raw" / f"sub-{subject:02d}" / f"ses-{session:02d}" / f"raw_eeg_{TYPE_DICT[data_type]}.npy"
+        
+        eeg_data = np.load(raw_path, allow_pickle=True).item()
+        ch_names = eeg_data['ch_names']
+        sfreq = eeg_data['sfreq']
+        ch_types = eeg_data['ch_types']
+        eeg_data = eeg_data['raw_eeg_data']
+        info = mne.create_info(ch_names, sfreq, ch_types)
+        raw = mne.io.RawArray(eeg_data, info, verbose=False)
+        del eeg_data
+        
+        events = mne.find_events(raw, stim_channel='stim', verbose=False)
+        if exclude_target:
+            idx_target = np.where(events[:,2] == 99999)[0]
+            events = np.delete(events, idx_target, 0)
+        
+        events = events[:,2]
+        events_list.append(events)
+    return events_list

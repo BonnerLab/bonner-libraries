@@ -176,7 +176,7 @@ def load_preprocessed_data(
     band_stop_n_bin: int = None,
     band_stop: list[float, float] = None,
     average: bool = False,
-    zscore: bool = False,
+    zscore: bool = None,
     **kwargs
 ) -> xr.DataArray:
     if not from_raw:
@@ -195,6 +195,7 @@ def load_preprocessed_data(
         for epochs in data:
             epochs.info['dev_head_t'] = data[0].info['dev_head_t']
         data = mne.concatenate_epochs(epochs_list=data, add_offset=True)
+        
         path_column = "file_path"
         
     if band_stop is not None:
@@ -275,6 +276,8 @@ def load_preprocessed_data(
         for i in img_files
     ]
     
+    if zscore is None:
+        zscore = from_raw
     if zscore:
         mean = np.mean(data, axis=0, keepdims=True)
         std = np.std(data, axis=0, keepdims=True)

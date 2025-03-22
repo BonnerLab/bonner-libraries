@@ -19,11 +19,10 @@ CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 
 
 def _download_osf_project(project_id, save_path, target_paths=None, use_cached=True):
-    osf = OSF()
-    project = osf.project(project_id)
-    storage = project.storage('osfstorage')
-    
     if (not use_cached) or (not save_path.exists()):
+        osf = OSF()
+        project = osf.project(project_id)
+        storage = project.storage('osfstorage')
         os.makedirs(save_path, exist_ok=True)
         for file in storage.files:
             if target_paths is not None and file.path not in target_paths:
@@ -37,7 +36,7 @@ def _download_osf_project(project_id, save_path, target_paths=None, use_cached=T
                 file_path = unzip(Path(file_path), extract_dir=save_path)
 
 
-def load_embeddings():
+def load_embeddings(scale: bool = False):
     _download_osf_project(
         project_id=PROJECT_ID,
         save_path=CACHE_PATH,
@@ -51,6 +50,9 @@ def load_embeddings():
     embd = pd.read_csv(CACHE_PATH / "data" / "spose_embedding_66d_sorted.txt", sep="\t", header=None).values
     bhv = pd.read_csv(CACHE_PATH / "variables" / "labels.txt", sep="\t", header=None).values.flatten()
     object = pd.read_csv(CACHE_PATH / "variables" / "unique_id.txt", sep="\t", header=None).values.flatten()
+    
+    if scale:
+        embd /= embd.std(dim=0)
     
     return xr.DataArray(
         embd,
