@@ -8,7 +8,7 @@ from scipy.io import loadmat
 
 from bonner.datasets.stringer2019_mouse._utilities import CACHE_PATH
 from bonner.files import download_from_url
-from bonner.files._figshare import get_url_dict
+from bonner.files.figshare import get_url_dict
 
 FIGSHARE_ARTICLE_ID = 6845348
 

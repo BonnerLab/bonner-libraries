@@ -2,6 +2,7 @@ from typing import Self
 
 import numpy as np
 import torch
+
 from bonner.computation.cuda import try_devices
 from bonner.models.hooks._definition import Hook
 
@@ -16,6 +17,7 @@ def create_sparse_projection_matrix(
     n_components: int,
     density: float | None = None,
     seed: int = 0,
+    dtype: torch.dtype = torch.float64,
 ) -> torch.Tensor:
     assert isinstance(n_features, int), "n_features must be an int"
     assert n_features > 1, "n_features must be > 1"
@@ -46,6 +48,7 @@ def create_sparse_projection_matrix(
         values=scale
         * (2 * rng.binomial(n=1, p=0.5, size=n_nonzero) - 1).astype(np.float32),
         size=(n_features, n_components),
+        dtype=dtype,
     )
 
 
@@ -82,6 +85,7 @@ class SparseRandomProjection(Hook):
             n_components=self.n_components,
             density=self.density,
             seed=self.seed,
+            dtype=features.dtype,
         )
 
         if (n_features <= projection.shape[-1]) and not self.allow_expansion:

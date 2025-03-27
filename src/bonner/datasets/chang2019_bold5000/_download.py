@@ -1,6 +1,8 @@
 import subprocess
 from pathlib import Path
 
+from tqdm import tqdm
+
 from bonner.datasets.chang2019_bold5000._utilities import (
     FIGSHARE_ARTICLE_ID_V1,
     FIGSHARE_ARTICLE_ID_V2,
@@ -13,8 +15,7 @@ from bonner.datasets.chang2019_bold5000._utilities import (
     get_imagenames_filename,
 )
 from bonner.files import download_from_url, unzip
-from bonner.files._figshare import get_url_dict
-from tqdm import tqdm
+from bonner.files.figshare import get_url_dict
 
 
 def download_dataset(*, force: bool = False, **kwargs: str) -> None:
@@ -50,6 +51,7 @@ def download_dataset(*, force: bool = False, **kwargs: str) -> None:
             f"{S3_ROI_MASKS}",
             f"{Path.cwd()}",
         ],
+        check=False,
     )
     # rename some inconsistently named files
     remapping = {

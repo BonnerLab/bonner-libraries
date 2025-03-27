@@ -12,7 +12,7 @@ from bonner.datasets.allen2021_natural_scenes._utilities import (
     BUCKET_NAME,
     CACHE_PATH,
 )
-from bonner.files import download_from_s3
+from bonner.files import s3
 
 RESOLUTION = "1pt8mm"
 PREPROCESSING = "fithrf_GLMdenoise_RR"
@@ -57,7 +57,7 @@ def load_brain_mask(*, subject: int, resolution: str) -> xr.DataArray:
         / f"func{resolution}"
         / "brainmask.nii.gz"
     )
-    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+    s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     return nii.to_dataarray(CACHE_PATH / filepath, flatten=None).astype(bool, order="C")
 
 
@@ -77,7 +77,7 @@ def load_validity(*, subject: int, resolution: str) -> xr.DataArray:
             / f"func{resolution}"
             / f"valid_{suffix}.nii.gz"
         )
-        download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+        s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
         validity.append(
             nii.to_dataarray(CACHE_PATH / filepath, flatten=None)
             .expand_dims({"session": [session]})
@@ -215,7 +215,7 @@ def load_betas(
             / f"betas_{preprocessing}"
             / f"betas_session{session + 1:02}.hdf5"
         )
-        download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+        s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
 
         betas_session = (
             xr.load_dataset(CACHE_PATH / filepath)["betas"]
@@ -277,7 +277,7 @@ def load_ncsnr(
         / f"betas_{preprocessing}"
         / "ncsnr.nii.gz"
     )
-    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+    s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     return nii.to_dataarray(CACHE_PATH / filepath).astype(dtype=np.float64, order="C")
 
 
@@ -304,7 +304,7 @@ def load_structural_scans(*, subject: int, resolution: str) -> xr.DataArray:
             / f"func{resolution}"
             / f"{sequence}_to_func{resolution}.nii.gz"
         )
-        download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+        s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
         scans.append(
             nii.to_dataarray(CACHE_PATH / filepath, flatten=None)
             .expand_dims("sequence", axis=0)
@@ -343,7 +343,7 @@ def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
                 case "volume":
                     filepath = Path("nsddata") / "templates" / f"{source}.ctab"
 
-            download_from_s3(
+            s3.download(
                 filepath,
                 bucket=BUCKET_NAME,
                 local_path=CACHE_PATH / filepath,
@@ -369,7 +369,7 @@ def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
                     / "roi"
                     / f"{hemisphere}.{source}.nii.gz"
                 )
-                download_from_s3(
+                s3.download(
                     filepath,
                     bucket=BUCKET_NAME,
                     local_path=CACHE_PATH / filepath,
@@ -427,7 +427,7 @@ def load_receptive_fields(*, subject: int, resolution: str) -> xr.DataArray:
             / f"func{resolution}"
             / f"prf_{quantity}.nii.gz"
         )
-        download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+        s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
         prf_data.append(
             nii.to_dataarray(CACHE_PATH / filepath)
             .expand_dims("quantity", axis=0)
@@ -454,7 +454,7 @@ def load_functional_contrasts(*, subject: int, resolution: str) -> xr.DataArray:
     categories = {}
     for filename in ("domains", "categories"):
         filepath = Path("nsddata") / "experiments" / "floc" / f"{filename}.tsv"
-        download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+        s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
 
         categories[filename] = list(
             pd.read_csv(CACHE_PATH / filepath, sep="\t").iloc[:, 0].values,
@@ -476,7 +476,7 @@ def load_functional_contrasts(*, subject: int, resolution: str) -> xr.DataArray:
                 / f"func{resolution}"
                 / f"floc_{category}{metric}.nii.gz"
             )
-            download_from_s3(
+            s3.download(
                 filepath,
                 bucket=BUCKET_NAME,
                 local_path=CACHE_PATH / filepath,

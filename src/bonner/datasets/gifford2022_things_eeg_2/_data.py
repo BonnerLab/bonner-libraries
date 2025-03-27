@@ -1,17 +1,17 @@
-from pathlib import Path
 import logging
-
-logging.basicConfig(level=logging.INFO)
-
 import os
-import mne
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import xarray as xr
+from osfclient.api import OSF
 
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import unzip
-from osfclient.api import OSF
+
+logging.basicConfig(level=logging.INFO)
+
 
 IDENTIFIER = "gifford2022.things_eeg_2"
 PROJECT_ID_DICT = {
@@ -62,14 +62,16 @@ def load_metadata(
     data_type: str = "train",
 ) -> pd.DataFrame:
     _download_osf_project(
-        project_id=PROJECT_ID_DICT["images"], save_path=CACHE_PATH / "images"
+        project_id=PROJECT_ID_DICT["images"],
+        save_path=CACHE_PATH / "images",
     )
 
     metadata = np.load(
-        CACHE_PATH / "images" / "image_metadata.npy", allow_pickle=True
+        CACHE_PATH / "images" / "image_metadata.npy",
+        allow_pickle=True,
     ).item()
     return pd.DataFrame.from_dict(
-        {column: metadata[f"{data_type}_{column}"] for column in METADATA_COLUMNS}
+        {column: metadata[f"{data_type}_{column}"] for column in METADATA_COLUMNS},
     )
 
 
@@ -113,13 +115,12 @@ def load_preprocessed_data(
             },
         )
         data = data.assign_coords(
-            {column: ("object", metadata[column]) for column in METADATA_COLUMNS}
+            {column: ("object", metadata[column]) for column in METADATA_COLUMNS},
         )
         return data
-    else:
-        download_dataset(preprocess_type="raw")
-        # TODO: implement method using raw-type data
-        return None
+    download_dataset(preprocess_type="raw")
+    # TODO: implement method using raw-type data
+    return None
 
 
 def load_stimuli():

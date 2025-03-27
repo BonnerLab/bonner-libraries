@@ -1,17 +1,12 @@
-from pathlib import Path
 import logging
+import os
+from pathlib import Path
+
+import requests
+
+from bonner.files import unzip
 
 logging.basicConfig(level=logging.INFO)
-
-import os
-import requests
-import numpy as np
-import pandas as pd
-import xarray as xr
-
-from bonner.datasets._utilities import BONNER_DATASETS_HOME
-from bonner.files import unzip
-from osfclient.api import OSF
 
 IDENTIFIER = "hebart2023.things_meg"
 ARTICLE_ID_DICT = {

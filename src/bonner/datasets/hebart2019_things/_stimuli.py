@@ -2,7 +2,7 @@ from typing import Self
 
 import pandas as pd
 from PIL import Image
-from torch.utils.data import MapDataPipe
+from torch.utils.data import Dataset
 
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import download_from_url, unzip
@@ -47,7 +47,7 @@ def load_metadata() -> pd.DataFrame:
     return metadata.set_index("stimulus").drop(columns="filename")
 
 
-class StimulusSet(MapDataPipe):
+class StimulusSet(Dataset):
     def __init__(self: Self) -> None:
         download_stimuli()
         self.identifier = IDENTIFIER

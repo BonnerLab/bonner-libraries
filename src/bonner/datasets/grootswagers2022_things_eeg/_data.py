@@ -1,14 +1,6 @@
-from pathlib import Path
 import logging
-
-logging.basicConfig(level=logging.INFO)
-
 import warnings
-
-warnings.filterwarnings(
-    "ignore", category=RuntimeWarning, message="Estimated head radius"
-)
-warnings.filterwarnings("ignore", category=RuntimeWarning, message="The data contains")
+from pathlib import Path
 
 import mne
 import numpy as np
@@ -16,7 +8,16 @@ import pandas as pd
 import xarray as xr
 
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
-from bonner.files import download_from_s3
+from bonner.files import s3
+
+logging.basicConfig(level=logging.INFO)
+warnings.filterwarnings(
+    "ignore",
+    category=RuntimeWarning,
+    message="Estimated head radius",
+)
+warnings.filterwarnings("ignore", category=RuntimeWarning, message="The data contains")
+
 
 IDENTIFIER = "grootswagers2022.things_eeg"
 BUCKET_NAME = "openneuro.org"
@@ -33,8 +34,11 @@ EXCLUDED_SUBJECTS = [1, 6, 18, 23]
 def download_dataset():
     """Download the data from the Grootswagers et al. (2022) THINGS EEG dataset."""
     s3_path = Path("ds003825")
-    download_from_s3(
-        s3_path=s3_path, bucket=BUCKET_NAME, local_path=CACHE_PATH, is_dir=True
+    s3.download(
+        s3_path=s3_path,
+        bucket=BUCKET_NAME,
+        local_path=CACHE_PATH,
+        is_dir=True,
     )
 
 
@@ -56,7 +60,7 @@ def load_preprocessed_data(
         CACHE_PATH
         / f"sub-{subject:02d}"
         / "eeg"
-        / f"sub-{subject:02d}_task-rsvp_events.csv"
+        / f"sub-{subject:02d}_task-rsvp_events.csv",
     )
     if is_validation:
         if len(event_csv) != N_STIM_MAIN + N_STIM_VALIDATION:
@@ -94,7 +98,7 @@ def load_preprocessed_data(
                 {
                     "onset_ms": onset_ms,
                     "duration_ms": [PRESENATION_DURATION] * len(onset_ms),
-                }
+                },
             ),
         ],
         axis=1,
@@ -150,8 +154,7 @@ def load_preprocessed_data(
 
     if is_validation:
         return data[N_STIM_MAIN:], df[N_STIM_MAIN:]
-    else:
-        return data[:N_STIM_MAIN], df[:N_STIM_MAIN]
+    return data[:N_STIM_MAIN], df[:N_STIM_MAIN]
 
 
 def load_stimuli():

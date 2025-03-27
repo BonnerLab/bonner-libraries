@@ -1,14 +1,16 @@
+from collections.abc import Mapping
 from pathlib import Path
 
 import netCDF4
 import numpy as np
 import torch
 import xarray as xr
-from bonner.models.hooks import Hook
-from bonner.models.utilities import BONNER_MODELS_HOME
-from torch.utils.data import IterDataPipe
+from torch.utils.data import DataLoader, IterableDataset
 from torchvision.models.feature_extraction import create_feature_extractor
 from tqdm.auto import tqdm
+
+from bonner.models.hooks import Hook
+from bonner.models.utilities import BONNER_MODELS_HOME
 
 
 def extract_features(
@@ -16,8 +18,8 @@ def extract_features(
     model: torch.nn.modules.module.Module,
     model_identifier: str,
     nodes: list[str],
-    hooks: dict[str, Hook],
-    datapipe: IterDataPipe,
+    hooks: Mapping[str, Hook],
+    datapipe: DataLoader,
     datapipe_identifier: str,
     cache_path: Path = BONNER_MODELS_HOME,
     use_cached: bool = True,
@@ -106,7 +108,7 @@ def _extract_features(
     hooks: dict[str, Hook],
     filepaths: dict[str, Path],
     device: torch.device,
-    datapipe: IterDataPipe,
+    datapipe: IterableDataset,
 ) -> None:
     netcdf4_files = {
         node: netCDF4.Dataset(filepaths[node], "w", format="NETCDF4") for node in nodes

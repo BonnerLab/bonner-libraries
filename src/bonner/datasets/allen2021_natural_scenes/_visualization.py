@@ -16,7 +16,7 @@ from scipy.ndimage import map_coordinates
 
 from bonner.datasets.allen2021_natural_scenes import load_brain_mask
 from bonner.datasets.allen2021_natural_scenes._utilities import BUCKET_NAME, CACHE_PATH
-from bonner.files import download_from_s3
+from bonner.files import s3
 from bonner.plotting._nilearn import normalize_curv_map
 
 MNI_SHAPE = (182, 218, 182)
@@ -51,7 +51,7 @@ def load_transformation(
         / f"{source_space}-to-{target_space}{suffix}"
     )
 
-    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+    s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     return nib.loadsave.load(CACHE_PATH / filepath).get_fdata()
 
 
@@ -69,7 +69,7 @@ def load_surface_roi(
         / "label"
         / f"{normalize_hemisphere(hemisphere)}.{label}.mgz"
     )
-    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+    s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     return CACHE_PATH / filepath
 
 
@@ -87,7 +87,7 @@ def load_surface_mesh(
         / "surf"
         / f"{normalize_hemisphere(hemisphere)}.{label}"
     )
-    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+    s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     return CACHE_PATH / filepath
 
 

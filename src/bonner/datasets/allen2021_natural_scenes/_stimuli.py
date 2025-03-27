@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from PIL import Image
-from torch.utils.data import MapDataPipe
+from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from bonner.caching import cache
@@ -18,7 +18,7 @@ from bonner.datasets.allen2021_natural_scenes._utilities import (
     IDENTIFIER,
     N_SUBJECTS,
 )
-from bonner.files import download_from_s3, download_from_url, unzip
+from bonner.files import download_from_url, s3, unzip
 
 N_STIMULI = 73000
 N_OBJECT_CATEGORIES = 91
@@ -144,7 +144,7 @@ def load_captions() -> pd.DataFrame:
 
 def load_nsd_metadata() -> pd.DataFrame:
     filepath = Path("nsddata") / "experiments" / "nsd" / "nsd_stim_info_merged.csv"
-    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+    s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     return (
         pd.read_csv(
             CACHE_PATH / filepath,
@@ -182,7 +182,7 @@ def load_nsd_metadata() -> pd.DataFrame:
 
 def load_stimuli() -> xr.DataArray:
     filepath = Path("nsddata_stimuli") / "stimuli" / "nsd" / "nsd_stimuli.hdf5"
-    download_from_s3(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
+    s3.download(filepath, bucket=BUCKET_NAME, local_path=CACHE_PATH / filepath)
     return (
         xr.open_dataset(CACHE_PATH / filepath)["imgBrick"]
         .rename(
@@ -207,7 +207,7 @@ def load_stimuli() -> xr.DataArray:
     )
 
 
-class StimulusSet(MapDataPipe):
+class StimulusSet(Dataset):
     def __init__(self: Self) -> None:
         self.identifier = IDENTIFIER
         self.stimuli = load_stimuli()

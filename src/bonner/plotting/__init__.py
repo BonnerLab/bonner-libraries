@@ -3,7 +3,6 @@ __all__ = (
     "DEFAULT_FONTS",
     "DEFAULT_MATPLOTLIBRC",
     "DEFAULT_SIZES",
-    "POSTER_SIZES",
     "add_colorbar",
     "apply_offset",
     "concatenate_images",
@@ -21,7 +20,6 @@ from bonner.plotting._defaults import (
     DEFAULT_FONTS,
     DEFAULT_MATPLOTLIBRC,
     DEFAULT_SIZES,
-    POSTER_SIZES,
 )
 from bonner.plotting._nilearn import normalize_curv_map
 from bonner.plotting._normalize import create_centered_diverging_cmap

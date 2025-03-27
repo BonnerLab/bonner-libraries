@@ -1,10 +1,10 @@
 __all__ = [
-    "Hook",
-    "GlobalMaxpool",
+    "Flatten",
     "GlobalAveragePool",
+    "GlobalMaxpool",
+    "Hook",
     "RandomProjection",
     "SparseRandomProjection",
-    "Flatten",
     "compute_johnson_lindenstrauss_limit",
 ]
 
