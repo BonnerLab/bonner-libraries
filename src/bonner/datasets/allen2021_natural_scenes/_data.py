@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -37,7 +38,11 @@ ROI_SOURCES = {
 }
 
 
-def load_brain_mask(*, subject: int, resolution: str) -> xr.DataArray:
+def load_brain_mask(
+    *,
+    subject: int,
+    resolution: Literal["1mm", "1pt8mm"],
+) -> xr.DataArray:
     """Load and format a Boolean brain mask for the functional data.
 
     Args:
@@ -61,7 +66,11 @@ def load_brain_mask(*, subject: int, resolution: str) -> xr.DataArray:
     return nii.to_dataarray(CACHE_PATH / filepath, flatten=None).astype(bool, order="C")
 
 
-def load_validity(*, subject: int, resolution: str) -> xr.DataArray:
+def load_validity(
+    *,
+    subject: int,
+    resolution: Literal["1mm", "1pt8mm"],
+) -> xr.DataArray:
     validity = []
     n_sessions = N_SESSIONS[subject]
 
@@ -89,8 +98,8 @@ def load_validity(*, subject: int, resolution: str) -> xr.DataArray:
 def load_betas(
     *,
     subject: int,
-    resolution: str,
-    preprocessing: str,
+    resolution: Literal["1mm", "1pt8mm"],
+    preprocessing: Literal["fithrf", "fithrf_GLMdenoise_RR"],
     z_score: bool,
     neuroid_filter: Sequence[bool] | bool = True,
 ) -> xr.DataArray:
@@ -253,8 +262,8 @@ def load_betas(
 def load_ncsnr(
     *,
     subject: int,
-    resolution: str,
-    preprocessing: str,
+    resolution: Literal["1mm", "1pt8mm"],
+    preprocessing: Literal["fithrf", "fithrf_GLMdenoise_RR"],
 ) -> xr.DataArray:
     """Load and format noise-ceiling signal-to-noise ratios (NCSNR).
 
@@ -281,7 +290,11 @@ def load_ncsnr(
     return nii.to_dataarray(CACHE_PATH / filepath).astype(dtype=np.float64, order="C")
 
 
-def load_structural_scans(*, subject: int, resolution: str) -> xr.DataArray:
+def load_structural_scans(
+    *,
+    subject: int,
+    resolution: Literal["1mm", "1pt8mm"],
+) -> xr.DataArray:
     """Load and format the structural scans registered to the functional data.
 
     Args:
@@ -315,7 +328,7 @@ def load_structural_scans(*, subject: int, resolution: str) -> xr.DataArray:
     )
 
 
-def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
+def load_rois(*, subject: int, resolution: Literal["1mm", "1pt8mm"]) -> xr.DataArray:
     """Load the ROI masks for a subject.
 
     Args:
@@ -395,7 +408,11 @@ def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
     return rois.drop_vars("roi").set_index({"roi": ("source", "label", "hemisphere")})
 
 
-def load_receptive_fields(*, subject: int, resolution: str) -> xr.DataArray:
+def load_receptive_fields(
+    *,
+    subject: int,
+    resolution: Literal["1mm", "1pt8mm"],
+) -> xr.DataArray:
     """Load population receptive field mapping data.
 
     Args:
@@ -438,7 +455,11 @@ def load_receptive_fields(*, subject: int, resolution: str) -> xr.DataArray:
     )
 
 
-def load_functional_contrasts(*, subject: int, resolution: str) -> xr.DataArray:
+def load_functional_contrasts(
+    *,
+    subject: int,
+    resolution: Literal["1mm", "1pt8mm"],
+) -> xr.DataArray:
     """Load functional contrasts.
 
     Args:
