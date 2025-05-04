@@ -13,7 +13,7 @@ from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import download_from_url, untar, unzip
 
 IDENTIFIER = "hebart2023.things-data"
-CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
+CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER / "fmri"
 URLS = {
     "meg.tar.gz": "https://plus.figshare.com/ndownloader/files/37650461",
     "fmri_betas.tar.gz": "https://plus.figshare.com/ndownloader/files/36806148",
@@ -75,8 +75,7 @@ def load_functional_rois(subject: int) -> xr.DataArray:
             filepath=CACHE_PATH / "downloads" / filename,
             force=False,
         )
-        filepath = unzip(filepath, remove_zip=False, extract_dir=CACHE_PATH / "rois")
-        return filepath
+        return unzip(filepath, remove_zip=False, extract_dir=CACHE_PATH / "rois")
 
     def _package() -> xr.DataArray:
         masks = []
@@ -87,9 +86,9 @@ def load_functional_rois(subject: int) -> xr.DataArray:
                     / "rois"
                     / "rois"
                     / "category_localizer"
-                    / f"sub-{subject+1:02}"
+                    / f"sub-{subject + 1:02}"
                     / f"{localizer_type}_parcels"
-                    / f"sub-{subject+1:02}_{hemisphere}{roi}.nii.gz"
+                    / f"sub-{subject + 1:02}_{hemisphere}{roi}.nii.gz"
                 )
                 with contextlib.suppress(Exception):
                     masks.append(
@@ -138,7 +137,7 @@ def load_receptive_fields(subject: int) -> xr.DataArray:
                 / "rois"
                 / "rois"
                 / "prf"
-                / f"sub-{subject+1:02}"
+                / f"sub-{subject + 1:02}"
                 / f"resampled_{label}.nii.gz"
             )
             prfs.append(load_nii(path).expand_dims({"quantity": [quantity]}))
@@ -182,8 +181,8 @@ def load_rois(subject: int) -> xr.DataArray:
                 },
             ),
         )
-    return xr.concat([*rois, functional_rois], dim="roi").set_index(
-        {"roi": ["hemisphere", "localizer", "label"]},
+    return xr.concat([*rois, functional_rois], dim="roi").set_xindex(
+        ["hemisphere", "localizer", "label"],
     )
 
 
@@ -237,8 +236,7 @@ def load_noise_ceilings(subject: int) -> xr.DataArray:
             path = (
                 CACHE_PATH
                 / "noise_ceilings"
-                / "noise_ceilings"
-                / f"sub-{subject+1:02}_nc_n-{n_images+1}.nii.gz"
+                / f"sub-{subject + 1:02}_nc_n-{n_images + 1}.nii.gz"
             )
             noise_ceilings.append(load_nii(path).expand_dims({"n_images": [n_images]}))
         return xr.concat(noise_ceilings, dim="n_images")
@@ -253,6 +251,7 @@ def load_noise_ceilings(subject: int) -> xr.DataArray:
 def load_betas(
     *,
     subject: int,
+    z_score: bool,
     neuroid_filter: Sequence[bool] | None = None,
 ) -> xr.DataArray:
     def _download() -> Path:
@@ -289,7 +288,7 @@ def load_betas(
                 betas_session = load_nii(
                     path_stem.with_name(f"{path_stem.name}_betas.nii.gz"),
                 )
-                betas.append(
+                betas_session = (
                     betas_session.assign_coords(
                         {
                             "stimulus": (
@@ -319,10 +318,17 @@ def load_betas(
                     )
                     .isel({"neuroid": neuroid_filter})
                     .transpose("presentation", "neuroid")
-                    .astype(dtype=np.float32),
+                    .astype(dtype=np.float32)
                 )
+                if z_score:
+                    betas_session = (
+                        betas_session - betas_session.mean("presentation")
+                    ) / betas_session.std("presentation")
+                betas.append(betas_session)
 
-        betas = xr.concat(betas, dim="presentation")
+        betas = xr.concat(betas, dim="presentation").assign_attrs(
+            {"z_score": str(z_score), "subject": subject},
+        )
 
         # exclude catch trials labelled catchNNN_<something>
         betas = betas.isel(
@@ -334,19 +340,28 @@ def load_betas(
             },
         )
 
-        reps: dict[str, int] = {}
-        repetitions = np.empty(
-            betas.sizes["presentation"],
-            dtype=np.uint8,
-        )
-        for i_stimulus, stimulus in enumerate(betas["stimulus"].data):
-            if stimulus in reps:
-                reps[stimulus] += 1
-            else:
-                reps[stimulus] = 0
-            repetitions[i_stimulus] = reps[stimulus]
+        objects, indices, labels = [], [], []
+        for stimulus in betas["stimulus"].to_numpy():
+            objects.append("_".join(stimulus.split("_")[:-1]))
+            indices.append(np.uint8(stimulus[-3:-1]) - 1)
+            match stimulus[-1]:
+                case "n":
+                    label = "ImageNet"
+                case "b":
+                    label = "reference"
+                case "s":
+                    label = "other"
+                case _:
+                    raise ValueError
+            labels.append(label)
 
-        return betas.assign_coords({"repetition": ("presentation", repetitions)})
+        return betas.assign_coords(
+            {
+                "object": ("presentation", objects),
+                "index": ("presentation", indices),
+                "label": ("presentation", labels),
+            },
+        )
 
     try:
         return _package()
