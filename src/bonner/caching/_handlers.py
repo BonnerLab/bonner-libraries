@@ -1,16 +1,16 @@
+import contextlib
 import pickle
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Self
 
+import cf_xarray
 import nibabel as nib
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
-from loguru import logger
 from PIL import Image
-from tqdm.dask import TqdmCallback
 
 
 class Handler(ABC):
@@ -65,20 +65,27 @@ class XarrayHandler(Handler):
         path: Path,
         **kwargs: Any,
     ) -> None:
-        if isinstance(result, xr.DataArray) and result.size == 0:
-            logger.warning(
-                f"The result has size 0, writing an empty netCDF4 file to {path}",
-            )
-            xr.DataArray().to_netcdf(path)
-        else:
-            with TqdmCallback(desc="dask", leave=False):
-                result.to_netcdf(path, **kwargs)
+        if isinstance(result, xr.DataArray):
+            result = result.to_dataset()
+
+        # if the Dataset has multi-indexes, serialize them
+        with contextlib.suppress(ValueError):
+            result = cf_xarray.encode_multi_index_as_compress(result)
+
+        result.to_netcdf(path, **kwargs)
 
     def load(self: Self, path: Path, **kwargs: Any) -> xr.DataArray | xr.Dataset:
-        try:
-            return xr.open_dataarray(path, **kwargs)
-        except Exception:
-            return xr.open_dataset(path, **kwargs)
+        result = xr.open_dataset(path, **kwargs)
+
+        # if the Dataset has serialized multi-indexes, deserialize them
+        with contextlib.suppress(ValueError):
+            result = cf_xarray.decode_compress_to_multi_index(result)
+
+        # if the Dataset has a single variable, convert it to a DataArray
+        if len(result.data_vars) == 1:
+            return result[next(iter(result.keys()))]
+
+        return result
 
 
 class PickleHandler(Handler):
