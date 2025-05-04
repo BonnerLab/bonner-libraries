@@ -8,13 +8,13 @@
 
 ## Libraries
 
-- `bonner.brainio` - implementation of the BrainIO specification for neural datasets
-- `bonner.files` - handling files
-- `bonner.plotting` - plotting figures
 - `bonner.datasets` - handling neural datasets
 - `bonner.models` - working with artificial neural networks
 - `bonner.computation` - CPU/GPU-agnostic computation
 - `bonner.caching` - caching function outputs to disk
+- `bonner.files` - handling files
+- `bonner.plotting` - plotting figures
+- `bonner.brainio` - implementation of the BrainIO specification for neural datasets
 
 ### `bonner.models`
 

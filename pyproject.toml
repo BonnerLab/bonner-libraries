@@ -30,13 +30,14 @@ dependencies = [
     "scipy",
     "torch",
     "torchvision",
-    "xarray",
+    "xarray[complete]",
+    "cf-xarray",
     "netCDF4",
     "dask",
     "nibabel",
     "Pillow",
     "matplotlib",
-    # "gpytoolbox", FIXME(gpytoolbox): needs to update to numpy>=2.0 (see https://github.com/sgsellan/gpytoolbox/pull/132)
+    "fast-simplification",
     "timm",
     "zenodo-get",
     "osfclient",
@@ -44,10 +45,21 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["ruff", "mypy", "types-requests", "sphinx"]
+dev = ["ruff", "mypy", "types-requests", "sphinx", "furo"]
 
 [tool.ruff]
 target-version = "py313"
 
 [tool.ruff.lint]
 select = ["ALL"]
+ignore = [
+    "CPY001",
+    "PD013",
+    "D103",
+    "E302",
+    "PLR0913",
+    "D203",
+    "D212",
+    "PD013",
+    "PD010",
+]
