@@ -1,9 +1,9 @@
 __all__ = (
-    "svd",
     "PCA",
-    "PLSSVD",
+    "CrossCovarianceSVD",
+    "svd",
 )
 
+from bonner.computation.decomposition._cross_covariance_svd import CrossCovarianceSVD
 from bonner.computation.decomposition._pca import PCA
-from bonner.computation.decomposition._plssvd import PLSSVD
 from bonner.computation.decomposition._svd import svd
