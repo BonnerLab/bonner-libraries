@@ -19,7 +19,8 @@ class Environment:
         self.environments = environments
 
     def __call__(self: Self, func: Callable[P, R]) -> Callable[P, R]:
-        """Try running a function with various values of specified kwargs.
+        """
+        Try running a function with various values of specified kwargs.
 
         Attempts to runs the function `func` with each set of kwargs specified by `environments`.
 
@@ -79,9 +80,13 @@ def try_devices(
     *,
     current: bool = False,
 ) -> Callable[P, R]:
-    """Try to run a function on any of the provided `devices`, exiting on success.
+    """
+    Try to run a function on any of the provided `devices`, exiting on success.
 
-    For each device provided, the tensor-valued arguments and keyword arguments to `func` are copied to the device before the function is run. This allows us to write device-agnostic code, since the function can be run on whichever device is available at runtime. This function can be used as a decorator.
+    For each device provided, the tensor-valued arguments and keyword arguments
+    to `func` are copied to the device before the function is run. This allows
+    us to write device-agnostic code, since the function can be run on whichever
+    device is available at runtime. This function can be used as a decorator.
 
     Example:
     -------
@@ -109,13 +114,18 @@ def try_devices(
     z = try_devices(add)(x, y=y)
     ```
 
-    If you need more flexibility in how the function should be applied on different devices (for e.g., your function takes in numpy arrays and not tensors as inputs), consider using the function `try_environments`.
+    If you need more flexibility in how the function should be applied on
+    different devices (for e.g., your function takes in numpy arrays and not
+    tensors as inputs), consider using the function `try_environments`.
 
     Args:
     ----
-        func: The function that should be wrapped.
-        devices: GPUs/CPU that the function should be tried on, in the order specified. Defaults to all the GPUs available and then the CPU (i.e., ["cuda:0", ..., f"cuda:{torch.cuda.device_count()}", "cpu"])
-        current: Whether to try running the function with all the tensors on their current devices, defaults to False.
+        func: The function that should be wrapped. devices: GPUs/CPU that the
+        function should be tried on, in the order specified. Defaults to all the
+        GPUs available and then the CPU (i.e., ["cuda:0", ...,
+        f"cuda:{torch.cuda.device_count()}", "cpu"]) current: Whether to try
+        running the function with all the tensors on their current devices,
+        defaults to False.
 
     Returns:
     -------
