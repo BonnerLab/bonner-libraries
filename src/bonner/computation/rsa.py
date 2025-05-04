@@ -1,5 +1,6 @@
 import itertools
 from collections.abc import Callable
+from typing import Literal
 
 import numpy as np
 import torch
@@ -37,7 +38,7 @@ def compute_rsa_correlation(
     rsm_y: torch.Tensor,
     /,
     *,
-    correlation: str,
+    correlation: Literal["Pearson", "Spearman"] = "Spearman",
     n_bootstraps: int = 5_000,
     subsample_fraction: float = 0.9,
     seed: int = 0,
@@ -62,6 +63,7 @@ def compute_rsa_correlation(
             rsms_x.append(rsm_x[samples, :][:, samples])
             rsms_y.append(rsm_y[samples, :][:, samples])
 
+        # FIXME: setting batch_size to 1 breaks this T_T
         r_bootstrapped.append(
             func(
                 extract_upper_triangle(torch.stack(rsms_x)).T,
