@@ -3,8 +3,7 @@
 from pathlib import Path
 from typing import Literal
 
-# FIXME(gpytoolbox)
-# import gpytoolbox
+import fast_simplification
 import nibabel as nib
 import numpy as np
 import xarray as xr
@@ -307,19 +306,14 @@ def plot_brain_map(
     coordinates, faces = surf_mesh.coordinates, surf_mesh.faces
 
     if decimate < 1:
-        # FIXME(gpytoolbox)
-        error = "gpytoolbox needs to update to numpy>=2.0 (see https://github.com/sgsellan/gpytoolbox/pull/132)"
-        raise NotImplementedError(error)
-        coordinates, faces, _, coordinate_filter = gpytoolbox.decimate(
+        coordinates, faces = fast_simplification.simplify(
             coordinates,
             faces,
+            target_reduction=1 - decimate,
         )
-        coordinate_filter = np.isin(
-            np.arange(len(surf_mesh.coordinates)),
-            coordinate_filter,
-        )
-        stat_map = stat_map[coordinate_filter]
-        curv_map = curv_map[coordinate_filter]
+        raise NotImplementedError
+        # stat_map = stat_map[coordinate_filter]
+        # curv_map = curv_map[coordinate_filter]
 
     _ = plot_surf_stat_map(
         axes=ax,
