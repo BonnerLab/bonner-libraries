@@ -2,7 +2,8 @@ import xarray as xr
 
 
 def concatenate_features(features: dict[str, xr.DataArray]) -> xr.DataArray:
-    """Concatenates features from multiple nodes along the ``neuroid`` dimension.
+    """
+    Concatenates features from multiple nodes along the ``neuroid`` dimension.
 
     Args:
     ----
@@ -20,7 +21,8 @@ def concatenate_features(features: dict[str, xr.DataArray]) -> xr.DataArray:
 
 
 def flatten_features(features: dict[str, xr.DataArray]) -> dict[str, xr.DataArray]:
-    """Flattens features from each node into a ``neuroid`` dimension.
+    """
+    Flattens features from each node into a ``neuroid`` dimension.
 
     Args:
     ----
@@ -33,5 +35,5 @@ def flatten_features(features: dict[str, xr.DataArray]) -> dict[str, xr.DataArra
     """
     for node in features:
         dims = list(set(features[node].dims) - {"presentation"})
-        features[node] = features[node].stack({"neuroid": dims}).reset_index("neuroid")
+        features[node] = features[node].stack({"neuroid": dims}).drop_indexes("neuroid")
     return features
