@@ -6,13 +6,15 @@ import torch
 from bonner.computation.decomposition._svd import svd
 
 
-class PLSSVD:
+class CrossCovarianceSVD:
     def __init__(
         self: Self,
         *,
         randomized: bool,
+        niter: int = 2,
     ) -> None:
         self.randomized = randomized
+        self.niter = niter
 
         self.n_samples: int
         self.n_components: int
@@ -84,6 +86,7 @@ class PLSSVD:
                 x,
                 randomized=self.randomized,
                 n_components=self.n_components,
+                niter=self.niter,
             )
             u = v
             s = s**2
@@ -92,6 +95,7 @@ class PLSSVD:
                 x.transpose(-2, -1) @ y,
                 randomized=self.randomized,
                 n_components=self.n_components,
+                niter=self.niter,
             )
 
         self.left_singular_vectors = u
