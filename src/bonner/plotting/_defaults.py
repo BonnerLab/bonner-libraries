@@ -45,10 +45,10 @@ DEFAULT_FIGURE_OPTIONS = {
     "figure.autolayout": True,
     "savefig.dpi": 600,
     "savefig.bbox": "tight",
-    "savefig.pad_inches": 0,
+    # "savefig.pad_inches": 0,
     "savefig.format": "svg",
     "savefig.transparent": True,
-    "figure.facecolor": "white",
+    "figure.facecolor": "None",
     "axes.facecolor": "None",
     "axes.spines.top": False,
     "axes.spines.right": False,
@@ -62,25 +62,3 @@ DEFAULT_FIGURE_OPTIONS = {
     "patch.linewidth": 0,
 }
 DEFAULT_MATPLOTLIBRC = DEFAULT_FONTS | DEFAULT_SIZES | DEFAULT_FIGURE_OPTIONS
-
-MM_PER_PT = 0.35277777777778
-PT_PER_MM = 1 / MM_PER_PT
-THICKNESS_IN_MM = 1.5
-THICKNESS_IN_PTS = THICKNESS_IN_MM * PT_PER_MM
-
-POSTER_SIZES = {
-    "axes.linewidth": THICKNESS_IN_PTS,
-    "xtick.major.width": THICKNESS_IN_PTS,
-    "ytick.major.width": THICKNESS_IN_PTS,
-    "axes.labelpad": 20,
-    "axes.titlepad": 20,
-    "xtick.major.pad": 16,
-    "ytick.major.pad": 16,
-    "font.size": 32,
-    "axes.labelsize": 48,
-    "axes.titlesize": 48,
-    "xtick.labelsize": 36,
-    "ytick.labelsize": 36,
-    "legend.fontsize": 36,
-    "legend.borderaxespad": 0,
-}
