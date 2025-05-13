@@ -2,6 +2,7 @@ __all__ = [
     "IDENTIFIER",
     "N_SUBJECTS",
     "ROI_SOURCES",
+    "SURFACE_ROI_MAPPINGS",
     "StimulusSet",
     "compute_noise_ceiling",
     "compute_shared_stimuli",
@@ -47,6 +48,7 @@ from bonner.datasets.allen2021_natural_scenes._utilities import (
     create_roi_selector,
 )
 from bonner.datasets.allen2021_natural_scenes._visualization import (
+    SURFACE_ROI_MAPPINGS,
     convert_ndarray_to_nifti1image,
     load_surface_mesh,
     load_surface_roi,

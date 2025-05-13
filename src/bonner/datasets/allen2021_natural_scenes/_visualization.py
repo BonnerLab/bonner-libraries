@@ -22,6 +22,27 @@ MNI_SHAPE = (182, 218, 182)
 MNI_ORIGIN = np.asarray([183 - 91, 127, 73]) - 1
 MNI_RESOLUTION = 1
 
+SURFACE_ROI_MAPPINGS = {
+    "streams": {
+        "early visual stream": 1,
+        "midventral visual stream": 2,
+        "midlateral visual stream": 3,
+        "midparietal visual stream": 4,
+        "ventral visual stream": 5,
+        "lateral visual stream": 6,
+        "parietal visual stream": 7,
+    },
+    "prf-visualrois": {
+        "V1v": 1,
+        "V1d": 2,
+        "V2v": 3,
+        "V2d": 4,
+        "V3v": 5,
+        "V3d": 6,
+        "hV4": 7,
+    },
+}
+
 
 def normalize_hemisphere(
     hemisphere: Literal["left", "right", "lh", "rh", "l", "r"],
