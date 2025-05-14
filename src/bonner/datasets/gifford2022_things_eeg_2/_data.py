@@ -109,67 +109,76 @@ def download_dataset(preprocess_type: str = "preprocessed"):
             raise ValueError(f"Invalid data type: {preprocess_type}")
  
 def load_metadata(data_type: str = "train",) -> pd.DataFrame:
+    if data_type == "all":
+        # important order of test and then train
+        return pd.concat([load_metadata("test"), load_metadata("train")], axis=0).reset_index(drop=True)
+    else:
+        # TEMP: OSF connection error
+        _download_osf_project(
+            project_id=PROJECT_ID_DICT["images"],
+            save_path=CACHE_PATH / "images"
+        )
+        
+        metadata = np.load(CACHE_PATH / "images" / "image_metadata.npy", allow_pickle=True).item()
+        df =  pd.DataFrame.from_dict({
+            column: metadata[f"{data_type}_{column}"]
+            for column in METADATA_COLUMNS
+        })
+        df["object"] = ['_'.join(s.split('_')[1:]) for s in df[METADATA_COLUMNS[1]].to_list()]
+        return df
+    
+def load_stimuli(data_type: str = "train", batch_size: int = 256, idx: int = None) -> xr.DataArray:
     # TEMP: OSF connection error
-    # _download_osf_project(
-    #     project_id=PROJECT_ID_DICT["images"],
-    #     save_path=CACHE_PATH / "images"
-    # )
+    _download_osf_project(
+        project_id=PROJECT_ID_DICT["images"],
+        save_path=CACHE_PATH / "images"
+    )
     
-    metadata = np.load(CACHE_PATH / "images" / "image_metadata.npy", allow_pickle=True).item()
-    df =  pd.DataFrame.from_dict({
-        column: metadata[f"{data_type}_{column}"]
-        for column in METADATA_COLUMNS
-    })
-    df["object"] = ['_'.join(s.split('_')[1:]) for s in df[METADATA_COLUMNS[1]].to_list()]
-    return df
+    stimuli_folder = CACHE_PATH / "images"
     
-def load_stimuli(data_type: str = "train", batch_size: int = 32) -> xr.DataArray:
-    # TEMP: OSF connection error
-    # _download_osf_project(
-    #     project_id=PROJECT_ID_DICT["images"],
-    #     save_path=CACHE_PATH / "images"
-    # )
-    
-    stimuli_folder = CACHE_PATH / "images" / f"{TYPE_DICT[data_type]}_images"
+    if data_type != "all":
+        stimuli_folder = stimuli_folder / f"{TYPE_DICT[data_type]}_images"
     
     dataset = ImageFolder(
         root=stimuli_folder,
         transform=ToTensor() 
     )
     
-    # Load data into batches
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    if idx is None:
+        # Load data into batches
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
     
-    all_images = []
-    all_labels = []
-    class_names = dataset.classes 
-    for images, _ in dataloader:
-        all_images.append(images)
-    
-    all_images = torch.cat(all_images, dim=0).permute(0, 2, 3, 1)  # Shape: (N, H, W, C)
-    
-    return xr.DataArray(
-        all_images.numpy(),
-        dims=["stimulus", "height", "width", "channel",],
-        coords={"stimulus": load_metadata(data_type)["img_files"].to_list()}
-    )
+        all_images = []
+        for images, _ in dataloader:
+            all_images.append(images)
+        
+        all_images = torch.cat(all_images, dim=0).permute(0, 2, 3, 1)  # Shape: (N, H, W, C)
+        
+        return xr.DataArray(
+            all_images.numpy(),
+            dims=["stimulus", "height", "width", "channel",],
+            coords={"stimulus": load_metadata(data_type)["img_files"].to_list()}
+        )
+    else:
+        return xr.DataArray(
+            dataset[idx][0].permute(1, 2, 0).unsqueeze(0),
+            dims=["stimulus", "height", "width", "channel",],
+            coords={"stimulus": [load_metadata(data_type)["img_files"][idx]]}
+        )
     
 class StimulusSet(MapDataPipe):
     def __init__(self, data_type: str) -> None:
-        self.identifier = f"IDENTIFIER.{data_type}"
+        self.data_type = data_type
+        self.identifier = f"{IDENTIFIER}.{data_type}"
         self.metadata = load_metadata(data_type)
-        self.stimuli = load_stimuli(data_type)
-        # .transpose(
-        #     "stimulus", "channel", "height", "width"
-        # )
         
     def __getitem__(self, idx: int):
-        stimulus = self.metadata.loc[idx, "img_files"]
-        # return torch.tensor(self.stimuli.sel(stimulus=stimulus).values)
-        return ToPILImage()(self.stimuli.sel(stimulus=stimulus).values)
+        return ToPILImage()(
+            load_stimuli(data_type=self.data_type, idx=idx).isel(stimulus=0).values
+        )
 
     def __len__(self) -> int:
-        return self.stimuli.sizes["stimulus"]
+        return len(self.metadata)
 
 def baseline_correction(epochs, baseline):
     baselined_epochs = mne.baseline.rescale(data=epochs.get_data(copy=False), times=epochs.times, baseline=baseline, mode='zscore', copy=False, verbose=False)

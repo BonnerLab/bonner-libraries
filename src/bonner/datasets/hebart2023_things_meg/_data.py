@@ -9,8 +9,19 @@ import requests
 import numpy as np
 import pandas as pd
 import xarray as xr
+import torch
 from tqdm import tqdm
+from bonner.files import unzip
 from joblib import Parallel, delayed
+from osfclient.api import OSF
+from torch.utils.data import DataLoader, Dataset
+from torchvision.transforms import ToPILImage, ToTensor, transforms
+from PIL import Image
+from bonner.caching import cache
+
+from torch.utils.data import MapDataPipe
+from torchvision.transforms import ToPILImage
+
 
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import untar
@@ -24,6 +35,7 @@ FILE_ID_DICT = {
     "preprocessed": 39472855,
     "raw": 36827316,
 }
+PROJECT_ID_DICT = {"images": "jum2f"}
 ROI_DICT = {
     "occipital": ["MLO", "MRO"],
     "temporal": ["MLT", "MRT"],
@@ -31,6 +43,7 @@ ROI_DICT = {
     "frontal": ["MLF", "MRF"],
     "central": ["MLC", "MRC"],
 }
+TYPE_DICT = {"train": "exp", "test": "test"}
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 N_SUBJECTS = 4
 N_SESSIONS = 12
@@ -40,6 +53,57 @@ TRIGGER_AMPLITUDE = 64
 TRIGGER_CHANNEL = "UPPT001"
 
 
+
+def _download_osf_file(project_id, save_path, file_path=None, use_cached=True, password=None):
+   osf = OSF()
+   project = osf.project(project_id)
+   storage = project.storage('osfstorage')
+   
+   if file_path is not None:
+       if use_cached and save_path.exists() and any(save_path.iterdir()):
+           return save_path
+           
+       os.makedirs(save_path, exist_ok=True)
+       
+       target_file = None
+       normalized_file_path = file_path.lstrip('/')
+       
+       for file in storage.files:
+           file_path_normalized = file.path.lstrip('/')
+           if file_path_normalized == normalized_file_path:
+               target_file = file
+               break
+       
+       if target_file is None:
+           raise FileNotFoundError(f"File {file_path} not found in project {project_id}")
+       
+       local_path = os.path.join(save_path, normalized_file_path)
+       os.makedirs(os.path.dirname(local_path), exist_ok=True)
+       
+       with open(local_path, 'wb') as local_file:
+           target_file.write_to(local_file)
+       
+       if local_path.endswith('.zip'):
+           unzip(Path(local_path), extract_dir=save_path, password=password)
+       
+       return save_path
+       
+   else:
+       if use_cached and save_path.exists() and any(save_path.iterdir()):
+           return save_path
+           
+       os.makedirs(save_path, exist_ok=True)
+       
+       for file in storage.files:
+           file_path = os.path.join(save_path, file.path.lstrip('/'))
+           os.makedirs(os.path.dirname(file_path), exist_ok=True)
+           with open(file_path, 'wb') as local_file:
+               file.write_to(local_file)
+           
+           if file_path.endswith('.zip'):
+               unzip(Path(file_path), extract_dir=save_path)
+       
+       return save_path
 
 def _download_figshare_file(article_id, file_id, save_path, use_cached=True):
     if use_cached and os.path.exists(save_path):
@@ -78,7 +142,104 @@ def _download_figshare_file(article_id, file_id, save_path, use_cached=True):
             
     if str(file_name).endswith('.tar.gz'):
         untar(CACHE_PATH / file_name, extract_dir=save_path)
+
+@cache(f"{CACHE_PATH}/images/metadata/{{data_type}}.pkl")
+def load_metadata(data_type: str = "train", subject: int = 1) -> pd.DataFrame:
+    download_dataset(preprocess_type="preprocessed")
+    data = mne.read_epochs(CACHE_PATH / "preprocessed" / "LOCAL/ocontier/thingsmri/openneuro/THINGS-data/THINGS-MEG/ds004212/derivatives/preprocessed" / 
+    f"preprocessed_P{subject:01d}-epo.fif", preload=True, verbose=False)
+    path_column = "image_path"
+    
+    metadata = data.metadata.copy()
+    
+    if data_type != "all":
+        epoch_idx = metadata.trial_type == TYPE_DICT[data_type]
+        metadata = metadata.loc[epoch_idx].copy()
+    else:
+        epoch_idx = metadata.trial_type.isin(["exp", "test"])
+        metadata = metadata.loc[epoch_idx].copy()
+    
+    metadata["img_files"] = metadata[path_column].apply(lambda i: i.split('/')[-1])
+    
+    metadata = metadata.drop_duplicates(subset=["img_files"]).reset_index(drop=True)
+    
+    metadata["object"] = metadata["img_files"].apply(lambda i: '_'.join(i.split('_')[:-1]))
+    
+    metadata[path_column] = [CACHE_PATH / "images" / "object_images" / metadata.loc[i, "object"] / metadata.loc[i, "img_files"] for i in range(len(metadata))]
+    
+    return metadata[["img_files", path_column, "object"]].sort_values(by="img_files").reset_index(drop=True)
         
+def load_stimuli(data_type: str = "train", batch_size: int = 256, idx: int = None, metadata = None) -> xr.DataArray:
+    # _download_osf_file(
+    #     PROJECT_ID_DICT["images"],
+    #     save_path=CACHE_PATH / "images",
+    #     file_path="_image_database_things.zip",
+    #     password=b"things4all",
+    # )
+    metadata = load_metadata(data_type=data_type) if metadata is None else metadata
+    
+    if idx is not None:
+        image_path = metadata["image_path"].values[idx]
+        image = Image.open(image_path).convert('RGB')
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+        ])
+        image = transform(image)
+        return xr.DataArray(
+            image.permute(1, 2, 0).unsqueeze(0),
+            dims=["stimulus", "height", "width", "channel"],
+            coords={"stimulus": [metadata["img_files"][idx]]}
+        )
+    
+    class ImagePathDataset(Dataset):
+        def __init__(self, image_paths):
+            self.image_paths = image_paths
+            self.transform = transforms.Compose([
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+            ])
+            
+        def __len__(self):
+            return len(self.image_paths)
+    
+        def __getitem__(self, idx):
+            image_path = self.image_paths[idx]
+            image = Image.open(image_path).convert('RGB')
+            
+            return self.transform(image)
+        
+    dataset = ImagePathDataset(metadata["image_path"].values)
+    
+     # Load data into batches
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+    all_images = []
+    for images in dataloader:
+        all_images.append(images)
+    
+    all_images = torch.cat(all_images, dim=0).permute(0, 2, 3, 1)  # Shape: (N, H, W, C)
+    
+    return xr.DataArray(
+        all_images.numpy(),
+        dims=["stimulus", "height", "width", "channel",],
+        coords={"stimulus": load_metadata(data_type)["img_files"].to_list()}
+    )
+
+
+class StimulusSet(MapDataPipe):
+    def __init__(self, data_type: str) -> None:
+        self.data_type = data_type
+        self.identifier = f"IDENTIFIER.{data_type}"
+        self.metadata = load_metadata(data_type)
+        
+    def __getitem__(self, idx: int):
+        return ToPILImage()(
+            load_stimuli(data_type=self.data_type, idx=idx, metadata=self.metadata).isel(stimulus=0).values
+        )
+
+    def __len__(self) -> int:
+        return len(self.metadata)
 
 def download_dataset(preprocess_type: str = "preprocessed"):
     assert preprocess_type in ["preprocessed", "raw"], f"Invalid data type: {preprocess_type}"
@@ -254,7 +415,7 @@ def load_preprocessed_data(
     metadata = data.metadata
     neuroid = data.ch_names
     times = data.times
-    epoch_idx = metadata.trial_type == data_type
+    epoch_idx = metadata.trial_type == TYPE_DICT[data_type]
     metadata = metadata.loc[epoch_idx]
     
     if band_stop_n_bin is None:
@@ -307,5 +468,20 @@ def load_preprocessed_data(
     
     data = data.assign_coords({"img_files": ("object", img_files)})
     return data
+
+class StimulusSet(MapDataPipe):
+    def __init__(self, data_type: str) -> None:
+        self.data_type = data_type
+        self.identifier = f"IDENTIFIER.{data_type}"
+        self.metadata = load_metadata(data_type)
+        
+    def __getitem__(self, idx: int):
+        return ToPILImage()(
+            load_stimuli(data_type=self.data_type, idx=idx).isel(stimulus=0).values
+        )
+
+    def __len__(self) -> int:
+        return len(self.metadata)
+
     
     

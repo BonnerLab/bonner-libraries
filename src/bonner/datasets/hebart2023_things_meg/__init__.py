@@ -3,11 +3,17 @@ __all__ = (
     "N_SUBJECTS",
     "download_dataset",
     "load_preprocessed_data"
+    "load_metadata",
+    "load_stimuli",
+    "StimulusSet",
 )
 
 from bonner.datasets.hebart2023_things_meg._data import (
     IDENTIFIER,
     N_SUBJECTS,
     download_dataset,
-    load_preprocessed_data
+    load_preprocessed_data,
+    load_metadata,
+    load_stimuli,
+    StimulusSet
 )
