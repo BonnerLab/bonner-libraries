@@ -327,14 +327,24 @@ def plot_brain_map(
     coordinates, faces = surf_mesh.coordinates, surf_mesh.faces
 
     if decimate < 1:
-        coordinates, faces = fast_simplification.simplify(
+        _, _, collapses = fast_simplification.simplify(
             coordinates,
             faces,
             target_reduction=1 - decimate,
+            return_collapses=True,
         )
-        raise NotImplementedError
-        # stat_map = stat_map[coordinate_filter]
-        # curv_map = curv_map[coordinate_filter]
+        # float32 cast required to avoid `ValueError: Buffer dtype mismatch, expected 'float' but got 'double'` in `File "fast_simplification/_replay.pyx", line 33, in fast_simplification._replay.load_int32`
+        coordinates, faces, mapping = fast_simplification.replay_simplification(
+            coordinates.astype(np.float32),
+            faces,
+            collapses,
+        )
+        mapping = np.isin(
+            np.arange(len(surf_mesh.coordinates)),
+            mapping,
+        )
+        stat_map = stat_map[mapping]
+        curv_map = curv_map[mapping]
 
     _ = plot_surf_stat_map(
         axes=ax,

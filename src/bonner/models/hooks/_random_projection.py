@@ -2,6 +2,7 @@ from typing import Self
 
 import numpy as np
 import torch
+
 from bonner.caching import cache
 from bonner.computation.cuda import try_devices
 from bonner.models.hooks._definition import Hook

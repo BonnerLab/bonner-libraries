@@ -3,6 +3,8 @@ import itertools
 import nibabel as nib
 import numpy as np
 import xarray as xr
+from scipy.io import loadmat
+
 from bonner.datasets.bonner2021_object2vec._utilities import (
     BRAIN_DIMENSIONS,
     FILENAMES,
@@ -11,11 +13,11 @@ from bonner.datasets.bonner2021_object2vec._utilities import (
     URLS,
     load_conditions,
 )
-from scipy.io import loadmat
 
 
 def create_data_assembly(subject: int) -> xr.DataArray:
-    """Load and format functional activations.
+    """
+    Load and format functional activations.
 
     Args:
     ----
@@ -24,6 +26,7 @@ def create_data_assembly(subject: int) -> xr.DataArray:
     Returns:
     -------
         functional activations with "presentation" and "neuroid" dimensions
+
     """
     activations = loadmat(FILENAMES["activations"][subject], simplify_cells=True)[
         "betas"
@@ -56,7 +59,7 @@ def create_data_assembly(subject: int) -> xr.DataArray:
             },
         )
         .stack({"presentation": ("condition", "repetition")})
-        .reset_index("presentation")
+        .drop_indexes("presentation")
         .transpose("presentation", "neuroid")
         .assign_coords(
             {

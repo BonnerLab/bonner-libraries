@@ -46,10 +46,10 @@ def download_annotations(*, force: bool = False) -> Path:
 def get_coco_to_nsd_mapping() -> dict[int, int]:
     nsd = load_nsd_metadata()
     return {
-        coco_id: nsd_id
+        int(coco_id): int(nsd_id)
         for nsd_id, coco_id in zip(
-            int(nsd["nsdId"].to_numpy()),
-            int(nsd["cocoId"].to_numpy()),
+            nsd["nsdId"].to_numpy(),
+            nsd["cocoId"].to_numpy(),
             strict=True,
         )
     }

@@ -326,8 +326,13 @@ def load_betas(
                     ) / betas_session.std("presentation")
                 betas.append(betas_session)
 
-        betas = xr.concat(betas, dim="presentation").assign_attrs(
-            {"z_score": str(z_score), "subject": subject},
+        betas = (
+            xr.concat(betas, dim="presentation")
+            .rename("beta")
+            .dropna(dim="neuroid", how="any")
+            .assign_attrs(
+                {"z_score": str(z_score), "subject": subject},
+            )
         )
 
         # exclude catch trials labelled catchNNN_<something>

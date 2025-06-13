@@ -3,11 +3,12 @@ from typing import Any
 
 import torch
 import torchvision
-from bonner.files import unzip
-from bonner.models.utilities import BONNER_MODELS_HOME
 from PIL import Image
 from torch import nn
-from zenodo_get import zenodo_get
+from zenodo_get import zget
+
+from bonner.files import unzip
+from bonner.models.utilities import BONNER_MODELS_HOME
 
 MODEL_ZOO_CACHE = BONNER_MODELS_HOME / "models" / "model_zoo"
 
@@ -19,14 +20,14 @@ UNZIP_DIR = "tiny-imagenet_resnet18_kaiming_uniform_subset"
 
 def load_model_zoo_checkpoint(seed: int) -> dict[str, Any]:
     if not (MODEL_ZOO_CACHE / UNZIP_DIR).exists():
-        zenodo_get(f"-d {DOI} -o {MODEL_ZOO_CACHE}".split())
+        zget(f"-d {DOI} -o {MODEL_ZOO_CACHE}".split())
         unzip(
             filepath=MODEL_ZOO_CACHE / ZIP_FILENAME,
             extract_dir=MODEL_ZOO_CACHE,
             remove_zip=False,
         )
     root = MODEL_ZOO_CACHE / UNZIP_DIR
-    filepath = [path.relative_to(root) for path in root.rglob(f"*seed={seed}_*")][0]
+    filepath = next(path.relative_to(root) for path in root.rglob(f"*seed={seed}_*"))
     return torch.load(
         MODEL_ZOO_CACHE / UNZIP_DIR / filepath / "checkpoint_000060" / "checkpoints",
         map_location=torch.device("cpu"),

@@ -2,7 +2,8 @@ from pathlib import Path
 
 import numpy as np
 import xarray as xr
-from bonner.datasets._utils import load_nii
+
+from bonner.datasets._utilities import nii
 from bonner.datasets.chang2019_bold5000._utilities import (
     IDENTIFIER,
     N_SESSIONS,
@@ -12,10 +13,13 @@ from bonner.datasets.chang2019_bold5000._utilities import (
     get_imagenames_filename,
 )
 
+from ._download import download_dataset
 
-def create_assembly(subject: int) -> xr.DataArray:
+
+def load_betas(subject: int) -> xr.DataArray:
+    download_dataset()
+
     mask = load_brain_mask(subject)
-    structural_scan = load_structural_scan(subject)
     neuroid_metadata = load_neuroid_metadata(subject)
 
     return (
@@ -38,17 +42,6 @@ def create_assembly(subject: int) -> xr.DataArray:
         )
         .assign_coords(
             {coord: neuroid_metadata[coord] for coord in neuroid_metadata.coords},
-        )
-        .assign_attrs(
-            {
-                "brain_dimensions": mask.attrs["brain_dimensions"],
-                "structural_scan": structural_scan.data,
-                "structural_scan_brain_dimensions": structural_scan.attrs[
-                    "brain_dimensions"
-                ],
-                "identifier": f"{IDENTIFIER}-subject{subject}",
-                "stimulus_set_identifier": IDENTIFIER,
-            },
         )
         .dropna(dim="neuroid", how="any")
     )
@@ -75,17 +68,17 @@ def load_neuroid_metadata(subject: int) -> xr.DataArray:
 
 
 def load_brain_mask(subject: int) -> xr.DataArray:
-    return load_nii(Path.cwd() / get_brain_mask_filename(subject)).astype(bool)
+    return nii.to_dataarray(Path.cwd() / get_brain_mask_filename(subject)).astype(bool)
 
 
 def load_activations(subject: int, session: int) -> xr.DataArray:
-    return load_nii(Path.cwd() / get_betas_filename(subject, session)).astype(
+    return nii.to_dataarray(Path.cwd() / get_betas_filename(subject, session)).astype(
         np.float32,
     )
 
 
 def load_roi_mask(subject: int, hemisphere: str, roi: str) -> xr.DataArray:
-    return load_nii(
+    return nii.to_dataarray(
         Path.cwd()
         / f"sub-CSI{subject + 1}"
         / f"sub-CSI{subject + 1}_mask-{hemisphere}{roi}.nii.gz",
@@ -93,14 +86,14 @@ def load_roi_mask(subject: int, hemisphere: str, roi: str) -> xr.DataArray:
 
 
 def load_structural_scan(subject: int) -> xr.DataArray:
-    return load_nii(
+    return nii.to_dataarray(
         Path.cwd() / "BOLD5000_Structural"
         f"/CSI{subject + 1}_Structural"
         f"/T1w_MPRAGE_CSI{subject + 1}.nii",
     )
 
 
-def load_image_filename_stems(subject: int) -> list[Path]:
-    with open(get_imagenames_filename(subject)) as f:
+def load_image_filename_stems(subject: int) -> list[str]:
+    with get_imagenames_filename(subject).open("rb") as f:
         # strip newlines, extension
         return [Path(line[:-1]).stem for line in f.readlines()]

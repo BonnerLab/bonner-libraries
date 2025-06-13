@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 
-def create_stimulus_set() -> pd.DataFrame:
+def load_stimulus_set() -> pd.DataFrame:
     parent_dir = Path("BOLD5000_Stimuli") / "Scene_Stimuli" / "Presented_Stimuli"
     image_paths = list(parent_dir.rglob("*.*"))
     return pd.DataFrame(

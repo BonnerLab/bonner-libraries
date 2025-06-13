@@ -5,7 +5,7 @@ import netCDF4
 import numpy as np
 import torch
 import xarray as xr
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import DataLoader
 from torchvision.models.feature_extraction import create_feature_extractor
 from tqdm.auto import tqdm
 
@@ -25,10 +25,10 @@ def extract_features(
     use_cached: bool = True,
     device: torch.device | None = None,
 ) -> dict[str, xr.DataArray]:
-    """Extract features from the internal nodes of a PyTorch model.
+    """
+    Extract features from the internal nodes of a PyTorch model.
 
     WARNING: this function assumes that
-
     * all 4-D features are from convolutional layers and have the shape ``(presentation, channel, spatial_x, spatial_y)``
     * all 2-D features are from linear layers and have the shape ``(presentation, channel)``
     * all 3-D features are from patch-based Vision Transformers and have the shape ``(presentation, patch, channel)``
@@ -108,7 +108,7 @@ def _extract_features(
     hooks: dict[str, Hook],
     filepaths: dict[str, Path],
     device: torch.device,
-    datapipe: IterableDataset,
+    datapipe: DataLoader,
 ) -> None:
     netcdf4_files = {
         node: netCDF4.Dataset(filepaths[node], "w", format="NETCDF4") for node in nodes

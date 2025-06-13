@@ -16,7 +16,8 @@ def compute_shared_stimuli(
     *,
     n_repetitions: int = 1,
 ) -> set[int]:
-    """Get the IDs of the stimuli shared across all the provided assemblies.
+    """
+    Get the IDs of the stimuli shared across all the provided assemblies.
 
     Args:
     ----
@@ -50,7 +51,8 @@ def compute_noise_ceiling(
     *,
     ncsnr: xr.DataArray,
 ) -> xr.DataArray:
-    """Compute the noise ceiling for a subject's fMRI data using the method described in the NSD Data Manual under the "Conversion of ncsnr to noise ceiling percentages" section.
+    """
+    Compute the noise ceiling for a subject's fMRI data using the method described in the NSD Data Manual under the "Conversion of ncsnr to noise ceiling percentages" section.
 
     Args:
     ----

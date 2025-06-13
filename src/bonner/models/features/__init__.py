@@ -1,6 +1,6 @@
 __all__ = [
-    "extract_features",
     "concatenate_features",
+    "extract_features",
     "flatten_features",
 ]
 

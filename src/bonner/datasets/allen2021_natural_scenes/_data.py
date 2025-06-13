@@ -43,7 +43,8 @@ def load_brain_mask(
     subject: int,
     resolution: Literal["1mm", "1pt8mm"],
 ) -> xr.DataArray:
-    """Load and format a Boolean brain mask for the functional data.
+    """
+    Load and format a Boolean brain mask for the functional data.
 
     Args:
     ----
@@ -103,7 +104,8 @@ def load_betas(
     z_score: bool,
     neuroid_filter: Sequence[bool] | bool = True,
 ) -> xr.DataArray:
-    """Load betas.
+    """
+    Load betas.
 
     Args:
     ----
@@ -136,7 +138,7 @@ def load_betas(
             data=np.empty((max(N_SESSIONS), N_TRIALS_PER_SESSION), dtype=np.uint32),
             dims=("session", "trial"),
         )
-        stimuli.values[sessions, intra_session_trials] = indices[0]
+        stimuli.data[sessions, intra_session_trials] = indices[0]
 
         stimuli = stimuli.assign_coords(
             {
@@ -205,7 +207,7 @@ def load_betas(
         }
         | {
             coord: ("presentation", stimuli[coord].data)
-            for coord in stimuli.reset_index("presentation").coords
+            for coord in stimuli.drop_indexes("presentation").coords
         },
         attrs={
             "resolution": resolution,
@@ -265,7 +267,8 @@ def load_ncsnr(
     resolution: Literal["1mm", "1pt8mm"],
     preprocessing: Literal["fithrf", "fithrf_GLMdenoise_RR"],
 ) -> xr.DataArray:
-    """Load and format noise-ceiling signal-to-noise ratios (NCSNR).
+    """
+    Load and format noise-ceiling signal-to-noise ratios (NCSNR).
 
     Args:
     ----
@@ -295,7 +298,8 @@ def load_structural_scans(
     subject: int,
     resolution: Literal["1mm", "1pt8mm"],
 ) -> xr.DataArray:
-    """Load and format the structural scans registered to the functional data.
+    """
+    Load and format the structural scans registered to the functional data.
 
     Args:
     ----
@@ -329,7 +333,8 @@ def load_structural_scans(
 
 
 def load_rois(*, subject: int, resolution: Literal["1mm", "1pt8mm"]) -> xr.DataArray:
-    """Load the ROI masks for a subject.
+    """
+    Load the ROI masks for a subject.
 
     Args:
     ----
@@ -405,7 +410,7 @@ def load_rois(*, subject: int, resolution: Literal["1mm", "1pt8mm"]) -> xr.DataA
                         )
     rois = xr.concat(rois, dim="roi")
     rois["label"] = rois["roi"].astype(str)
-    return rois.drop_vars("roi").set_index({"roi": ("source", "label", "hemisphere")})
+    return rois.drop_vars("roi").set_xindex(["source", "label", "hemisphere"])
 
 
 def load_receptive_fields(
@@ -413,7 +418,8 @@ def load_receptive_fields(
     subject: int,
     resolution: Literal["1mm", "1pt8mm"],
 ) -> xr.DataArray:
-    """Load population receptive field mapping data.
+    """
+    Load population receptive field mapping data.
 
     Args:
     ----
@@ -460,7 +466,8 @@ def load_functional_contrasts(
     subject: int,
     resolution: Literal["1mm", "1pt8mm"],
 ) -> xr.DataArray:
-    """Load functional contrasts.
+    """
+    Load functional contrasts.
 
     Args:
     ----

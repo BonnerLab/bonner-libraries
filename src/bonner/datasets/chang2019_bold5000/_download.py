@@ -18,8 +18,9 @@ from bonner.files import download_from_url, unzip
 from bonner.files.figshare import get_url_dict
 
 
-def download_dataset(*, force: bool = False, **kwargs: str) -> None:
+def download_dataset(*, force: bool = False) -> None:
     urls = get_url_dict(FIGSHARE_ARTICLE_ID_V2)
+    print(urls)
 
     for subject in tqdm(range(N_SUBJECTS), desc="subject", leave=False):
         filenames = [
@@ -27,10 +28,10 @@ def download_dataset(*, force: bool = False, **kwargs: str) -> None:
             get_imagenames_filename(subject),  # image names
         ]
         for filename in filenames:
-            download_from_url(urls[filename], Path(filename), force=force)
+            download_from_url(urls[str(filename)], filepath=filename, force=force)
         for session in tqdm(range(N_SESSIONS[subject]), desc="session", leave=False):
             filename = get_betas_filename(subject, session)  # betas
-            download_from_url(urls[filename], Path(filename), force=force)
+            download_from_url(urls[str(filename)], filepath=filename, force=force)
 
     urls = get_url_dict(FIGSHARE_ARTICLE_ID_V1)
     urls = {

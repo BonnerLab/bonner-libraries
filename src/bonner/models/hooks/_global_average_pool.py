@@ -1,6 +1,7 @@
 from typing import Self
 
 import torch
+
 from bonner.models.hooks._definition import Hook
 
 
@@ -9,7 +10,8 @@ class GlobalAveragePool(Hook):
         super().__init__(identifier="global_average_pool")
 
     def __call__(self: Self, features: torch.Tensor) -> torch.Tensor:
-        """Globally avg-pool the features along all spatial dimensions.
+        """
+        Globally avg-pool the features along all spatial dimensions.
 
         WARNING: this function assumes that
 
@@ -23,6 +25,7 @@ class GlobalAveragePool(Hook):
         Returns:
         -------
             spatially average-pooled features
+
         """
         match features.ndim:
             case 4:  # normal conv average pool

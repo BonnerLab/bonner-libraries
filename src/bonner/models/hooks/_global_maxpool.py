@@ -1,6 +1,7 @@
 from typing import Self
 
 import torch
+
 from bonner.models.hooks._definition import Hook
 
 
@@ -25,7 +26,8 @@ class GlobalMaxpool(Hook):
         self.band_width = band_width
 
     def __call__(self: Self, features: torch.Tensor) -> torch.Tensor:
-        """Globally max-pools the features along all spatial dimensions.
+        """
+        Globally max-pools the features along all spatial dimensions.
 
         WARNING: this function assumes that
 
@@ -40,11 +42,13 @@ class GlobalMaxpool(Hook):
         Returns:
         -------
             spatially max-pooled features
+
         """
         if self.even is None:
             # for edge cases noted above
             if self.amax_dim:
-                assert features.ndim == 4
+                if features.ndim != 4:
+                    raise ValueError
                 return features.amax(dim=self.amax_dim)
 
             match features.ndim:
@@ -53,11 +57,13 @@ class GlobalMaxpool(Hook):
                 case 3:  # maxpool across patches in ViT
                     return features.amax(dim=1)
                 case _:
-                    raise ValueError("features do not have the appropriate shape")
+                    msg = "features do not have the appropriate shape"
+                    raise ValueError(msg)
         else:
             start_idx = 0 if self.even else self.band_width
             if self.amax_dim:
-                assert features.ndim == 4
+                if features.ndim != 4:
+                    raise ValueError
                 end_idx = features.size(self.amax_dim[0])
             else:
                 match features.ndim:
@@ -66,7 +72,8 @@ class GlobalMaxpool(Hook):
                     case 3:  # maxpool across patches in ViT
                         end_idx = features.size(1)
                     case _:
-                        raise ValueError("features do not have the appropriate shape")
+                        msg = "features do not have the appropriate shape"
+                        raise ValueError(msg)
 
             band_count = (end_idx - start_idx) // (2 * self.band_width)
             selected_indices = [

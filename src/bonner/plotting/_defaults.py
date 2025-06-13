@@ -45,7 +45,6 @@ DEFAULT_FIGURE_OPTIONS = {
     "figure.autolayout": True,
     "savefig.dpi": 600,
     "savefig.bbox": "tight",
-    # "savefig.pad_inches": 0,
     "savefig.format": "svg",
     "savefig.transparent": True,
     "figure.facecolor": "None",

@@ -126,20 +126,20 @@ def load_betas(
                 for column in stimuli.columns
             },
         )
-        .assign_attrs(
-            {
-                "resolution": resolution,
-                "preprocessing": preprocessing,
-                "z_score": str(z_score),
-                "subject": subject,
-            },
-        )
     )
     if z_score:
         betas = (betas - betas.mean("presentation")) / betas.std("presentation")
     else:
         betas /= 300
-    return betas
+
+    return betas.assign_attrs(
+        {
+            "resolution": resolution,
+            "preprocessing": preprocessing,
+            "z_score": str(z_score),
+            "subject": subject,
+        },
+    )
 
 
 def load_validity(
