@@ -1,4 +1,3 @@
-from collections.abc import Collection
 from pathlib import Path
 
 from osfclient.api import OSF
@@ -9,34 +8,35 @@ def download(
     project_id: str,
     directory: Path,
     storage: str = "osfstorage",
-    files: Collection[str] | None = None,
+    files: set[str] | None = None,
     use_cached: bool = True,
 ) -> None:
     osf = OSF()
     project = osf.project(project_id)
 
-    files_to_download = None if files is None else set(files)
+    directory.mkdir(exist_ok=True, parents=True)
 
-    if use_cached:
-        files_to_download = {
-            file_
-            for file_ in files
-            if not (directory / Path(file_).relative_to("/")).exists()
-        }
-        if len(files_to_download) == 0:
-            return
+    # short-circuit network call if required files already exist
+    if (
+        use_cached
+        and files is not None
+        and all((directory / Path(file_).relative_to("/")).exists() for file_ in files)
+    ):
+        return
 
-    if (not use_cached) or (not directory.exists()):
-        directory.mkdir(exist_ok=True, parents=True)
-        for file_ in project.storage(storage).files:
-            if (files_to_download is None) or (file_.path in files_to_download):
-                filepath = directory / Path(file_.path).relative_to("/")
-                filepath.parent.mkdir(exist_ok=True, parents=True)
-                with filepath.open("wb") as f:
-                    file_.write_to(f)
+    for file_ in project.storage(storage).files:
+        if files is None or file_.path in files:
+            filepath = directory / Path(file_.path).relative_to("/")
+            filepath.parent.mkdir(exist_ok=True, parents=True)
 
-                if files_to_download is not None:
-                    files_to_download.remove(file_.path)
+            if filepath.exists() and use_cached:
+                continue
 
-            if (files_to_download is not None) and len(files_to_download) == 0:
-                break
+            with filepath.open("wb") as f:
+                file_.write_to(f)
+
+            if files is not None:
+                files.remove(file_.path)
+
+                if len(files) == 0:
+                    return
