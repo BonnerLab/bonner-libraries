@@ -114,10 +114,10 @@ def load_metadata(data_type: str = "train",) -> pd.DataFrame:
         return pd.concat([load_metadata("test"), load_metadata("train")], axis=0).reset_index(drop=True)
     else:
         # TEMP: OSF connection error
-        _download_osf_project(
-            project_id=PROJECT_ID_DICT["images"],
-            save_path=CACHE_PATH / "images"
-        )
+        # _download_osf_project(
+        #     project_id=PROJECT_ID_DICT["images"],
+        #     save_path=CACHE_PATH / "images"
+        # )
         
         metadata = np.load(CACHE_PATH / "images" / "image_metadata.npy", allow_pickle=True).item()
         df =  pd.DataFrame.from_dict({
@@ -129,10 +129,10 @@ def load_metadata(data_type: str = "train",) -> pd.DataFrame:
     
 def load_stimuli(data_type: str = "train", batch_size: int = 256, idx: int = None) -> xr.DataArray:
     # TEMP: OSF connection error
-    _download_osf_project(
-        project_id=PROJECT_ID_DICT["images"],
-        save_path=CACHE_PATH / "images"
-    )
+    # _download_osf_project(
+    #     project_id=PROJECT_ID_DICT["images"],
+    #     save_path=CACHE_PATH / "images"
+    # )
     
     stimuli_folder = CACHE_PATH / "images"
     
@@ -181,7 +181,7 @@ class StimulusSet(MapDataPipe):
         return len(self.metadata)
 
 def baseline_correction(epochs, baseline):
-    baselined_epochs = mne.baseline.rescale(data=epochs.get_data(copy=False), times=epochs.times, baseline=baseline, mode='zscore', copy=False, verbose=False)
+    baselined_epochs = mne.baseline.rescale(data=epochs.get_data(copy=False), times=epochs.times, baseline=baseline, mode='mean', copy=False, verbose=False)
     epochs = mne.EpochsArray(baselined_epochs, epochs.info, epochs.events, epochs.tmin, event_id=epochs.event_id, verbose=False)
     return epochs
 
@@ -292,21 +292,36 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
         # Select only a maximum number of EEG repetitions
         if data_type == 'test':
             max_rep = 20
+            sorted_data = np.zeros((len(img_cond),max_rep,*data.shape[1:]))
+            for i in range(len(img_cond)):
+                # Find the indices of the selected image condition
+                idx = np.where(events == img_cond[i])[0]
+                # Randomly select only the max number of EEG repetitions
+                idx = shuffle(idx, random_state=SEED, n_samples=max_rep)
+                sorted_data[i] = data[idx]
+            del data
+            epoched_data.append(sorted_data)
+            del sorted_data
         else:
             max_rep = 2
+            if session % 2 == 1:
+                # For odd sessions, select the first max_rep EEG repetitions
+                sorted_data = np.zeros((len(img_cond)*2,max_rep,*data.shape[1:]))
+                for i in range(len(img_cond)):
+                    idx = np.where(events == img_cond[i])[0][:max_rep]
+                    sorted_data[i] = data[idx]
+                del data
+            else:
+                for i in range(len(img_cond)):
+                    idx = np.where(events == img_cond[i])[0][:max_rep]
+                    sorted_data[i] = data[idx]
+                del data
+                epoched_data.append(sorted_data)
+                del sorted_data
         # Sorted data matrix of shape:
         # Image conditions × EEG repetitions × EEG channels × EEG time points
-        sorted_data = np.zeros((len(img_cond),max_rep,*data.shape[1:]))
-        for i in range(len(img_cond)):
-            # Find the indices of the selected image condition
-            idx = np.where(events == img_cond[i])[0]
-            # Randomly select only the max number of EEG repetitions
-            idx = shuffle(idx, random_state=SEED, n_samples=max_rep)
-            sorted_data[i] = data[idx]
-        del data
-        epoched_data.append(sorted_data)
         img_conditions.append(img_cond)
-        del sorted_data
+       
     
     epoched_data = np.concatenate(epoched_data, axis=1)
     
@@ -322,7 +337,6 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
         'events_list': events_list,
         'img_conditions': img_conditions,
     }
-    
     
 def load_preprocessed_data(
     subject: int,

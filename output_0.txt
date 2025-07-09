@@ -1,0 +1,2 @@
+nohup: ignoring input
+python: can't open file '/home/zchen160/projects/temporal_generalization/src/bonner-libraries/scripts/compute_score.py': [Errno 2] No such file or directory

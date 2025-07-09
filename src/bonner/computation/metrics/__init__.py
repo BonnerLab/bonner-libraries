@@ -4,7 +4,9 @@ __all__ = [
     "covariance",
     "cosine_similarity",
     "r2_score",
+    "euclidean_distance",
 ]
 
 from bonner.computation.metrics._corrcoef import covariance, pearson_r, spearman_r, cosine_similarity
 from bonner.computation.metrics._r2_score import r2_score
+from bonner.computation.metrics._euclid import euclidean_distance

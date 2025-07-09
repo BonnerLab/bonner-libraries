@@ -7,6 +7,9 @@ import mne
 import numpy as np
 import pandas as pd
 import xarray as xr
+import scipy.io
+from tqdm.auto import tqdm
+import itertools
 
 from bonner.datasets._utilities import BONNER_DATASETS_HOME
 from bonner.files import unzip
@@ -35,17 +38,21 @@ def _download_osf_project(project_id, save_path, target_paths=None, use_cached=T
             if file_path.endswith('.zip'):
                 file_path = unzip(Path(file_path), extract_dir=save_path)
 
-
-def load_embeddings(scale: bool = False):
+def _download_all():
     _download_osf_project(
         project_id=PROJECT_ID,
         save_path=CACHE_PATH,
         target_paths=(
             "/data/spose_embedding_66d_sorted.txt",
+            "/data/spose_similarity.mat",
+            "/data/triplet_dataset/triplets_large_final_correctednc_correctedorder.csv",
             "/variables/labels.txt",
             "/variables/unique_id.txt",
         ),
     )
+
+def load_embeddings(scale: bool = False):
+    _download_all()
     
     embd = pd.read_csv(CACHE_PATH / "data" / "spose_embedding_66d_sorted.txt", sep="\t", header=None).values
     bhv = pd.read_csv(CACHE_PATH / "variables" / "labels.txt", sep="\t", header=None).values.flatten()
@@ -59,4 +66,27 @@ def load_embeddings(scale: bool = False):
         dims=("object", "behavior"),
         coords={"object": object, "behavior": bhv},
     )
+    
+def load_object_labels():
+    _download_all()
+    
+    return  pd.read_csv(CACHE_PATH / "variables" / "unique_id.txt", sep="\t", header=None).values.flatten()
+    
+def load_spose_rsm():
+    _download_all()
+    
+    spose_similarity = scipy.io.loadmat(CACHE_PATH / "data" / "spose_similarity.mat")["spose_sim"]
+    object = load_object_labels()
+    return xr.DataArray(
+        spose_similarity,
+        dims=("object0", "object1"),
+        coords={"object0": object, "object1": object},
+    )
+    
+def load_triplet_results():
+    _download_all()
+    
+    return pd.read_csv(CACHE_PATH / "data" / "triplet_dataset" /"triplets_large_final_correctednc_correctedorder.csv", sep="\t")
+    
+    
     

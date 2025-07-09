@@ -298,7 +298,9 @@ def concat_epochs(raw, events, event_file, epochs, tmin, tmax):
     return epochs
 
 def baseline_correction(epochs, baseline):
-    baselined_epochs = mne.baseline.rescale(data=epochs.get_data(copy=False), times=epochs.times, baseline=baseline, mode='zscore', copy=False, verbose=False)
+    # baselined_epochs = mne.baseline.rescale(data=epochs.get_data(copy=False), times=epochs.times, baseline=baseline, mode='zscore', copy=False, verbose=False)
+    # originally was zscore, but use mean to match eeg preprocessing
+    baselined_epochs = mne.baseline.rescale(data=epochs.get_data(copy=False), times=epochs.times, baseline=baseline, mode='mean', copy=False, verbose=False)
     epochs = mne.EpochsArray(baselined_epochs, epochs.info, epochs.events, epochs.tmin, event_id=epochs.event_id, verbose=False)
     return epochs
     
@@ -369,9 +371,18 @@ def load_preprocessed_data(
         )
 
     if rois is not None:
-        if isinstance(rois, str):
-            rois = [rois]
-        rois = np.concatenate([ROI_DICT[r] for r in rois])
+        temp_rois = []
+        if 'o' in rois:
+            temp_rois.append(ROI_DICT['occipital'])
+        if 't' in rois:
+            temp_rois.append(ROI_DICT['temporal'])
+        if 'p' in rois:
+            temp_rois.append(ROI_DICT['parietal'])
+        if 'f' in rois:
+            temp_rois.append(ROI_DICT['frontal'])
+        if 'c' in rois:
+            temp_rois.append(ROI_DICT['central'])
+        rois = np.concatenate(temp_rois)
         channels = np.array(data.ch_names)
         channels = channels[np.array([ch[:3] in rois for ch in channels])]
         data = data.pick(channels)

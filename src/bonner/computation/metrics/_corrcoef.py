@@ -124,7 +124,7 @@ def spearman_r(
 
     return _helper(
         rank_x,
-        rank_y,
+        rank_y if y is not None else None,
         center=True,
         scale=True,
         correction=correction,
