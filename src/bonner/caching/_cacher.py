@@ -32,7 +32,8 @@ class Cacher:
         kwargs_save: Mapping[str, Any] = {},
         kwargs_load: Mapping[str, Any] = {},
     ) -> None:
-        """Cache outputs of functions to disk.
+        """
+        Cache outputs of functions to disk.
 
         Avoids re-evaluation of (potentially expensive) function when called again.
 

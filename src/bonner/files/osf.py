@@ -11,9 +11,6 @@ def download(
     files: set[str] | None = None,
     use_cached: bool = True,
 ) -> None:
-    osf = OSF()
-    project = osf.project(project_id)
-
     directory.mkdir(exist_ok=True, parents=True)
 
     # short-circuit network call if required files already exist
@@ -23,6 +20,8 @@ def download(
         and all((directory / Path(file_).relative_to("/")).exists() for file_ in files)
     ):
         return
+
+    project = OSF().project(project_id)
 
     for file_ in project.storage(storage).files:
         if files is None or file_.path in files:

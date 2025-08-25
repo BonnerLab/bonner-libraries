@@ -28,6 +28,7 @@ dependencies = [
     "numpy",
     "pandas",
     "scipy",
+    "mat73",
     "torch",
     "torchvision",
     "xarray[complete]",

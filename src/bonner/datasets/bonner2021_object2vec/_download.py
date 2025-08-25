@@ -4,7 +4,7 @@ from bonner.datasets.bonner2021_object2vec._utilities import FILENAMES, N_SUBJEC
 from bonner.files import download_from_url, unzip
 
 
-def download_dataset(*, force: bool) -> None:
+def download_dataset(*, force: bool = False) -> None:
     filepath = download_from_url(
         URLS["stimuli"],
         filepath=Path(FILENAMES["stimuli"]),

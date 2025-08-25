@@ -39,6 +39,10 @@ DEFAULT_SIZES = {
     "xtick.major.width": 1,
     "ytick.major.size": 3.5,
     "ytick.major.width": 1,
+    "xtick.minor.visible": False,
+    "ytick.minor.visible": False,
+    "xtick.minor.size": 0,
+    "ytick.minor.size": 0,
 }
 
 DEFAULT_FIGURE_OPTIONS = {
@@ -54,10 +58,6 @@ DEFAULT_FIGURE_OPTIONS = {
     "legend.edgecolor": "None",
     "legend.fancybox": False,
     "legend.frameon": False,
-    "xtick.minor.visible": False,
-    "ytick.minor.visible": False,
-    "xtick.minor.size": 0,
-    "ytick.minor.size": 0,
     "patch.linewidth": 0,
 }
 DEFAULT_MATPLOTLIBRC = DEFAULT_FONTS | DEFAULT_SIZES | DEFAULT_FIGURE_OPTIONS

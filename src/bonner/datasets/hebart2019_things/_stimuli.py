@@ -44,7 +44,31 @@ def load_metadata() -> pd.DataFrame:
     metadata["stimulus"] = [
         (CACHE_PATH / filename).stem for filename in metadata["filename"]
     ]
-    return metadata.set_index("stimulus").drop(columns="filename")
+    metadata = metadata.drop(columns="filename")
+    metadata = pd.concat(
+        [
+            metadata,
+            metadata["stimulus"]
+            .str.rsplit("_", expand=True, n=1)
+            .rename(
+                columns={0: "concept", 1: "instance"},
+            ),
+        ],
+        axis=1,
+    )
+    metadata["concept"] = metadata["concept"].astype(pd.CategoricalDtype())
+    metadata["reference"] = [
+        "b" in instance for instance in metadata["instance"].tolist()
+    ]
+    metadata["imagenet"] = [
+        "n" in instance for instance in metadata["instance"].tolist()
+    ]
+    metadata["index"] = metadata["instance"].str[:2].astype(int) - 1
+    metadata.attrs = {
+        "reference": "whether this image was used as the reference image for the concept, and as part of the original triplet odd-one-out task",
+        "imagenet": "whether this image is part of the ImageNet database",
+    }
+    return metadata
 
 
 class StimulusSet(Dataset):
@@ -54,14 +78,11 @@ class StimulusSet(Dataset):
         self.metadata = load_metadata()
         self.root = CACHE_PATH
 
-    def __getitem__(self: Self, idx: str) -> Image.Image:
-        idx.split("_")[0]
+    def __getitem__(self: Self, idx: int) -> Image.Image:
+        row = self.metadata.iloc[idx]
+        filename, concept = row["stimulus"], row["concept"]
         return Image.open(
-            self.root
-            / "images"
-            / "object_images"
-            / "_".join(idx.split("_")[:-1])
-            / f"{idx}.jpg",
+            self.root / "images" / "object_images" / f"{concept}" / f"{filename}.jpg",
         )
 
     def __len__(self: Self) -> int:

@@ -2,6 +2,7 @@ from collections.abc import Collection
 from typing import Self
 
 import torch
+
 from bonner.computation.regression._utilities import Regression
 
 

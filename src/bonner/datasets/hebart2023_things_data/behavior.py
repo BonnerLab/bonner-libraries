@@ -107,16 +107,9 @@ def load_triplets() -> pd.DataFrame:
     ]
 
     # make first two columns the foil trials, and the third column the odd-one-out
-    triplets.iloc[..., :2] = (
-        triplets.iloc[..., :3]
-        .to_numpy()[
-            triplets.iloc[..., :3].to_numpy()
-            != np.tile(
-                triplets["choice"].to_numpy(),
-                reps=(3, 1),
-            ).T
-        ]
-        .reshape((len(triplets), 2))
+    triplets.iloc[..., :3] = standardize_order_of_triplets(
+        triplets.iloc[..., :3].to_numpy(),
+        choices=triplets["choice"].to_numpy(),
     )
     triplets = triplets.rename(columns={"image1": "image_1", "image2": "image_2"}).drop(
         columns="image3",
@@ -178,5 +171,48 @@ def load_densely_sampled_triplet_categories() -> set[str]:
             simplify_cells=True,
         )["words48"]
     }
-    return objects  # FIXME(add camera1/camera2 or file1/file2 instead of camera and file)
+    return (
+        objects  # FIXME(add camera1/camera2 or file1/file2 instead of camera and file)
+    )
     # objects.remove("camera")
+
+
+def standardize_order_of_triplets(
+    triplets: npt.NDArray[np.uint64],
+    *,
+    choices: npt.NDArray[np.uint64],
+) -> npt.NDArray[np.uint64]:
+    """
+    Standardize the order of triplets for the odd-one-out task.
+
+    Given a triplet of stimulus indices `{j, k, i}`, sort it to `(i, j, k)` such
+    that `k` is the chosen odd-stimulus-out and `i < j`.
+
+    Parameters
+    ----------
+    triplets
+        `(n_triplets, 3)` matrix of stimulus indices, where each row
+            represents a triplet `(i, j, k)` of stimuli,
+    choices
+        `(n_triplets,)` vector of stimulus choices, where each element is an
+        index in `{i, j, k}`.
+
+    Returns
+    -------
+        `(n_triplets, 3)` matrix of stimulus indices, sorted such that `k` is the
+        chosen odd-stimulus-out and `i < j`.
+
+    """
+    return np.concatenate(
+        [
+            triplets[
+                triplets
+                != np.tile(
+                    choices,
+                    reps=(3, 1),
+                ).T,
+            ].reshape((len(triplets), 2)),
+            choices.reshape(-1, 1),
+        ],
+        axis=-1,
+    )
