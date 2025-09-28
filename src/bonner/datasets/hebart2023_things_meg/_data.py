@@ -479,20 +479,3 @@ def load_preprocessed_data(
     
     data = data.assign_coords({"img_files": ("object", img_files)})
     return data
-
-class StimulusSet(MapDataPipe):
-    def __init__(self, data_type: str) -> None:
-        self.data_type = data_type
-        self.identifier = f"IDENTIFIER.{data_type}"
-        self.metadata = load_metadata(data_type)
-        
-    def __getitem__(self, idx: int):
-        return ToPILImage()(
-            load_stimuli(data_type=self.data_type, idx=idx).isel(stimulus=0).values
-        )
-
-    def __len__(self) -> int:
-        return len(self.metadata)
-
-    
-    

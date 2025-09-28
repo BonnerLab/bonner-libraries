@@ -303,6 +303,8 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
             epoched_data.append(sorted_data)
             del sorted_data
         else:
+            # TODO: concatenation issue
+            assert False
             max_rep = 2
             if session % 2 == 1:
                 # For odd sessions, select the first max_rep EEG repetitions
