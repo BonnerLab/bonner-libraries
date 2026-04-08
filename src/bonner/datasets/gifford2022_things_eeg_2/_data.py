@@ -3,6 +3,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import os
+import re
 import mne
 import numpy as np
 import pandas as pd
@@ -41,6 +42,30 @@ L_FREQ, H_FREQ = 0.1, 100
 SEED = 11
 N_JOBS = 6
 
+# Maps rois value → (uses_old_data, channel_regex_or_None)
+ROI_CONFIG = {
+    "op":  (True, None),
+    "o":   (True, r'^O'),
+    "p":   (True, r'^P'),
+    "all": (False, r'^(?!stim)'),
+    "f":   (False, r'^F'),
+    "c":   (False, r'^C'),
+    "t":   (False, r'^T'),
+}
+
+def _roi_config(rois):
+    if rois in ROI_CONFIG:
+        return ROI_CONFIG[rois]
+    pattern = '|'.join(f'^{c.upper()}' for c in rois)
+    return (False, pattern)
+
+def _filter_channels(x, channel_pattern):
+    if channel_pattern is None:
+        return x
+    mask = [bool(re.match(channel_pattern, ch)) for ch in x["ch_names"]]
+    x["ch_names"] = [ch for ch, m in zip(x["ch_names"], mask) if m]
+    x["preprocessed_eeg_data"] = x["preprocessed_eeg_data"][:, :, mask, ...]
+    return x
 
 
 def _download_osf_project(project_id, save_path, use_cached=True):
@@ -58,6 +83,24 @@ def _download_osf_project(project_id, save_path, use_cached=True):
             
             if file_path.endswith('.zip'):
                 file_path = unzip(Path(file_path), extract_dir=save_path)
+
+def _download_osf_files_filtered(project_id, save_path, file_filter=None, use_cached=True):
+    osf = OSF()
+    project = osf.project(project_id)
+    storage = project.storage('osfstorage')
+
+    if (not use_cached) or (not save_path.exists()):
+        os.makedirs(save_path, exist_ok=True)
+        for file in storage.files:
+            if file_filter is not None and not file_filter(file.path):
+                continue
+            file_path = os.path.join(save_path, file.path.lstrip('/'))
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, 'wb') as local_file:
+                file.write_to(local_file)
+
+            if file_path.endswith('.zip'):
+                unzip(Path(file_path), extract_dir=save_path)
 
 def _download_figshare_article(article_id, save_path, use_cached=True):
     if use_cached and os.path.exists(save_path):
@@ -91,13 +134,22 @@ def _download_figshare_article(article_id, save_path, use_cached=True):
         if str(file_name).endswith('.zip'):
             unzip(CACHE_PATH / file_name, extract_dir=save_path)
 
-def download_dataset(preprocess_type: str = "preprocessed"):
+def download_dataset(preprocess_type: str = "preprocessed", rois: str = "op"):
     match preprocess_type:
         case "preprocessed":
-            _download_osf_project(
-                project_id=PROJECT_ID_DICT[preprocess_type],
-                save_path=CACHE_PATH / preprocess_type
-            )
+            uses_old_data, _ = _roi_config(rois)
+            if uses_old_data:
+                _download_osf_files_filtered(
+                    project_id=PROJECT_ID_DICT[preprocess_type],
+                    save_path=CACHE_PATH / "preprocessed",
+                    file_filter=lambda path: "63_channels" not in path,
+                )
+            else:
+                _download_osf_files_filtered(
+                    project_id=PROJECT_ID_DICT[preprocess_type],
+                    save_path=CACHE_PATH / "preprocessed_all",
+                    file_filter=lambda path: "63_channels" in path,
+                )
         case "raw":
             _download_figshare_article(
                 article_id=ARTICLE_ID_DICT[preprocess_type],
@@ -360,8 +412,14 @@ def load_preprocessed_data(
         assert from_raw
     
     if not from_raw:
-        download_dataset(preprocess_type="preprocessed")
-        x = np.load(CACHE_PATH / "preprocessed" / f"sub-{subject:02d}" / f"preprocessed_eeg_{TYPE_DICT[data_type]}.npy", allow_pickle=True).item()
+        uses_old_data, channel_pattern = _roi_config(rois)
+        download_dataset(preprocess_type="preprocessed", rois=rois)
+        if uses_old_data:
+            subject_dir = CACHE_PATH / "preprocessed" / f"sub-{subject:02d}"
+        else:
+            subject_dir = CACHE_PATH / "preprocessed_all" / f"sub-{subject:02d}__63_channels"
+        x = np.load(subject_dir / f"preprocessed_eeg_{TYPE_DICT[data_type]}.npy", allow_pickle=True).item()
+        x = _filter_channels(x, channel_pattern)
     else:
         download_dataset(preprocess_type="raw")
         x = run_preprocessing(
