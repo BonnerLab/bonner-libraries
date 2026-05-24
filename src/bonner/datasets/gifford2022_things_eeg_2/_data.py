@@ -238,7 +238,7 @@ def baseline_correction(epochs, baseline):
     return epochs
 
 ### adapted from things eeg 2 ###
-def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline, tfr_n_bin, band_stop_n_bin, band_stop, rois):
+def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline, tfr_n_bin, band_stop_n_bin, band_stop, rois, shuffle_reps=True):
     epoched_data = []
     img_conditions = []
     events_list = []
@@ -348,8 +348,12 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
             for i in range(len(img_cond)):
                 # Find the indices of the selected image condition
                 idx = np.where(events == img_cond[i])[0]
-                # Randomly select only the max number of EEG repetitions
-                idx = shuffle(idx, random_state=SEED, n_samples=max_rep)
+                if shuffle_reps:
+                    # Randomly select only the max number of EEG repetitions
+                    idx = shuffle(idx, random_state=SEED, n_samples=max_rep)
+                else:
+                    # Keep chronological order: take first max_rep occurrences
+                    idx = idx[:max_rep]
                 sorted_data[i] = data[idx]
             del data
             epoched_data.append(sorted_data)
@@ -406,11 +410,12 @@ def load_preprocessed_data(
     band_stop_n_bin: int = None,
     band_stop: list[float, float] = None,
     rois: str = "op",
+    shuffle: bool = True,
     **kwargs,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
     if tfr_n_bin is not None or band_stop_n_bin is not None or band_stop is not None:
         assert from_raw
-    
+
     if not from_raw:
         uses_old_data, channel_pattern = _roi_config(rois)
         download_dataset(preprocess_type="preprocessed", rois=rois)
@@ -424,6 +429,7 @@ def load_preprocessed_data(
         download_dataset(preprocess_type="raw")
         x = run_preprocessing(
             subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline, tfr_n_bin, band_stop_n_bin, band_stop, rois,
+            shuffle_reps=shuffle,
         )
     
     metadata = load_metadata(data_type=data_type)

@@ -14,6 +14,7 @@ __all__ = [
     "load_receptive_fields",
     "load_functional_contrasts",
     "StimulusSet",
+    "load_nsd_metadata",
     "transform_data_to_mni",
     "transform_data_to_surface",
     "convert_ndarray_to_nifti1image",
@@ -34,7 +35,10 @@ from bonner.datasets.allen2021_natural_scenes._data import (
     load_structural_scans,
     load_validity,
 )
-from bonner.datasets.allen2021_natural_scenes._stimuli import StimulusSet
+from bonner.datasets.allen2021_natural_scenes._stimuli import (
+    StimulusSet,
+    load_nsd_metadata,
+)
 from bonner.datasets.allen2021_natural_scenes._utilities import (
     IDENTIFIER,
     N_SUBJECTS,
