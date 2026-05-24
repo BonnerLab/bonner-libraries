@@ -20,7 +20,7 @@ def svd(
         v_h = v.transpose(-2, -1)
         del v
     else:
-        u, s, v_h = torch.linalg.svd(x, full_matrices=False, driver="gesvd")
+        u, s, v_h = torch.linalg.svd(x, full_matrices=False)
     u, v_h = _svd_flip(u=u, v_h=v_h)
 
     return (

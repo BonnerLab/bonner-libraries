@@ -12,11 +12,15 @@ class PCA:
         n_components: int | None = None,
         scale: bool = False,
         randomized: bool = False,
+        truncated: bool = False,
+        seed: int = 0,
     ) -> None:
         self.n_components = n_components
         self.n_samples: int
         self.scale = scale
         self.randomized = randomized
+        self.truncated = truncated
+        self.seed = seed
 
         self.mean: torch.Tensor
         self.std: torch.Tensor
@@ -61,12 +65,23 @@ class PCA:
 
     def fit(self: Self, x: torch.Tensor, /) -> None:
         x = self._preprocess(x)
-        _, s, self.eigenvectors = svd(
-            x,
-            randomized=self.randomized,
-            n_components=self.n_components,
-        )
-        del _
+
+        if self.truncated:
+            from bonner.computation.decomposition._svd import _svd_flip
+            torch.manual_seed(self.seed)
+            u, s, v = torch.pca_lowrank(x, center=False, q=self.n_components)
+            v_h = v.transpose(-2, -1)
+            u, v_h = _svd_flip(u=u, v_h=v_h)
+            self.eigenvectors = v_h[..., : self.n_components, :].transpose(-2, -1)
+            del u, v, v_h
+        else:
+            _, s, self.eigenvectors = svd(
+                x,
+                randomized=self.randomized,
+                n_components=self.n_components,
+            )
+            del _
+
         self.eigenvalues = (s[..., : self.n_components] ** 2) / (self.n_samples - 1)
 
     def transform(
