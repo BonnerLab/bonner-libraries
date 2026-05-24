@@ -54,11 +54,11 @@ def _helper(
         dim_sample_y = dim_sample_x
 
     if center:
-        x -= x.mean(dim=dim_sample_x, keepdim=True)
-        y -= y.mean(dim=dim_sample_y, keepdim=True)
+        x = x - x.mean(dim=dim_sample_x, keepdim=True)
+        y = y - y.mean(dim=dim_sample_y, keepdim=True)
     if scale:
-        x /= x.std(dim=dim_sample_x, keepdim=True, correction=correction)
-        y /= y.std(dim=dim_sample_y, keepdim=True, correction=correction)
+        x = x / x.std(dim=dim_sample_x, keepdim=True, correction=correction)
+        y = y / y.std(dim=dim_sample_y, keepdim=True, correction=correction)
 
     try:
         # TODO: batch operation
