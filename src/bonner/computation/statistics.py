@@ -33,7 +33,7 @@ def permutation_test(
     samples: np.ndarray,
     null_distribution: np.ndarray,
     tail: str = "both",
-) -> npt.NDArray[np.float_]:
+) -> npt.NDArray[np.float64]:
     n = len(null_distribution)
     match tail:
         case "left":
