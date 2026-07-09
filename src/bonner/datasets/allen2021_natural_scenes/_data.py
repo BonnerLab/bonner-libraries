@@ -351,7 +351,7 @@ def load_rois(*, subject: int, resolution: str) -> xr.DataArray:
             mapping = (
                 pd.read_csv(
                     CACHE_PATH / filepath,
-                    delim_whitespace=True,
+                    sep=r"\s+",  # delim_whitespace= was removed in pandas 2.2+
                     names=("label", "roi"),
                 )
                 .set_index("roi")

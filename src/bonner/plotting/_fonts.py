@@ -17,7 +17,13 @@ def install_newcomputermodern() -> None:
         return
 
     font_name = "NewComputerModernMath"
-    if font_name not in get_font_names():
+    if font_name in get_font_names():
+        return
+
+    # Best-effort: font auto-install requires internet + a writable font dir. On headless /
+    # offline compute nodes (e.g. Rockfish) the download or registration can fail — that must
+    # NOT break `import bonner` for non-plotting workloads (extraction / RSA / encoding).
+    try:
         if Path(mpl.get_cachedir()).exists():
             shutil.rmtree(mpl.get_cachedir())
 
@@ -41,3 +47,5 @@ def install_newcomputermodern() -> None:
             f.write('<dir prefix="xdg">fonts</dir>')
 
         get_font(font_name)
+    except Exception as exc:  # noqa: BLE001 — font install is cosmetic, never fatal
+        warnings.warn(f"could not auto-install {font_name} font: {exc}")
