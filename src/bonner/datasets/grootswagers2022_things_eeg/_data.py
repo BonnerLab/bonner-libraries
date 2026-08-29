@@ -21,7 +21,6 @@ IDENTIFIER = "grootswagers2022.things_eeg"
 BUCKET_NAME = "openneuro.org"
 CACHE_PATH = BONNER_DATASETS_HOME / IDENTIFIER
 N_SUBJECTS = 50
-# SAMPLE_RATE = 1000
 DOWNSAMPLE_RATE = 250
 PRESENATION_DURATION = 50
 N_STIM_MAIN = 22248
@@ -34,7 +33,7 @@ PROJECT_ID_DICT = {
 
 
 def download_dataset():
-    """Download the data from the Grootswagers et al. (2022) THINGS EEG dataset."""
+    """Download the Grootswagers et al. (2022) THINGS EEG dataset into the local cache."""
     s3_path = Path("ds003825")
     download_from_s3(
         s3_path=s3_path,
@@ -60,6 +59,19 @@ def _download_osf_project(project_id, save_path, use_cached=True):
                 file_path = unzip(Path(file_path), extract_dir=save_path)
                 
 def load_metadata(data_type: str = "validation"):
+    """Load the stimulus metadata: image filenames and the object concept each depicts.
+
+    Only ``"validation"`` is implemented; any other value returns ``None``.
+
+    Args:
+    ----
+        data_type: which split's metadata to load
+
+    Returns:
+    -------
+        one row per image, with its filename and object concept
+
+    """
     _download_osf_project(
         project_id=PROJECT_ID_DICT["codes"],
         save_path=CACHE_PATH / "codes"
@@ -85,6 +97,34 @@ def load_preprocessed_data(
     baseline: set[float, float] = None,
     scale: (str | float) = "default",
 ) -> tuple[xr.DataArray, pd.DataFrame]:
+    """Load one subject's epoched EEG responses together with the events that produced them.
+
+    The published recording is already downsampled, so ``downsample_freq`` can only lower the
+    rate further and asserts rather than upsampling. Event onsets are rescaled to match whatever
+    rate is requested, so they stay aligned with the returned epochs.
+
+    Not every subject has the validation block; when ``is_validation`` is requested for a subject
+    that lacks it, this warns and returns a pair of ``None`` rather than raising.
+
+    Args:
+    ----
+        subject: subject number
+        downsample_freq: target sampling rate; must not exceed the recorded rate
+        l_freq: high-pass cutoff, or ``None`` for no high-pass
+        h_freq: low-pass cutoff, or ``None`` for no low-pass
+        tmin: epoch start relative to stimulus onset, in seconds
+        tmax: epoch end relative to stimulus onset, in seconds
+        is_validation: return the validation block rather than the main one
+        window_size: width of the averaging window, if the epochs are to be binned over time
+        window_step: stride between successive windows
+        baseline: interval to baseline-correct against, or ``None`` for none
+        scale: how to normalize the responses
+
+    Returns:
+    -------
+        the responses and the event table describing the presentations they came from
+
+    """
     download_dataset()
     event_csv = pd.read_csv(CACHE_PATH / f"sub-{subject:02d}" / "eeg" / f"sub-{subject:02d}_task-rsvp_events.csv")
     if is_validation:
@@ -173,4 +213,9 @@ def load_preprocessed_data(
 
 
 def load_stimuli():
+    """Not implemented — returns ``None``.
+
+    The stimulus images are needed to pair these responses with model features, so this dataset
+    cannot be used for that until this is written.
+    """
     pass

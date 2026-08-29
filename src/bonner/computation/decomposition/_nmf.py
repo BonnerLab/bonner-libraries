@@ -15,56 +15,53 @@ def _nndsvd_init(
     n_components: int,
     device: torch.device,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """NNDSVD initialization for NMF (GPU-accelerated).
+    """Initialize an NMF factorization from the SVD, following Boutsidis and Gallopoulos.
 
-    Non-negative Double Singular Value Decomposition.
-    Better initialization than random for faster convergence.
-
-    Based on: Boutsidis & Gallopoulos, "SVD based initialization: A head start for NMF"
+    Each singular triplet is split into its positive and negative parts, and whichever pair
+    carries more norm becomes a component — which gives a deterministic, non-negative starting
+    point that converges in fewer iterations than a random one.
 
     Args:
-        x: Input data of shape (n_samples, n_features), non-negative
-        n_components: Number of components
-        device: Device to use
+    ----
+        x: non-negative data (n_samples, n_features)
+        n_components: number of components
+        device: device to allocate the factors on
 
     Returns:
-        (W, H) initial matrices
+    -------
+        the initial ``W`` (n_samples, n_components) and ``H`` (n_components, n_features), both
+        floored at machine epsilon so no entry starts at exactly zero
+
     """
-    # Compute truncated SVD
     u, s, vt = torch.linalg.svd(x, full_matrices=False)
 
-    # Take only n_components
     u = u[:, :n_components]
     s = s[:n_components]
     vt = vt[:n_components, :]
 
-    # Initialize W and H
     w = torch.zeros(x.shape[0], n_components, device=device)
     h = torch.zeros(n_components, x.shape[1], device=device)
 
-    # First component: use abs of first singular vectors scaled by sqrt(s)
+    # The leading singular vectors are sign-definite up to a global flip, so their magnitudes are
+    # already a valid non-negative component; the split below is only needed from the second on.
     w[:, 0] = torch.sqrt(s[0]) * torch.abs(u[:, 0])
     h[0, :] = torch.sqrt(s[0]) * torch.abs(vt[0, :])
 
-    # Remaining components
     for j in range(1, n_components):
         uj = u[:, j]
         vj = vt[j, :]
         sj = s[j]
 
-        # Split into positive and negative parts
         uj_pos = torch.clamp(uj, min=0)
         uj_neg = torch.clamp(-uj, min=0)
         vj_pos = torch.clamp(vj, min=0)
         vj_neg = torch.clamp(-vj, min=0)
 
-        # Norms
         uj_pos_norm = torch.norm(uj_pos)
         uj_neg_norm = torch.norm(uj_neg)
         vj_pos_norm = torch.norm(vj_pos)
         vj_neg_norm = torch.norm(vj_neg)
 
-        # Choose the combination that gives larger contribution
         mp = uj_pos_norm * vj_pos_norm
         mn = uj_neg_norm * vj_neg_norm
 
@@ -80,7 +77,6 @@ def _nndsvd_init(
         w[:, j] = torch.sqrt(sj * sigma) * u_init
         h[j, :] = torch.sqrt(sj * sigma) * v_init
 
-    # Replace zeros with small values
     w = torch.clamp(w, min=EPSILON)
     h = torch.clamp(h, min=EPSILON)
 
@@ -129,28 +125,38 @@ def _hals_update_h(
 
 
 class NMF:
-    """Non-negative Matrix Factorization with fit/transform interface.
+    """Non-negative matrix factorization, factorizing ``X`` into ``W @ H`` with both factors ≥ 0.
 
-    Factorizes X ≈ W @ H where W and H are non-negative.
-    Uses HALS (Hierarchical Alternating Least Squares — block coordinate
-    descent with per-component closed-form non-negative updates) for both fit
-    and transform, which converges an order of magnitude faster than
-    multiplicative updates on genuinely low-rank data while remaining fully
-    GPU-vectorizable.
+    Both ``fit`` and ``transform`` use HALS — hierarchical alternating least squares, a block
+    coordinate descent whose per-component update has a closed form — which converges in fewer
+    sweeps than multiplicative updates while staying vectorized on the GPU.
+
+    ``fit`` stores ``H`` as ``components_``, ordered by descending explained variance, and
+    ``transform`` then solves for the ``W`` of new data against that fixed ``H``.
+
+    Basic usage:
+
+    ```
+    nmf = NMF(n_components=10, seed=0)
+    nmf.fit(x_train)
+    scores = nmf.transform(x_test)
+    ```
 
     Args:
-        n_components: Number of components. If None, uses min(n_samples, n_features).
-        init: Initialization method. 'random' (default) or 'nndsvd'.
-        max_iter: Maximum number of iterations for fitting.
-        tol: Tolerance for convergence (relative change in reconstruction error).
-        transform_max_iter: Maximum iterations for transform step.
-        seed: Optional seed for the random W/H initialization in `fit()` and
-            for `transform()`'s `w_init=None` branch. When non-None, uses a
-            per-call `torch.Generator` so global RNG state is untouched. Each
-            `transform()` call reseeds independently, so output is fully
-            determined by (seed, input shape, components_) regardless of prior
-            transform history. Warm-started transforms (`w_init=` provided) are
-            unaffected.
+    ----
+        n_components: number of components; ``None`` uses ``min(n_samples, n_features)``, and
+            ``fit`` writes the resolved value back to this attribute
+        init: ``"nndsvd"`` for the deterministic SVD-based initialization, anything else for
+            random
+        max_iter: iteration ceiling for ``fit``
+        tol: relative change in reconstruction error at which the iteration stops
+        transform_max_iter: iteration ceiling for ``transform``
+        seed: seed for the random initialization used by ``fit``, and by ``transform`` when no
+            warm start is given. A per-call generator is used, so the global RNG is untouched and
+            each ``transform`` reseeds independently — its output depends only on the seed, the
+            input shape and ``components_``, never on how many transforms preceded it. A
+            warm-started ``transform`` does not consult it.
+
     """
 
     def __init__(
@@ -175,17 +181,29 @@ class NMF:
         self.device: torch.device
 
     def to(self: Self, device: torch.device | str) -> None:
+        """Move the fitted components to a device.
+
+        Args:
+        ----
+            device: destination device
+
+        """
         self.components_ = self.components_.to(device)
         self.device = torch.device(device)
 
     def fit(self: Self, x: torch.Tensor, /) -> None:
-        """Fit NMF model to data X.
+        """Fit the factorization, storing ``H`` as ``components_``.
 
-        Learns W and H such that X ≈ W @ H.
-        Stores H as components_ for later transform operations.
+        A negative input is shifted to be non-negative rather than rejected, which changes what is
+        being factorized — pass data that is already non-negative if that matters.
+
+        Components are returned ordered by descending explained variance, so a caller taking the
+        leading few gets the dominant ones.
 
         Args:
-            x: Input data of shape (n_samples, n_features). Must be non-negative.
+        ----
+            x: data to factorize (n_samples, n_features)
+
         """
         if x.ndim == 1:
             x = x.unsqueeze(dim=-1)
@@ -201,13 +219,11 @@ class NMF:
 
         self.device = x.device
 
-        # Ensure non-negativity (shift if needed)
         x_min = x.min()
         if x_min < 0:
             x = x - x_min + EPSILON
 
         with torch.no_grad():
-            # Initialize W and H
             if self.init == "nndsvd":
                 w, h = _nndsvd_init(x, self.n_components, self.device)
             else:  # random
@@ -215,20 +231,18 @@ class NMF:
                 w = torch.abs(torch.randn(self.n_samples, self.n_components, device=self.device, generator=gen)) * 0.01 + EPSILON
                 h = torch.abs(torch.randn(self.n_components, n_features, device=self.device, generator=gen)) * 0.01 + EPSILON
 
-            # HALS (block coordinate descent) iterations
             prev_error = float('inf')
             for i in range(self.max_iter):
-                # Update W with H fixed (one HALS sweep over W's columns).
                 h_ht = h @ h.T
                 x_ht = x @ h.T
                 w = _hals_update_w(w, x_ht, h_ht)
 
-                # Update H with W fixed (one HALS sweep over H's rows).
                 w_tw = w.T @ w
                 w_tx = w.T @ x
                 h = _hals_update_h(h, w_tx, w_tw)
 
-                # Check convergence periodically (every 10 iterations)
+                # Reconstructing to measure the error costs a full matmul, so it is checked on a
+                # stride rather than every sweep; the stride bounds how far past ``tol`` this runs.
                 if i % 10 == 0:
                     reconstruction = w @ h
                     error = torch.norm(x - reconstruction).item()
@@ -236,8 +250,8 @@ class NMF:
                         break
                     prev_error = error
 
-            # Sort components by explained variance (descending)
-            # Variance explained by each component ≈ ||w_i||^2 * ||h_i||^2
+            # Rank by ||w_i||^2 * ||h_i||^2, the squared Frobenius norm of the rank-1 term each
+            # component contributes, which stands in for explained variance.
             component_importance = (w ** 2).sum(dim=0) * (h ** 2).sum(dim=1)
             sort_idx = torch.argsort(component_importance, descending=True)
             h = h[sort_idx, :]
@@ -253,34 +267,29 @@ class NMF:
         w_init: torch.Tensor | None = None,
         use_tol: bool = False,
     ) -> torch.Tensor:
-        """Transform data Z using the fitted components.
+        """Solve for the ``W`` of new data against the fitted ``H``.
 
-        Finds W_new such that Z ≈ W_new @ H (with H fixed from fit).
-        Solves the convex non-negative least-squares problem with FISTA
-        (accelerated projected gradient — one matmul per step, fully vectorized
-        over all components), so it stays fast even at large ``n_components``
-        where a per-column HALS sweep would be dominated by kernel-launch
-        overhead. The solution is independent of the W init (the problem is
-        convex); ``w_init`` only warm-starts to reduce iterations.
+        This is a convex non-negative least-squares problem, so the solution does not depend on
+        where the iteration starts; ``w_init`` only reduces how many sweeps it takes to get there.
 
-        After each call, the final W matrix is stored as self.last_transform_w_
-        for use as a warm-start in the next call (useful when transforming
-        sequentially-related data, e.g., consecutive training checkpoints).
+        The final ``W`` is left in ``last_transform_w_``, ready to warm-start the next call — which
+        pays off when consecutive inputs are related, as successive training checkpoints are.
+
+        A negative input is shifted to be non-negative, as in ``fit``.
 
         Args:
-            z: Data to transform of shape (n_samples_new, n_features).
-            components: Which components to return. If None, returns all.
-            w_init: Optional warm-start initial W of shape (n_samples_new, n_components).
-                If provided, starts optimization from w_init instead of random init,
-                which can dramatically reduce iterations for similar inputs.
-                Must match z's sample count. If None, uses random initialization.
-            use_tol: If True, apply tolerance-based early stopping (same tol as fit).
-                Reduces iterations when w_init is close to the optimum. Default False
-                preserves exact same convergence behavior as the original implementation.
+        ----
+            z: data to transform (n_samples_new, n_features)
+            components: which components to return; an integer is read as the leading that many,
+                and ``None`` returns all
+            w_init: warm start (n_samples_new, n_components), whose sample count must match ``z``;
+                ``None`` starts from a random initialization
+            use_tol: inert. Early stopping on ``tol`` always applies, whatever this is set to
 
         Returns:
-            Transformed data W_new of shape (n_samples_new, n_components).
-            Final W is also stored in self.last_transform_w_ for warm-starting.
+        -------
+            the transformed data (n_samples_new, n_selected_components)
+
         """
         if components is None:
             components = self.n_components
@@ -289,7 +298,6 @@ class NMF:
 
         z = z.to(self.device)
 
-        # Ensure non-negativity
         z_min = z.min()
         if z_min < 0:
             z = z - z_min + EPSILON
@@ -298,26 +306,23 @@ class NMF:
         h = self.components_
 
         with torch.no_grad():
-            # Initialize W_new: warm-start if provided, else random
             if w_init is not None:
                 w_new = w_init.clone().to(self.device).clamp_(min=EPSILON)
             else:
-                # Reseed each call so transform output is fully determined by
-                # (seed, shape, components_) — independent of prior transform history.
+                # Reseeding per call is what makes the output a function of the seed, the shape
+                # and ``components_`` alone; a generator advanced across calls would make it
+                # depend on how many transforms came before.
                 gen = torch.Generator(device=self.device).manual_seed(self.seed) if self.seed is not None else None
                 w_new = torch.abs(torch.randn(n_samples_new, self.n_components, device=self.device, generator=gen)) * 0.01 + EPSILON
 
-            # Precompute the fixed-H NNLS normal-equation blocks
             h_ht = h @ h.T          # B = H H^T (n_components, n_components)
             z_ht = z @ h.T          # A = Z H^T (n_samples_new, n_components)
 
-            # HALS block coordinate descent on W with H fixed — the same closed-form,
-            # Gauss-Seidel per-column update fit() uses. Converges in a handful of sweeps even
-            # when H H^T is ill-conditioned (notably n_components == n_features), where the
-            # previous FISTA transform (step ∝ 1/‖B‖₂) crawled and left the reconstruction worse
-            # than zeros at the default 200 iters (rel-recon 2.23 vs the ~0.02 optimum at K=512).
-            # Convergence-checked like fit() so it stops early (~5 sweeps here); ``use_tol`` is
-            # retained for API compatibility but the relative-error break always applies.
+            # HALS, not a gradient method. Its per-column closed form is insensitive to the
+            # conditioning of ``H H^T``, which degrades as n_components approaches n_features; a
+            # projected-gradient step scaled by the inverse spectral norm of that matrix stalls in
+            # exactly that regime, returning a reconstruction worse than the zero matrix while
+            # reporting no error.
             w_new = w_new.clamp_(min=EPSILON)
             prev_error = float('inf')
             for i in range(self.transform_max_iter):
@@ -328,7 +333,6 @@ class NMF:
                         break
                     prev_error = error
 
-        # Store final W for warm-starting the next transform call
         self.last_transform_w_ = w_new
         return w_new[..., components]
 
@@ -339,14 +343,18 @@ class NMF:
         *,
         components: Sequence[int] | int | None = None,
     ) -> torch.Tensor:
-        """Reconstruct data from transformed representation.
+        """Reconstruct data from its transformed representation.
 
         Args:
-            w: Transformed data of shape (n_samples, n_components).
-            components: Which components were used in transform.
+        ----
+            w: transformed data (n_samples, n_selected_components)
+            components: the components ``w`` was transformed onto; an integer is read as the
+                leading that many, and ``None`` uses all of them
 
         Returns:
-            Reconstructed data of shape (n_samples, n_features).
+        -------
+            reconstructed data (n_samples, n_features)
+
         """
         if components is None:
             components = self.n_components
@@ -358,7 +366,15 @@ class NMF:
 
 
 class AsgMuNmf(Dataset):
-    """Asymmetric gradient multiplicative update nonnegative-matrix factorization."""
+    """Asymmetric gradient multiplicative update nonnegative-matrix factorization.
+
+    A ``Dataset`` rather than an estimator: it factorizes out-of-core, streaming minibatches of
+    rows through a ``DataLoader`` and updating only the rows of ``U`` a batch touches, so the data
+    never has to be resident all at once.
+
+    ``data`` must be a scipy sparse matrix — rows are densified per batch — and factorizing writes
+    checkpoint pickles into the current working directory.
+    """
 
     def __init__(self: Self, *, data: np.ndarray, n_components: int) -> None:
         self.data = data
@@ -375,6 +391,20 @@ class AsgMuNmf(Dataset):
         return idx
 
     def collate_samples(self: Self, indices):
+        """Densify the requested rows, returning them alongside the indices they came from.
+
+        Pass this as a ``DataLoader``'s ``collate_fn``. The indices are returned because the
+        update writes back into the rows of ``U`` that the batch addressed.
+
+        Args:
+        ----
+            indices: row indices in the batch
+
+        Returns:
+        -------
+            the dense rows and their indices
+
+        """
         indices = np.array(indices, dtype=np.int64)
         rows = torch.from_numpy(self.data[indices, :].toarray())
         indices = torch.from_numpy(indices).long()
@@ -388,6 +418,26 @@ class AsgMuNmf(Dataset):
         batch_size: int = 10000,
         num_workers: int = 0,
     ) -> tuple[np.ndarray, np.ndarray]:
+        """Factorize the data, returning the two factors.
+
+        Writes into the current working directory: ``nmf_initialization.pkl`` before starting, and
+        one ``nmf_epoch_{n}.pkl`` per epoch, each deleting its predecessor so only the newest
+        survives. A run therefore leaves the initialization and the last epoch behind, and two
+        runs in one directory overwrite each other.
+
+        Args:
+        ----
+            u: initial (n_samples, n_components) factor; ``None`` draws a small random one
+            v: initial (n_components, n_dimensions) factor; ``None`` draws a small random one
+            n_epochs: passes over the data
+            batch_size: rows per minibatch
+            num_workers: ``DataLoader`` worker processes
+
+        Returns:
+        -------
+            the fitted ``U`` and ``V`` as arrays on the host
+
+        """
         device = "cuda" if torch.cuda.is_available() else "cpu"
         device = torch.device(device)
 

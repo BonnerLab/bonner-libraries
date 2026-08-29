@@ -1,15 +1,17 @@
-"""Tests for the HALS-based NMF (bonner.computation.decomposition._nmf.NMF).
+"""Tests for the HALS-based NMF (``bonner.computation.decomposition._nmf.NMF``).
 
-Guards the HALS rewrite of the fit/transform solvers (previously multiplicative
-updates, which badly under-converged on genuinely low-rank data). Covers:
+HALS is used rather than multiplicative updates because multiplicative updates under-converge
+badly on genuinely low-rank data, at iteration counts where HALS has already converged. These
+tests are what hold that difference in place. They cover:
 
-- fit convergence: exact rank-r factorization is recovered to <=1e-3 rel-recon
-  (the multiplicative-update solver only reached ~7.8e-2 at the same max_iter);
-- fit parity with sklearn's coordinate-descent NMF on random matrices;
-- transform (the actual downstream use path — NNLS through a fixed basis):
-  reconstructs held-out rows and is stable w.r.t. iteration count (convex NNLS);
-- structural invariants: non-negativity, EV-sorted components_, determinism of
-  the nndsvd path, and running on CUDA when available.
+- fit convergence: an exact rank-r factorization is recovered to within the tolerance each test
+  asserts, which a slow solver misses at the same ``max_iter``;
+- fit parity against scikit-learn's coordinate-descent NMF on random matrices;
+- transform, which is the downstream path — a non-negative least squares through a fixed basis.
+  It reconstructs held-out rows, and because that problem is convex the result is stable with
+  respect to the iteration count;
+- structural invariants: non-negativity, components ordered by explained variance, determinism
+  of the NNDSVD initialization, and running on CUDA where it is available.
 """
 
 import numpy as np
@@ -104,6 +106,7 @@ def test_transform_stable_vs_iterations(device: str) -> None:
 
 @pytest.mark.parametrize("device", DEVICES)
 def test_non_negativity(device: str) -> None:
+    """Both factors stay non-negative, which is the constraint that defines the factorization."""
     rng = np.random.default_rng(4)
     x = torch.from_numpy(np.abs(rng.normal(size=(100, 30))).astype(np.float32)).to(device)
 

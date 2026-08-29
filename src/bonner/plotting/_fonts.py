@@ -10,6 +10,16 @@ from matplotlib.font_manager import get_font, get_font_names
 
 
 def install_newcomputermodern() -> None:
+    """Install the NewComputerModernMath font and register it with matplotlib.
+
+    A no-op when the font is already available, and Linux-only — elsewhere it warns and returns.
+
+    Installing clears matplotlib's cache directory, so the font cache is rebuilt on next use, and
+    writes a fontconfig file under the user's config directory.
+
+    Never raises. The font is cosmetic, and failing to fetch it must not stop a non-plotting
+    workload from importing the package, so every failure becomes a warning.
+    """
     if platform.system() != "Linux":
         warnings.warn(
             "NewComputerModernMath font can only be installed automatically on Linux",
@@ -20,9 +30,6 @@ def install_newcomputermodern() -> None:
     if font_name in get_font_names():
         return
 
-    # Best-effort: font auto-install requires internet + a writable font dir. On headless /
-    # offline compute nodes (e.g. Rockfish) the download or registration can fail — that must
-    # NOT break `import bonner` for non-plotting workloads (extraction / RSA / encoding).
     try:
         if Path(mpl.get_cachedir()).exists():
             shutil.rmtree(mpl.get_cachedir())

@@ -1,22 +1,22 @@
-"""Tests for linear CKA / HSIC (bonner.computation._cka).
+"""Tests for linear CKA and HSIC (``bonner.computation._cka``).
 
-Guards the rewrite of `hsic` from a dense centering matrix to double-centering. The old
-implementation built ``h = torch.eye(n) - torch.ones((n, n)) / n`` with no ``device=`` and
-no ``dtype=``, so it inherited the *global* defaults and was **CPU-and-float32 only**:
-CUDA raised "Expected all tensors to be on the same device", and CPU float64 raised
-"expected m1 and m2 to have the same dtype: double != float". The dtype half is the one
-that bites, because callers doing fp64 linear algebra hit it on CPU, where it looks nothing
-like a device bug.
+These guard three properties of ``hsic`` that are easy to break and hard to notice.
 
-The load-bearing test here is `test_matches_legacy_cpu_fp32`: a device fix that silently
-moves the number would be worse than the bug it fixes, so the legacy implementation is
-inlined and the new one must reproduce it exactly in the one regime the old code could run.
+``test_matches_legacy_cpu_fp32`` pins the value. ``hsic`` is computed by double-centring rather
+than by building a dense centring matrix, and the two are algebraically equal — so the rewrite
+must reproduce the dense form exactly, not merely closely. That form is inlined here as
+``_hsic_legacy`` and evaluated in the one regime it supports, single-precision on CPU: a change
+that quietly moved the number would be worse than any bug it fixed.
 
-Also covers the latent batching bug: `n = k.shape[0]` read the *batch* dim for a
-``(b, n, n)`` input and `torch.trace` is 2-D only, so `linear_kernel`'s batch-aware
-``.transpose(-2, -1)`` had a dead path. Note a batched *cka* test cannot detect the wrong
-``n``: the erroneous ``(n-1)^2`` cancels in ``hsic_kl / sqrt(hsic_kk * hsic_ll)``. Only a
-batched *hsic* test does.
+The device and dtype coverage exists because a centring matrix built as ``torch.eye(n)`` takes
+the global default device and dtype rather than the input's. The dtype half is what actually
+bites: a caller doing double-precision linear algebra hits it on CPU, where the failure looks
+nothing like a device problem.
+
+The batching coverage is on ``hsic`` specifically, and it has to be. Reading ``n`` from the
+leading dimension of a batched ``(b, n, n)`` input gives the wrong normalization, but the
+erroneous factor cancels in the ratio ``hsic_kl / sqrt(hsic_kk * hsic_ll)`` — so a batched test
+of ``cka`` passes while the numerator is wrong. Only a batched test of ``hsic`` can see it.
 """
 
 import numpy as np
@@ -29,7 +29,11 @@ DTYPES = [torch.float32, torch.float64]
 
 
 def _hsic_legacy(k: torch.Tensor, l: torch.Tensor) -> torch.Tensor:  # noqa: E741
-    """The pre-2026-08-07 implementation, verbatim. CPU + float32 only, by construction."""
+    """The dense-centring-matrix form of HSIC, verbatim.
+
+    Restricted to single-precision CPU input by construction: ``torch.eye`` and ``torch.ones``
+    take the global defaults, and ``torch.trace`` is two-dimensional only.
+    """
     n = k.shape[0]
     h = torch.eye(n) - torch.ones((n, n)) / n
     kh = torch.linalg.matmul(k, h)
@@ -57,7 +61,7 @@ def test_matches_legacy_cpu_fp32(n: int) -> None:
 @pytest.mark.parametrize("device", DEVICES)
 @pytest.mark.parametrize("dtype", DTYPES)
 def test_runs_on_every_device_and_dtype(device: str, dtype: torch.dtype) -> None:
-    """The bug itself: float64 and CUDA both used to raise."""
+    """``cka`` runs on every device and dtype, not just the global defaults."""
     x = _data(2, 60, 8, device, dtype)
     y = _data(3, 60, 6, device, dtype)
     out = cka(x, y)
@@ -80,6 +84,7 @@ def test_value_agrees_across_device_and_dtype(device: str) -> None:
 
 @pytest.mark.parametrize("device", DEVICES)
 def test_self_similarity_is_one(device: str) -> None:
+    """CKA of a representation with itself is exactly one, which fixes the metric's upper end."""
     x = _data(6, 100, 12, device, torch.float64)
     assert torch.allclose(cka(x, x), torch.ones((), device=device, dtype=torch.float64))
 

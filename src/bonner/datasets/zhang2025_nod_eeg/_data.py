@@ -25,6 +25,10 @@ SUBJECT_LIST = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,24,26,27,29.30]
 
 
 def download_dataset():
+    """Download the whole dataset from its OpenNeuro S3 bucket into the local cache.
+
+    Downloads the full accession, not a subject subset, and skips what is already present.
+    """
     s3_path = Path("ds005811")
     download_from_s3(
         s3_path=s3_path,

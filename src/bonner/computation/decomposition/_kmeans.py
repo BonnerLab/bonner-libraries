@@ -32,7 +32,8 @@ class KMeans:
         tol: Tolerance for convergence (relative change in inertia).
         n_init: Number of initializations to try, keeping the best.
         init: Initialization method - 'kmeans++' or 'random'.
-        random_state: Random seed for reproducibility.
+        random_state: Random seed for reproducibility. Applied by seeding the global torch
+            generator, so a fit with this set perturbs any other sampling in the process.
     """
 
     def __init__(
@@ -88,14 +89,13 @@ class KMeans:
             Distances of shape (..., n_samples, n_clusters)
         """
         if self.metric == "cosine":
-            # Cosine distance = 1 - cosine_similarity
             x_norm = self._normalize(x)
             centroids_norm = self._normalize(centroids)
             similarity = x_norm @ centroids_norm.T
             return 1.0 - similarity
         else:
-            # Euclidean distance using efficient broadcasting
-            # ||x - c||^2 = ||x||^2 + ||c||^2 - 2*x@c.T
+            # Expanded as ||x||^2 + ||c||^2 - 2 x.c so the pairwise distances come from one
+            # matmul instead of an (n_samples, n_clusters, n_features) difference tensor.
             x_sq = (x**2).sum(dim=-1, keepdim=True)
             c_sq = (centroids**2).sum(dim=-1).unsqueeze(0)
             cross = x @ centroids.T
@@ -121,7 +121,6 @@ class KMeans:
             centroids_norm = self._normalize(centroids)
             return x_norm @ centroids_norm.T
         else:
-            # Convert Euclidean distance to similarity via negative distance
             distances = self._compute_distances(x, centroids)
             return -distances
 
@@ -142,25 +141,20 @@ class KMeans:
             self.n_clusters, self.n_features, device=self.device, dtype=x.dtype
         )
 
-        # Choose first centroid randomly
         idx = torch.randint(n_samples, (1,), device=self.device)
         centroids[0] = x[idx]
 
-        # Choose remaining centroids with probability proportional to D^2
         for k in range(1, self.n_clusters):
             distances = self._compute_distances(x, centroids[:k])
             min_distances, _ = distances.min(dim=-1)
 
-            # Square distances for D^2 weighting
             if self.metric == "euclidean":
                 weights = min_distances**2
             else:
-                # For cosine, distance is already bounded [0, 2]
                 weights = min_distances**2
 
             weights = weights / (weights.sum() + EPSILON)
 
-            # Sample next centroid
             idx = torch.multinomial(weights, 1)
             centroids[k] = x[idx]
 
@@ -181,7 +175,6 @@ class KMeans:
         Returns:
             (centroids, labels, inertia)
         """
-        # Initialize centroids
         if self.init == "kmeans++":
             centroids = self._kmeans_plusplus_init(x)
         else:
@@ -190,24 +183,22 @@ class KMeans:
         prev_inertia = float("inf")
 
         for _ in range(self.max_iter):
-            # Assignment step: find closest centroid for each sample
             distances = self._compute_distances(x, centroids)
             labels = distances.argmin(dim=-1)
             inertia = distances.min(dim=-1).values.sum().item()
 
-            # Check convergence
             if abs(prev_inertia - inertia) / (prev_inertia + EPSILON) < self.tol:
                 break
             prev_inertia = inertia
 
-            # Update step: recompute centroids
             new_centroids = torch.zeros_like(centroids)
             for k in range(self.n_clusters):
                 mask = labels == k
                 if mask.sum() > 0:
                     new_centroids[k] = x[mask].mean(dim=0)
                 else:
-                    # Empty cluster: reinitialize with random point
+                    # An emptied cluster is reseeded from a random sample rather than dropped,
+                    # so the returned centroid count always equals n_clusters.
                     idx = torch.randint(x.shape[0], (1,), device=self.device)
                     new_centroids[k] = x[idx]
 
@@ -232,7 +223,6 @@ class KMeans:
         self.n_samples, self.n_features = x.shape[-2], x.shape[-1]
         self.device = x.device
 
-        # Default n_clusters to min(n_samples, n_features) like PCA
         max_n_clusters = min(self.n_samples, self.n_features)
         if self.n_clusters is None:
             self.n_clusters = max_n_clusters
@@ -240,12 +230,10 @@ class KMeans:
             error = f"n_clusters ({self.n_clusters}) must be <= {max_n_clusters}"
             raise ValueError(error)
 
-        # Run multiple initializations and keep the best
         best_inertia = float("inf")
         best_centroids = None
         best_labels = None
 
-        # Set random seed if provided
         if self.random_state is not None:
             torch.manual_seed(self.random_state)
 
@@ -293,14 +281,11 @@ class KMeans:
 
         z = z.to(self.device)
 
-        # Project onto centroids (dot product = projection onto direction)
-        # For cosine metric, normalize first
         if self.metric == "cosine":
             z_norm = self._normalize(z)
             centroids_norm = self._normalize(self.centroids)
             projections = z_norm @ centroids_norm.T
         else:
-            # For euclidean, use raw dot product with centroids
             projections = z @ self.centroids.T
 
         return projections[..., components]
@@ -389,12 +374,10 @@ class KMeans:
         similarity = self._compute_similarity(x, self.centroids)
 
         if cluster_idx is not None:
-            # Single cluster
             sim_k = similarity[..., cluster_idx]
             top_values, top_indices = torch.topk(sim_k, k=n_meis, dim=-1)
             return top_indices, top_values
 
-        # All clusters
         n_clusters = self.centroids.shape[0]
         mei_indices = torch.empty(
             n_clusters, n_meis, dtype=torch.long, device=self.device
@@ -458,39 +441,36 @@ class MiniBatchKMeans(KMeans):
         """Run a single mini-batch K-Means fit."""
         n_samples = x.shape[0]
 
-        # Initialize centroids
         if self.init == "kmeans++":
             centroids = self._kmeans_plusplus_init(x)
         else:
             centroids = self._random_init(x)
 
-        # Count for weighted averaging
+        # Per-centroid counts accumulate across batches, so the step size below shrinks as a
+        # centroid absorbs more samples — the streaming mean, not a tuned schedule.
         counts = torch.ones(self.n_clusters, device=self.device)
         prev_inertia = float("inf")
 
         for iteration in range(self.max_iter):
-            # Random mini-batch
             batch_indices = torch.randperm(n_samples, device=self.device)[
                 : self.batch_size
             ]
             x_batch = x[batch_indices]
 
-            # Assignment step
             distances = self._compute_distances(x_batch, centroids)
             labels = distances.argmin(dim=-1)
 
-            # Update step with learning rate decay
             for k in range(self.n_clusters):
                 mask = labels == k
                 if mask.sum() > 0:
-                    # Streaming update with decay
                     counts[k] += mask.sum()
                     eta = 1.0 / counts[k]
                     centroids[k] = (1 - eta) * centroids[k] + eta * x_batch[mask].mean(
                         dim=0
                     )
 
-            # Check convergence periodically
+            # Inertia is measured over the whole dataset, not the batch, so this costs a full
+            # distance computation and is taken on a stride rather than every iteration.
             if iteration % 10 == 0:
                 all_distances = self._compute_distances(x, centroids)
                 inertia = all_distances.min(dim=-1).values.sum().item()
@@ -498,7 +478,6 @@ class MiniBatchKMeans(KMeans):
                     break
                 prev_inertia = inertia
 
-        # Final assignment
         distances = self._compute_distances(x, centroids)
         labels = distances.argmin(dim=-1)
         inertia = distances.min(dim=-1).values.sum().item()

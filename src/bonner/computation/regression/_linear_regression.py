@@ -23,6 +23,43 @@ class LinearRegression(Regression):
         allow_ols_on_cuda: bool = True,
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ) -> None:
+        """Fit a linear model by ordinary least squares, ridge, or lasso.
+
+        Which of the three runs is decided by the penalties: ``l1_penalty`` selects lasso,
+        ``l2_penalty`` selects ridge, and neither selects OLS. The two penalties are mutually
+        exclusive and passing both raises.
+
+        Ridge is solved from the SVD of the design, so a whole vector of penalties costs one
+        decomposition; the lasso path is iterative and warns rather than raises if it runs out of
+        iterations before meeting its tolerance.
+
+        Basic usage:
+
+        ```
+        model = LinearRegression(l2_penalty=1.0)
+        model.fit(x_train, y_train)
+        y_hat = model.predict(x_test)
+        ```
+
+        Args:
+        ----
+            fit_intercept: centre the design and the targets before solving, then recover the
+                intercept from the means
+            l2_penalty: ridge penalty — a scalar applied to every target, or one penalty per
+                target
+            l1_penalty: lasso penalty, on the same objective scaling as ``sklearn``'s ``Lasso``
+            l1_max_iter: iteration ceiling for the lasso solver
+            l1_tol: relative-change tolerance at which the lasso solver stops
+            rcond: singular value cutoff passed to ``torch.linalg.lstsq`` for the OLS path
+            driver: LAPACK driver passed to ``torch.linalg.lstsq``; CUDA accepts only ``"gels"``
+            allow_ols_on_cuda: keep an unpenalized fit on the GPU even when there are fewer
+                samples than features. Such a design is rank-deficient, and CUDA's only driver
+                assumes full rank — it returns a wildly inflated solution rather than raising,
+                where the CPU driver returns a usable one. Setting this to ``False`` moves that
+                case to the CPU, which is slower and correct.
+            device: device to fit on
+
+        """
         if l1_penalty is not None and l2_penalty is not None:
             error = "l1_penalty and l2_penalty are mutually exclusive"
             raise ValueError(error)
@@ -41,6 +78,16 @@ class LinearRegression(Regression):
         self.device = device
 
     def to(self: Self, device: torch.device | str) -> None:
+        """Move the fitted coefficients and intercept to a device.
+
+        Does nothing before ``fit``, and leaves ``device`` — which governs where the next ``fit``
+        runs — alone.
+
+        Args:
+        ----
+            device: destination device
+
+        """
         if self.coefficients is not None:
             self.coefficients = self.coefficients.to(device)
         if self.intercept is not None:
@@ -51,19 +98,29 @@ class LinearRegression(Regression):
         x: torch.Tensor,
         y: torch.Tensor,
     ) -> None:
+        """Fit the model, storing the coefficients and intercept.
+
+        Inputs are cloned and moved to the configured device, so the caller's tensors are left
+        alone. A one-dimensional input is read as a single column. A batch of designs paired with
+        a single set of targets is broadcast, fitting every design against the same targets.
+
+        Args:
+        ----
+            x: predictors (*, n_samples, n_features)
+            y: targets (*, n_samples, n_targets)
+
+        """
         x = torch.clone(x).to(self.device)
         y = torch.clone(y).to(x.device)
 
         x = x.unsqueeze(dim=-1) if x.ndim == 1 else x
         y = y.unsqueeze(dim=-1) if y.ndim == 1 else y
 
-        # many sets of predictors, only 1 set of targets
         if x.ndim == 3 and y.ndim == 2:
             y = y.unsqueeze(0)
 
         n_samples, n_features = x.shape[-2], x.shape[-1]
 
-        # TODO: underdetermined systems on CUDA use a different driver
         if (
             (not self.allow_ols_on_cuda)
             and (self.l1_penalty is None)
@@ -127,10 +184,22 @@ class LinearRegression(Regression):
     ) -> torch.Tensor:
         """FISTA (accelerated proximal gradient) for the multi-target lasso.
 
-        Minimises sklearn's `Lasso` objective per target, sharing one design:
+        Minimises ``sklearn``'s ``Lasso`` objective per target, sharing one design::
+
             (1 / (2 * n)) * ||y - x @ w||_2^2 + alpha * ||w||_1
-        `x` and `y` are already centred by `fit` (when `fit_intercept`), so the
-        Lipschitz constant uses that centred design.
+
+        ``x`` and ``y`` arrive already centred from ``fit`` when ``fit_intercept`` is set, so the
+        Lipschitz constant is that of the centred design.
+
+        Args:
+        ----
+            x: centred predictors (n_samples, n_features); batched designs are not supported
+            y: centred targets (n_samples, n_targets)
+
+        Returns:
+        -------
+            coefficients (n_features, n_targets)
+
         """
         if x.ndim != 2:
             error = f"lasso (l1_penalty) supports only 2D x; got ndim={x.ndim}"
@@ -185,9 +254,27 @@ class LinearRegression(Regression):
         return torch.sign(z) * torch.clamp(z.abs() - threshold, min=0.0)
 
     def predict(self: Self, x: torch.Tensor) -> torch.Tensor:
+        """Predict targets for new predictors, moving them to the coefficients' device.
+
+        Args:
+        ----
+            x: predictors (*, n_samples, n_features)
+
+        Returns:
+        -------
+            predictions (*, n_samples, n_targets)
+
+        """
         return x.to(self.coefficients.device) @ self.coefficients + self.intercept
 
     def weights(self: Self) -> torch.Tensor:
+        """Return the fitted coefficients, or ``None`` if the model has not been fitted.
+
+        Returns:
+        -------
+            coefficients (*, n_features, n_targets)
+
+        """
         return self.coefficients
 
 
@@ -212,7 +299,6 @@ if __name__ == "__main__":
     ours_pred = model.predict(X.to(device)).detach().cpu().numpy()
     our_coef = model.weights().detach().cpu().numpy()
 
-    # Reference: sklearn Lasso looped per target (unambiguous multi-output).
     X_np, Y_np = X.numpy(), Y.numpy()
     sk_pred = np.zeros_like(Y_np)
     sk_coef = np.zeros((d, m))
@@ -228,7 +314,6 @@ if __name__ == "__main__":
     assert max_dpred < 1e-3, f"lasso prediction parity failed: {max_dpred:.3e}"
     print("PASS: lasso FISTA matches sklearn Lasso (predictions within 1e-3)")
 
-    # OLS / ridge paths unchanged.
     ols = LinearRegression(device=device)
     ols.fit(X, Y)
     ridge = LinearRegression(l2_penalty=1.0, device=device)
@@ -239,7 +324,6 @@ if __name__ == "__main__":
         tuple(ridge.weights().shape),
     )
 
-    # Mutual-exclusion guard.
     try:
         LinearRegression(l1_penalty=0.1, l2_penalty=0.1)
     except ValueError:

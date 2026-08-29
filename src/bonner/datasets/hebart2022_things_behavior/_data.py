@@ -52,6 +52,24 @@ def _download_all():
     )
 
 def load_embeddings(scale: bool = False):
+    """Load the SPoSE behavioural embedding of the THINGS object concepts.
+
+    Each object is described by non-negative, sparsely-loading dimensions derived from human
+    triplet-odd-one-out judgements, which is why the dimensions are labelled and interpretable
+    rather than arbitrary.
+
+    Downloads the source files on first use.
+
+    Args:
+    ----
+        scale: standardize each dimension. Currently raises — the implementation calls numpy's
+            standard deviation with a torch keyword — so leave it at its default
+
+    Returns:
+    -------
+        the embedding, dimensions ``("object", "behavior")``
+
+    """
     _download_all()
     
     embd = pd.read_csv(CACHE_PATH / "data" / "spose_embedding_66d_sorted.txt", sep="\t", header=None).values
@@ -68,11 +86,28 @@ def load_embeddings(scale: bool = False):
     )
     
 def load_object_labels():
+    """Load the unique object identifiers, in the row order the other loaders use.
+
+    Returns:
+    -------
+        object identifiers
+
+    """
     _download_all()
     
     return  pd.read_csv(CACHE_PATH / "variables" / "unique_id.txt", sep="\t", header=None).values.flatten()
     
 def load_spose_rsm():
+    """Load the object-by-object similarity matrix predicted by the SPoSE embedding.
+
+    This is the model's reconstruction of the behavioural similarities, not the raw judgements;
+    the triplet responses those were fitted to are returned by ``load_triplet_results``.
+
+    Returns:
+    -------
+        the similarity matrix, dimensions ``("object0", "object1")``
+
+    """
     _download_all()
     
     spose_similarity = scipy.io.loadmat(CACHE_PATH / "data" / "spose_similarity.mat")["spose_sim"]
@@ -84,6 +119,13 @@ def load_spose_rsm():
     )
     
 def load_triplet_results():
+    """Load the raw odd-one-out triplet judgements the embedding was fitted to.
+
+    Returns:
+    -------
+        one row per triplet judgement
+
+    """
     _download_all()
     
     return pd.read_csv(CACHE_PATH / "data" / "triplet_dataset" /"triplets_large_final_correctednc_correctedorder.csv", sep="\t")

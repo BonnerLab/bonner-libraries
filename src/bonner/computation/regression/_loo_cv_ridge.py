@@ -27,6 +27,38 @@ class RidgeGCV(Regression):
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
         dtype: torch.dtype | None = None,
     ) -> None:
+        """Fit ridge regression, choosing the penalty by generalized cross-validation.
+
+        Every candidate penalty is scored from a single decomposition of the design, so the sweep
+        costs one decomposition rather than one fit per penalty. The leave-one-out errors are
+        obtained in closed form rather than by refitting.
+
+        Basic usage:
+
+        ```
+        model = RidgeGCV(l2_penalties=[1.0, 10.0, 100.0])
+        model.fit(x_train, y_train)
+        y_hat = model.predict(x_test)
+        chosen = model.alpha_
+        ```
+
+        After ``fit``, ``alpha_`` holds the selected penalty — one per target when
+        ``alpha_per_target`` is set — and ``loo_errors`` holds the scores the selection maximised.
+        Those scores are *negated* mean squared errors, so larger is better despite the name.
+
+        Args:
+        ----
+            l2_penalties: candidate penalties; defaults to a log-spaced grid spanning 1e-3 to 1e4
+            fit_intercept: centre the design and targets, then recover the intercept
+            scale_x: divide each feature by its standard deviation before fitting
+            alpha_per_target: choose a penalty independently for each target rather than one
+                penalty shared across all of them
+            gcv_mode: which decomposition to score from — ``"svd"`` of the design, ``"eigen"`` of
+                the Gram matrix, or ``"auto"``, which takes the cheaper one for the input's shape
+            device: device to fit on
+            dtype: cast inputs to this dtype before fitting; ``None`` keeps theirs
+
+        """
         if l2_penalties is None:
             l2_penalties = np.logspace(-3, 4, 8).tolist()
         self.l2_penalties = l2_penalties
@@ -44,6 +76,13 @@ class RidgeGCV(Regression):
         self._mode_logged = False
 
     def to(self: Self, device: torch.device | str) -> None:
+        """Move the fitted coefficients and intercept to a device, and fit there in future.
+
+        Args:
+        ----
+            device: destination device
+
+        """
         self.device = device
         if self.coefficients is not None:
             self.coefficients = self.coefficients.to(device)
@@ -51,6 +90,13 @@ class RidgeGCV(Regression):
             self.intercept = self.intercept.to(device)
 
     def weights(self: Self) -> torch.Tensor:
+        """Return the fitted coefficients, or ``None`` if the model has not been fitted.
+
+        Returns:
+        -------
+            coefficients (n_features, n_targets)
+
+        """
         return self.coefficients
 
     @staticmethod
@@ -139,6 +185,17 @@ class RidgeGCV(Regression):
         return G_inverse_diag, c
 
     def fit(self: Self, x: torch.Tensor, y: torch.Tensor) -> None:
+        """Fit the model, selecting the penalty and storing the coefficients and intercept.
+
+        Also populates ``alpha_`` and ``loo_errors``. A one-dimensional ``y`` is treated as a
+        single target.
+
+        Args:
+        ----
+            x: predictors (n_samples, n_features)
+            y: targets (n_samples, n_targets) or (n_samples,)
+
+        """
         x = x.to(self.device)
         y = y.to(self.device)
         if self.dtype is not None:
@@ -221,6 +278,17 @@ class RidgeGCV(Regression):
             self.intercept = torch.zeros(1, dtype=x.dtype, device=x.device)
 
     def predict(self: Self, x: torch.Tensor) -> torch.Tensor:
+        """Predict targets for new predictors, moving them to the coefficients' device.
+
+        Args:
+        ----
+            x: predictors (n_samples, n_features)
+
+        Returns:
+        -------
+            predictions (n_samples, n_targets)
+
+        """
         x = x.to(self.coefficients.device)
         if self.dtype is not None:
             x = x.to(self.dtype)

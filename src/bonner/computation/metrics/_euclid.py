@@ -9,6 +9,31 @@ def euclidean_distance(
     return_diagonal: bool = True,
     copy: bool = True,
 ) -> torch.Tensor:
+    """Compute Euclidean distances between the feature columns of one or two tensors.
+
+    The sum runs over the sample axis, so the distances are between columns and the samples are
+    the coordinates — the reverse of the row-wise reading the argument names suggest. For a
+    ``(n_samples, n_features)`` input the full output is ``(n_features, n_features)``.
+
+    The result is squeezed, so any axis of length one disappears; a single-feature input comes
+    back as a scalar rather than a ``(1, 1)`` matrix.
+
+    Args:
+    ----
+        x: features (*, n_samples, n_features_x); a 1-dimensional input is read as one feature
+        y: features (*, n_samples, n_features_y); defaults to ``x``, giving self-distances.
+            ``n_samples`` must match ``x``, and so must the feature count when
+            ``return_diagonal`` is set
+        return_diagonal: pair the columns of ``x`` and ``y`` elementwise instead of computing
+            every cross pair, which avoids the quadratic intermediate
+        copy: clone the inputs before reshaping them
+
+    Returns:
+    -------
+        distances — ``(*, n_features)`` when ``return_diagonal`` is set, otherwise
+        ``(*, n_features_x, n_features_y)``, squeezed
+
+    """
     if copy:
         x = torch.clone(x)
 

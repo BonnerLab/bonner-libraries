@@ -15,6 +15,38 @@ class PCA:
         truncated: bool = False,
         seed: int = 0,
     ) -> None:
+        """Principal component analysis by singular value decomposition.
+
+        The data are centred, and optionally standardized, before decomposition. The eigenvalues
+        are ``s ** 2 / (n_samples - 1)`` for singular values ``s``, which is the scaling that makes
+        them eigenvalues of the sample covariance matrix — or of the correlation matrix when
+        ``scale`` is set.
+
+        Two approximate solvers are available and they are not the same knob. ``truncated`` takes
+        precedence and calls ``torch.pca_lowrank`` directly, reseeding the global torch RNG with
+        ``seed`` so that its random projection is reproducible. ``randomized`` reaches the same
+        solver through ``svd`` and seeds nothing, so ``seed`` has no effect unless ``truncated``
+        is set.
+
+        Basic usage:
+
+        ```
+        pca = PCA(n_components=10)
+        pca.fit(x_train)
+        scores = pca.transform(x_test)
+        ```
+
+        Args:
+        ----
+            n_components: number of components to keep; ``None`` keeps
+                ``min(n_samples, n_features)``, and ``fit`` writes the resolved value back to this
+                attribute
+            scale: divide each feature by its standard deviation before decomposing
+            randomized: use the approximate solver reached through ``svd``
+            truncated: use ``torch.pca_lowrank`` directly, seeded from ``seed``
+            seed: seed for the ``truncated`` solver only
+
+        """
         self.n_components = n_components
         self.n_samples: int
         self.scale = scale
@@ -30,6 +62,17 @@ class PCA:
         self.device: torch.device
 
     def to(self: Self, device: torch.device | str) -> None:
+        """Move the fitted statistics to a device.
+
+        The standard deviations are not moved. A model fitted on one device and moved to another
+        therefore raises a device mismatch on the next ``transform`` or ``inverse_transform``,
+        whether or not ``scale`` was set; move the fitted array yourself if you need this.
+
+        Args:
+        ----
+            device: destination device
+
+        """
         self.mean = self.mean.to(device)
         self.eigenvectors = self.eigenvectors.to(device)
         self.eigenvalues = self.eigenvalues.to(device)
@@ -64,6 +107,16 @@ class PCA:
         return x
 
     def fit(self: Self, x: torch.Tensor, /) -> None:
+        """Fit the decomposition, storing the centring statistics and the eigendecomposition.
+
+        Also resolves ``n_components`` when it was ``None``, and pins the model to ``x``'s device.
+        A one-dimensional ``x`` is read as a single feature.
+
+        Args:
+        ----
+            x: data to fit (*, n_samples, n_features)
+
+        """
         x = self._preprocess(x)
 
         if self.truncated:
@@ -91,6 +144,22 @@ class PCA:
         *,
         components: Sequence[int] | int | None = None,
     ) -> torch.Tensor:
+        """Project data onto the fitted components.
+
+        ``z`` is moved to the model's device, then centred and scaled with the statistics from
+        ``fit`` — not with its own — so it may be data the model never saw.
+
+        Args:
+        ----
+            z: data to project (*, n_samples, n_features)
+            components: components to project onto; an integer is read as the leading that many,
+                and ``None`` uses all of them
+
+        Returns:
+        -------
+            scores (*, n_samples, n_selected_components)
+
+        """
         if components is None:
             components = self.n_components
         if isinstance(components, int):
@@ -110,6 +179,24 @@ class PCA:
         *,
         components: Sequence[int] | int | None = None,
     ) -> torch.Tensor:
+        """Map scores back to the original feature space, undoing the centring and scaling.
+
+        ``components`` selects columns of ``z`` as well as components of the basis, so ``z`` must
+        be in the full component space. This is not the inverse of ``transform`` called with the
+        same argument: ``transform`` has already dropped the unselected columns, so round-tripping
+        a non-leading selection such as ``[2, 3]`` raises an ``IndexError``.
+
+        Args:
+        ----
+            z: scores in the full component space (*, n_samples, n_components)
+            components: components to reconstruct from; an integer is read as the leading that
+                many, and ``None`` uses all of them
+
+        Returns:
+        -------
+            reconstructed data (*, n_samples, n_features)
+
+        """
         if components is None:
             components = self.n_components
         if isinstance(components, int):

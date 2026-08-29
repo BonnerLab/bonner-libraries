@@ -61,7 +61,6 @@ def _helper(
         y = y / y.std(dim=dim_sample_y, keepdim=True, correction=correction)
 
     try:
-        # TODO: batch operation
         if return_diagonal:
             x = (x * y).sum(dim=-2) / (n_samples_x - 1)
         else:
@@ -117,6 +116,35 @@ def spearman_r(
     correction: int = 1,
     copy: bool = True,
 ) -> torch.Tensor:
+    """Compute Spearman rank correlation coefficients.
+
+    Ranks the inputs and hands them to the Pearson computation, so the arguments mean what they
+    mean for ``pearson_r``.
+
+    Three limitations, none of which raises:
+
+    * Ranks are taken along the first dimension, not the sample dimension, so a batched
+      ``(*, n_samples, n_features)`` input is ranked across batches and the result is not a
+      Spearman correlation. Only unbatched input is correct.
+    * Ties receive consecutive ordinal ranks rather than their average, so results differ from
+      the usual definition wherever values repeat.
+    * Ranks are cast to single precision, so a double-precision input returns single-precision
+      output.
+
+    Args:
+    ----
+        x: a tensor of shape (n_samples, n_features) or (n_samples,)
+        y: an optional tensor of the same shape, defaults to None
+        return_diagonal: when both x and y are specified and have equal n_features, returns only
+            the (n_features,) diagonal of the pairwise correlation matrix, defaults to True
+        correction: Bessel's correction
+        copy: whether to copy x and y (otherwise, values may be mutated)
+
+    Returns:
+    -------
+        Spearman correlation coefficients (n_features_x, n_features_y)
+
+    """
     rank_x = x.argsort(dim=0).argsort(dim=0).float()
 
     if y is not None:

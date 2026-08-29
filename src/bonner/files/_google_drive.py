@@ -5,10 +5,10 @@ import requests
 from bonner.files._utilities import prepare_filepath
 
 
-#: ⚠ The OLD endpoint (``docs.google.com/uc?export=download`` plus a ``download_warning`` cookie) is
-#: dead: measured 2026-08-16 it answers 303 -> 500 for a large file. Google's current large-file path
-#: is this host, and ``confirm=t`` clears the interstitial in one hop -- verified against a 2.5 GB
-#: file and against a 94 MB one whose bytes match an existing local copy exactly.
+#: Google Drive's large-file download host. The older ``docs.google.com/uc?export=download``
+#: endpoint, paired with a ``download_warning`` cookie, no longer serves large files — it redirects
+#: and then fails — so it must not be reinstated. Passing ``confirm=t`` to this host clears the
+#: virus-scan interstitial in a single request.
 _DOWNLOAD_URL = "https://drive.usercontent.google.com/download"
 
 
@@ -19,6 +19,28 @@ def download(
     chunk_size: int = 32_768,
     force: bool = True,
 ) -> Path:
+    """Download a file from Google Drive by its file id.
+
+    Streams to disk in chunks, so the file need not fit in memory. Drive gates large files behind
+    a virus-scan interstitial; both the direct confirmation and the cookie-based one are handled.
+
+    Args:
+    ----
+        file_id: the Drive file id
+        filepath: where to write the file
+        chunk_size: bytes per streamed chunk
+        force: re-download and overwrite even when the destination already exists
+
+    Returns:
+    -------
+        the path written to
+
+    Raises:
+    ------
+        RuntimeError: if Drive serves the interstitial page instead of the file, which usually
+            means the file is permission-gated
+
+    """
     existed = filepath.exists()
     filepath = prepare_filepath(filepath=filepath, force=force)
     if existed and not force:
@@ -34,8 +56,9 @@ def download(
         response = session.get(_DOWNLOAD_URL, params=params, stream=True)
     response.raise_for_status()
 
-    # ⚠⚠ The characteristic Drive failure is a 200 carrying the interstitial HTML, which lands on
-    # disk as a plausible-looking file and only fails much later at `torch.load`. Fail here instead.
+    # Drive signals refusal with a 200 carrying the interstitial HTML, so the status code alone
+    # cannot detect it: without this check the page is written out as a plausible-looking file and
+    # the failure surfaces much later, wherever that file is first parsed.
     content_type = response.headers.get("content-type", "")
     if content_type.startswith("text/html"):
         msg = (

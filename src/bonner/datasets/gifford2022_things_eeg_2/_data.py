@@ -135,6 +135,15 @@ def _download_figshare_article(article_id, save_path, use_cached=True):
             unzip(CACHE_PATH / file_name, extract_dir=save_path)
 
 def download_dataset(preprocess_type: str = "preprocessed", rois: str = "op"):
+    """Download the dataset into the local cache.
+
+    Args:
+    ----
+        preprocess_type: which release to fetch — the authors' preprocessed epochs, or the raw
+            recordings that ``load_preprocessed_data`` can re-epoch itself
+        rois: which channel selection to fetch
+
+    """
     match preprocess_type:
         case "preprocessed":
             uses_old_data, _ = _roi_config(rois)
@@ -161,11 +170,25 @@ def download_dataset(preprocess_type: str = "preprocessed", rois: str = "op"):
             raise ValueError(f"Invalid data type: {preprocess_type}")
  
 def load_metadata(data_type: str = "train",) -> pd.DataFrame:
+    """Load the stimulus metadata: image filenames and the object concept each depicts.
+
+    Args:
+    ----
+        data_type: ``"train"``, ``"test"``, or ``"all"`` to concatenate both in the order the
+            response arrays use
+
+    Returns:
+    -------
+        one row per image
+
+    """
     if data_type == "all":
-        # important order of test and then train
+        # Test before train: the concatenated index must match the order the epoched data
+        # is stored in, so swapping these silently misaligns metadata against responses.
         return pd.concat([load_metadata("test"), load_metadata("train")], axis=0).reset_index(drop=True)
     else:
-        # TEMP: OSF connection error
+        # Kept, disabled, as the only in-repo record of how the image cache below is
+        # populated: the load beneath it reads exactly what this call would have written.
         # _download_osf_project(
         #     project_id=PROJECT_ID_DICT["images"],
         #     save_path=CACHE_PATH / "images"
@@ -180,7 +203,21 @@ def load_metadata(data_type: str = "train",) -> pd.DataFrame:
         return df
     
 def load_stimuli(data_type: str = "train", batch_size: int = 256, idx: int = None) -> xr.DataArray:
-    # TEMP: OSF connection error
+    """Load the stimulus images, either all of them or a single one.
+
+    Args:
+    ----
+        data_type: ``"train"``, ``"test"``, or ``"all"``
+        batch_size: images loaded per batch when reading the whole set
+        idx: return only this image, skipping the batched read
+
+    Returns:
+    -------
+        images, with a ``stimulus`` dimension carrying the filenames
+
+    """
+    # Kept, disabled, as the only in-repo record of how the image cache below is populated:
+    # the loader beneath it reads exactly what this call would have written.
     # _download_osf_project(
     #     project_id=PROJECT_ID_DICT["images"],
     #     save_path=CACHE_PATH / "images"
@@ -219,6 +256,12 @@ def load_stimuli(data_type: str = "train", batch_size: int = 256, idx: int = Non
         )
     
 class StimulusSet(MapDataPipe):
+    """Indexable view of the stimulus images, yielding one PIL image per index.
+
+    Pairs with the response loaders: index ``i`` here is the image described by row ``i`` of
+    ``load_metadata`` for the same ``data_type``.
+    """
+
     def __init__(self, data_type: str) -> None:
         self.data_type = data_type
         self.identifier = f"{IDENTIFIER}.{data_type}"
@@ -233,12 +276,49 @@ class StimulusSet(MapDataPipe):
         return len(self.metadata)
 
 def baseline_correction(epochs, baseline):
+    """Baseline-correct epochs by subtracting each channel's mean over the baseline interval.
+
+    Args:
+    ----
+        epochs: the epochs to correct
+        baseline: the interval to take the mean over
+
+    Returns:
+    -------
+        the corrected epochs
+
+    """
     baselined_epochs = mne.baseline.rescale(data=epochs.get_data(copy=False), times=epochs.times, baseline=baseline, mode='mean', copy=False, verbose=False)
     epochs = mne.EpochsArray(baselined_epochs, epochs.info, epochs.events, epochs.tmin, event_id=epochs.event_id, verbose=False)
     return epochs
 
-### adapted from things eeg 2 ###
 def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin, tmax, baseline, tfr_n_bin, band_stop_n_bin, band_stop, rois, shuffle_reps=True):
+    """Epoch and preprocess one subject's raw recordings, session by session.
+
+    Sessions are processed independently and concatenated, with repetitions of each image
+    gathered together so the result is indexed by image rather than by presentation.
+
+    Args:
+    ----
+        subject: subject number
+        data_type: ``"train"`` or ``"test"``
+        downsample_freq: target sampling rate
+        l_freq: high-pass cutoff
+        h_freq: low-pass cutoff
+        tmin: epoch start relative to stimulus onset, in seconds
+        tmax: epoch end relative to stimulus onset, in seconds
+        baseline: interval to baseline-correct against, or ``None`` for none
+        tfr_n_bin: number of frequency bins, if a time-frequency representation is wanted
+        band_stop_n_bin: number of band-stop bins
+        band_stop: band to stop
+        rois: channel selection
+        shuffle_reps: shuffle repetitions of an image before they are stacked
+
+    Returns:
+    -------
+        the epoched responses, the image conditions, and the event tables
+
+    """
     epoched_data = []
     img_conditions = []
     events_list = []
@@ -260,7 +340,6 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
         if h_freq < H_FREQ:
             raw.filter(l_freq=None, h_freq=h_freq, verbose=False)
 
-        ### Get events, drop unused channels and reject target trials ###
         events = mne.find_events(raw, stim_channel='stim', verbose=False)
         
         match rois:
@@ -279,7 +358,6 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
         idx_target = np.where(events[:,2] == 99999)[0]
         events = np.delete(events, idx_target, 0)
 
-        ### Epoching, baseline correction and resampling ###
         epochs = mne.Epochs(raw, events, tmin=tmin, tmax=tmax, baseline=None, preload=True, verbose=False)
         if baseline:
             epochs = baseline_correction(epochs, baseline)
@@ -336,7 +414,6 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
         ch_names = epochs.info['ch_names']
         times = epochs.times
 
-        ### Sort the data ###
         events = epochs.events[:,2]
         events_list.append(events)
         img_cond = np.unique(events)
@@ -359,7 +436,8 @@ def run_preprocessing(subject, data_type, downsample_freq, l_freq, h_freq, tmin,
             epoched_data.append(sorted_data)
             del sorted_data
         else:
-            # TODO: concatenation issue
+            # Unreachable by design. This branch mis-handles the concatenation and is kept
+            # only to show the intended shape; the assertion stops a caller reaching it.
             assert False
             max_rep = 2
             if session % 2 == 1:
@@ -413,6 +491,34 @@ def load_preprocessed_data(
     shuffle: bool = True,
     **kwargs,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
+    """Load one subject's epoched responses, with the event table describing them.
+
+    By default this reads the authors' preprocessed release. Set ``from_raw`` to re-epoch the raw
+    recordings instead, which is what makes the filtering and epoching arguments below take
+    effect — against the preprocessed release they are fixed at whatever the authors chose.
+
+    Args:
+    ----
+        subject: subject number
+        data_type: ``"train"`` or ``"test"``
+        from_raw: re-epoch the raw recordings rather than reading the preprocessed release
+        downsample_freq: target sampling rate
+        l_freq: high-pass cutoff
+        h_freq: low-pass cutoff
+        tmin: epoch start relative to stimulus onset, in seconds
+        tmax: epoch end relative to stimulus onset, in seconds
+        baseline: interval to baseline-correct against, or ``None`` for none
+        tfr_n_bin: number of frequency bins, if a time-frequency representation is wanted
+        band_stop_n_bin: number of band-stop bins
+        band_stop: band to stop
+        rois: channel selection
+        shuffle: shuffle repetitions of an image before they are stacked
+
+    Returns:
+    -------
+        the responses and the event table describing the presentations they came from
+
+    """
     if tfr_n_bin is not None or band_stop_n_bin is not None or band_stop is not None:
         assert from_raw
 
@@ -462,6 +568,20 @@ def load_preprocessed_data(
     return data
 
 def load_events_list(subject, data_type, exclude_target):
+    """Load the per-session event tables describing what was presented and when.
+
+    Args:
+    ----
+        subject: subject number
+        data_type: ``"train"`` or ``"test"``
+        exclude_target: drop the target trials of the oddball task, keeping only the stimuli
+            the participant was not responding to
+
+    Returns:
+    -------
+        one event table per session
+
+    """
     events_list = []
     for session in range(1, N_SESSIONS+1):
         raw_path = CACHE_PATH / "raw" / f"sub-{subject:02d}" / f"ses-{session:02d}" / f"raw_eeg_{TYPE_DICT[data_type]}.npy"

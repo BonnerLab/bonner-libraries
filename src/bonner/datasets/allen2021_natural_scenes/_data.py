@@ -61,6 +61,22 @@ def load_brain_mask(*, subject: int, resolution: str) -> xr.DataArray:
 
 
 def load_validity(*, subject: int, resolution: str) -> xr.DataArray:
+    """Load the per-session mask of voxels with valid data for one subject.
+
+    Coverage varies between sessions, so the mask carries a ``session`` dimension rather than
+    being a single volume; the population-receptive-field and functional-localizer scans are
+    included alongside the numbered sessions.
+
+    Args:
+    ----
+        subject: subject ID
+        resolution: "1pt8mm" or "1mm"
+
+    Returns:
+    -------
+        boolean validity masks, with a ``session`` dimension
+
+    """
     validity = []
     n_sessions = N_SESSIONS[subject]
 
