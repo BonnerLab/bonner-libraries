@@ -3,7 +3,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import os
-import mne
 import numpy as np
 import pandas as pd
 import xarray as xr
