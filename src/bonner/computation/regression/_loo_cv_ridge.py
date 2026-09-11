@@ -37,6 +37,14 @@ term in ``1 / penalty``, which is a subtraction of two nearly equal large number
 penalty and undefined at zero -- and zero is where the fractional route's unregularized end
 lands.
 
+Within the hat-matrix form, both halves are accumulated from the shrinkage's complement
+rather than from the shrinkage itself, so neither is a difference of nearly equal numbers at
+any point on the grid. That is what makes the candidate sweep safe to run at a narrower
+precision than the decomposition, which ``selection_dtype`` exists to do: the sweep is the
+part whose cost grows with the candidate and target counts, while every step that amplifies
+error -- the decomposition, the rank filter, the unregularized solution -- is outside it and
+is paid once.
+
 An intercept enters as an extra unpenalized direction of the design rather than by centering
 alone. Centering the design and fitting without an intercept makes the leave-one-out error an
 approximation, because holding a sample out also moves the means it was centred by: the error
@@ -85,12 +93,21 @@ class RidgeGCV(Regression):
         alpha_per_target: bool = True,
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
         dtype: torch.dtype | None = None,
+        selection_dtype: torch.dtype | None = None,
     ) -> None:
         """Fit ridge regression, choosing the penalty by leave-one-out cross-validation.
 
         Every candidate is scored from a single decomposition of the design, so the sweep
         costs one decomposition rather than one fit per candidate, and the leave-one-out
         errors are obtained in closed form rather than by refitting.
+
+        That trade relocates the cost rather than removing it. Scoring one candidate contracts
+        the decomposition against every target, so the sweep costs a multiple of the
+        candidate count and the target count, and it outgrows the decomposition it replaced
+        wherever there are many targets -- which is the regime an encoding model over voxels
+        is in. ``selection_dtype`` is the lever for that: the sweep contracts only
+        non-negative or orthogonal quantities, so it can run narrower than the decomposition
+        without the coefficients or the selected penalties inheriting the narrower dtype.
 
         Args:
         ----
@@ -105,6 +122,11 @@ class RidgeGCV(Regression):
                 construction even when every target requests the same fraction
             device: device to fit on
             dtype: cast inputs to this dtype before fitting; ``None`` keeps theirs
+            selection_dtype: dtype the candidate sweep contracts in; ``None`` uses ``dtype``.
+                The decomposition, the rank filter, the unregularized solution and the
+                coefficients are unaffected by it, so it trades precision only in the
+                comparison between candidates -- where a difference smaller than the narrower
+                dtype resolves is a difference between two penalties that fit alike
 
         """
         if l2_penalties is not None and fractions is not None:
@@ -130,6 +152,7 @@ class RidgeGCV(Regression):
         self.alpha_per_target = alpha_per_target
         self.device: torch.device | str = device
         self.dtype = dtype
+        self.selection_dtype = selection_dtype
 
         self.coefficients: torch.Tensor | None = None
         self.intercept: torch.Tensor | None = None
@@ -238,23 +261,55 @@ class RidgeGCV(Regression):
         )
         return torch.expm1(log_penalties)
 
+    @staticmethod
     def _score(
-        self: Self,
-        shrinkage: torch.Tensor,
+        complement: torch.Tensor,
         u: torch.Tensor,
+        u_squared: torch.Tensor,
         ut_y: torch.Tensor,
-        y: torch.Tensor,
+        y_residual: torch.Tensor,
+        deficiency: torch.Tensor,
+        floor: float,
     ) -> torch.Tensor:
         """Negated mean squared leave-one-out error per target, for one candidate.
 
-        ``shrinkage`` is ``(rank, targets)``. Negated so that larger is better, matching how
-        the selection below reads it.
+        ``complement`` is ``1 - shrinkage``, that is ``penalty / (singular_value**2 +
+        penalty)``, shaped ``(rank, targets)``. Negated so that larger is better, matching how
+        the selection reads it.
+
+        Both halves of the leave-one-out residual are written so that nothing here subtracts
+        two nearly equal numbers, which is what lets the sweep run at a narrower precision
+        than the decomposition that fed it:
+
+        - the numerator is the part of the target outside the design's column space plus the
+          part inside it that the shrinkage did not fit. Those two are orthogonal, so their
+          sum cannot cancel;
+        - the denominator is the row's own rank deficiency plus its unfitted leverage, and
+          both terms are non-negative.
+
+        The equivalent direct forms, ``y - u @ (shrinkage * ut_y)`` and ``1 - (u**2) @
+        shrinkage``, are algebraically identical and lose their leading digits exactly where
+        the fit interpolates -- which is where the unregularized end of a fractional grid
+        lands. ``y_residual``, ``deficiency`` and ``u_squared`` do not depend on the candidate
+        and are computed once by the caller.
+
+        The final reduction is the one accumulation here whose length grows with the sample
+        count, and it runs in whatever dtype the arguments arrive in. Its terms are squares,
+        so it cannot cancel, but a caller narrowing the sweep is narrowing this sum too and
+        should read a score difference below that dtype's resolution as a tie rather than an
+        ordering.
+
+        ``floor`` is a property of the precision the design was decomposed at and must not be
+        derived from the dtype this runs in. A design with as many retained directions as
+        samples interpolates at zero penalty, where the denominator is exactly zero and the
+        numerator is rounding: the ratio is then set entirely by the floor, so a floor taken
+        from a narrower dtype makes the unregularized end of the grid look like a perfect fit
+        and every target selects it. The failure is silent, because selecting the least
+        regularized candidate is a thing a working solver also does.
         """
-        predicted = u @ (shrinkage * ut_y)
-        leverage = (u**2) @ shrinkage
-        residual = (y - predicted) / (1.0 - leverage).clamp_min(
-            torch.finfo(y.dtype).eps
-        )
+        numerator = y_residual + u @ (complement * ut_y)
+        denominator = deficiency[:, None] + u_squared @ complement
+        residual = numerator / denominator.clamp_min(floor)
         return -(residual**2).mean(dim=0)
 
     def fit(self: Self, x: torch.Tensor, y: torch.Tensor) -> None:
@@ -318,17 +373,41 @@ class RidgeGCV(Regression):
                 self.l2_penalties, device=x.device, dtype=x.dtype
             )[:, None].expand(-1, n_targets)
 
-        best_score = torch.full((n_targets,), -float("inf"), dtype=y.dtype, device=x.device)
-        best_shrinkage = torch.zeros(
-            singular_values.numel(), n_targets, dtype=x.dtype, device=x.device
+        # Everything the sweep needs that does not depend on the candidate. The two
+        # differences live here, are taken once, and are taken at the fitting precision.
+        u_squared = u**2
+        deficiency = (1.0 - u_squared.sum(dim=1)).clamp_min(0.0)
+        y_residual = y - u @ ut_y
+
+        selection_dtype = x.dtype if self.selection_dtype is None else self.selection_dtype
+        u_s = u.to(selection_dtype)
+        u_squared_s = u_squared.to(selection_dtype)
+        ut_y_s = ut_y.to(selection_dtype)
+        y_residual_s = y_residual.to(selection_dtype)
+        deficiency_s = deficiency.to(selection_dtype)
+
+        best_score = torch.full(
+            (n_targets,), -float("inf"), dtype=selection_dtype, device=x.device
         )
         best_index = torch.zeros(n_targets, dtype=torch.long, device=x.device)
         scores = []
         for index in range(penalties.shape[0]):
-            shrinkage = squared[:, None] / (squared[:, None] + penalties[index][None, :])
+            # Formed by division rather than as ``1 - shrinkage``, and at the fitting
+            # precision, so that the quantity the sweep contracts is exact at both ends of
+            # the grid. It is bounded to [0, 1], so narrowing it afterwards cannot overflow.
+            candidate = penalties[index][None, :]
+            complement = candidate / (squared[:, None] + candidate)
             if intercept_direction >= 0:
-                shrinkage[intercept_direction] = 1.0
-            score = self._score(shrinkage, u, ut_y, y)
+                complement[intercept_direction] = 0.0
+            score = self._score(
+                complement.to(selection_dtype),
+                u_s,
+                u_squared_s,
+                ut_y_s,
+                y_residual_s,
+                deficiency_s,
+                float(torch.finfo(x.dtype).eps),
+            )
             scores.append(score)
             if self.alpha_per_target or self.fractions is not None:
                 better = score > best_score
@@ -337,14 +416,20 @@ class RidgeGCV(Regression):
                 # means and its outcome is the same for each: expanded rather than per target.
                 better = (score.mean() > best_score.mean()).expand(n_targets)
             best_score = torch.where(better, score, best_score)
-            best_shrinkage = torch.where(better[None, :], shrinkage, best_shrinkage)
             best_index = torch.where(better, index, best_index)
 
-        self.loo_errors = torch.stack(scores)
+        self.loo_errors = torch.stack(scores).to(y.dtype)
         self.alpha_ = penalties[best_index, torch.arange(n_targets, device=x.device)]
         if self.fractions is not None:
             requested = torch.as_tensor(self.fractions, device=x.device, dtype=x.dtype)
             self.fraction_ = requested[best_index]
+
+        # Rebuilt once from the selected penalties rather than carried through the sweep, so
+        # that the coefficients are a function of the fitting precision alone however the
+        # selection above was run.
+        best_shrinkage = squared[:, None] / (squared[:, None] + self.alpha_[None, :])
+        if intercept_direction >= 0:
+            best_shrinkage[intercept_direction] = 1.0
 
         unregularized = ut_y / singular_values[:, None]
         rotated = best_shrinkage * unregularized
